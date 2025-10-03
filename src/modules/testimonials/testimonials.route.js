@@ -5,7 +5,7 @@ const { protect, authorize } = require('../../middlewares/auth');
 const router = express.Router();
 
 // Public routes
-router.get('/public', Controller.getPublicTestimonials);
+router.get('/public/get-all', Controller.getPublicTestimonials);
 
 // Admin routes
 router.use(protect);
