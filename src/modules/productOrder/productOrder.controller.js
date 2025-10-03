@@ -26,7 +26,7 @@ exports.createProductOrder = asyncHandler(async (req, res) => {
 
       coupon = await Coupon.findOne({ _id: couponId, isDeleted: false });
       if (!coupon) {
-        throw new Error('Coupon not found');
+        return res.ok([], 'Coupon not found');
       }
 
       if (!coupon.isActive) {
@@ -81,7 +81,7 @@ exports.createProductOrder = asyncHandler(async (req, res) => {
 
     for (const item of items) {
       const product = await Product.findById(item.product).populate('category', 'name').populate('subcategory', 'name').session(session);
-
+      console.log(product._id);
       if (!product || !product.isActive) {
         throw new Error(`Product not found: ${item.product}`);
       }
@@ -128,7 +128,7 @@ exports.createProductOrder = asyncHandler(async (req, res) => {
       finalAmount,
       payingAmount: finalAmount + (coupon ? coupon.discount : 0),
       isCoupon: coupon ? true : false,
-      coupon: coupon._id,
+      coupon: coupon ? coupon._id : null,
       amount: {
         currency: 'INR',
         gst,
