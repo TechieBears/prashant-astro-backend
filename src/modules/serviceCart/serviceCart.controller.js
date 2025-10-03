@@ -207,6 +207,7 @@ exports.getCart = asyncHandler(async (req, res) => {
                 null
               ]
             },
+            cust: "$items.cust",
             date: "$items.date",
             startTime: "$items.startTime",
             endTime: "$items.endTime",
