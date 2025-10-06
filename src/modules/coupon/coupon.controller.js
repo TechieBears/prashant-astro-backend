@@ -72,7 +72,7 @@ exports.getAllActiveCoupons = asyncHandler(async (req, res, next) => {
         else if (couponType === 'products') filter.couponType = { $in: ['products', 'both'] };
         else filter.couponType = couponType;
     }
-    const coupons = await Coupon.find(filter).select("couponName couponCode discountIn discount ");
+    const coupons = await Coupon.find(filter).select("couponName couponCode discountIn discount activationDate expiryDate");
     if (!coupons) return res.ok([], 'No active coupons found');
     res.ok(coupons, 'Coupons fetched successfully');
 });
