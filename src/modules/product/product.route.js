@@ -10,6 +10,7 @@ router.get('/public/active', ProductController.getAllProducts);
 router.get('/public/filter', ProductController.getFilterData);
 router.get('/public/active-single', ProductController.getProductById);
 router.get('/public/our-products', ProductController.getOurProducts);
+get('/public/our-products/v2', ProductController.getOurProductshome);
 router.get('/public/featured', ProductController.getFeaturedProducts);
 router.get('/public/category/:categoryId', ProductController.getProductsByCategory);
 router.get('/public/subcategory/:subcategoryId', ProductController.getProductsBySubcategory);

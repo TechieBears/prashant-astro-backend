@@ -551,6 +551,14 @@ exports.getOurProducts = asyncHandler(async (req, res, next) => {
   res.ok(products, "Our Products fetched successfully");
 });
 
+exports.getOurProductshome = asyncHandler(async (req, res, next) => {
+  const products = await Product.find({ isDeleted: false, isActive: true }).sort({ createdAt: -1 }).limit(5).select('-__v -isActive -isDeleted -createdBy -updatedBy');
+
+  if (!products) return next(new Errorhander("Products not found", 404));
+
+  res.ok(products, "Our Products fetched successfully");
+});
+
 exports.getFilterData = asyncHandler(async (req, res, next) => {
   const categories = await Category.aggregate([
     { $match: { isActive: true, isDeleted: false } },

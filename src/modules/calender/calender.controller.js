@@ -268,7 +268,8 @@ exports.superAdminSlots = asyncHandler(async (req, res, next) => {
                     paymentStatus: 1,
                     status: 1,
                     customer: { $concat: ["$custData.firstName", " ", "$custData.lastName"] },
-                    slot_booked: true
+                    slot_booked: true,
+                    blocked: { $eq: ["$status", "blocked"] }
                 }
             }
         ]);
@@ -430,6 +431,36 @@ exports.astrologerSlots = asyncHandler(async (req, res, next) => {
         }
 
         res.ok({ bookings, date: { start: req.query.sdate, end: req.query.edate }, time: { start: minStartTime, end: maxEndTime } });
+    } catch (error) {
+        console.debug("🚀 ~ error:", error);
+        next(new Errorhander(error.message, 500));
+    }
+});
+
+// @desc Admin block slot
+// @route POST /api/calender/admin-block-slots
+// @access Private (admin)
+exports.AdminblockSlot = asyncHandler(async (req, res, next) => {
+    try {
+        const { astrologer_id, date, start_time, end_time, snapshot, blocked_by } = req.body;
+        console.log("🚀 ~ astrologer_id:", astrologer_id);
+        const astrologer = await User.findById(astrologer_id);
+        if (!astrologer) {
+            res.status(404);
+            throw new Error("Astrologer not found");
+        }
+        const booking = await ServiceOrderItem.create({
+            astrologer: astrologer_id,
+            bookingDate: date,
+            startTime: start_time,
+            endTime: end_time,
+            status: "blocked",
+            total: 0,
+            snapshot: snapshot,
+            service: null,
+            customerId: blocked_by
+        });
+        res.ok(booking, "Booking created successfully");
     } catch (error) {
         console.debug("🚀 ~ error:", error);
         next(new Errorhander(error.message, 500));

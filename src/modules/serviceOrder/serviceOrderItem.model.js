@@ -1,39 +1,38 @@
 const mongoose = require('mongoose');
 
 const serviceItemSchema = new mongoose.Schema({
-    customerId:{
+    customerId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
         required: true
     },
-    cust:{
-        firstName:{
+    cust: {
+        firstName: {
             type: String,
         },
-        lastName:{
+        lastName: {
             type: String,
         },
-        email:{
+        email: {
             type: String,
         },
-        phone:{
+        phone: {
             type: String,
         }
     },
-    orderId:{
+    orderId: {
         type: String
     },
-    service:{
+    service: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Service',
-        required: true
+        ref: 'Service'
     },
-    astrologer:{
+    astrologer: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
     },
-    snapshot:{
-        price:{
+    snapshot: {
+        price: {
             type: Number,
             required: true
         },
@@ -42,45 +41,45 @@ const serviceItemSchema = new mongoose.Schema({
             required: true
         }
     },
-    startTime:{
+    startTime: {
         type: String,
     },
-    endTime:{
+    endTime: {
         type: String,
     },
-    bookingDate:{
+    bookingDate: {
         type: String,
     },
-    serviceType:{
+    serviceType: {
         type: String,
         enum: ['online', 'pandit_center', 'pooja_at_home'],
     },
-    total:{
+    total: {
         type: Number,
         required: true
     },
-    astrologerStatus:{
+    astrologerStatus: {
         type: String,
         enum: ['pending', 'accepted', 'rejected'],
         default: 'pending'
     },
-    rejectReason:{
+    rejectReason: {
         type: String
     },
-    paymentStatus:{
+    paymentStatus: {
         type: String,
         enum: ['pending', 'paid', 'cancelled', 'refunded', 'failed'],
         default: 'pending'
     },
     // booking status
-    status:{
+    status: {
         type: String,
         enum: ['pending', 'paid', 'cancelled', 'refunded', 'blocked', 'released'],
         default: 'pending'
     },
-    zoomLink:{
+    zoomLink: {
         type: String
     }
-});
+}, { timestamps: true });
 
 module.exports = mongoose.model('ServiceOrderItem', serviceItemSchema);

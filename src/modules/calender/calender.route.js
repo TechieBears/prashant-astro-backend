@@ -9,5 +9,6 @@ router.post('/check-availability', protect, authorize("customer"), CalenderContr
 router.get('/admin-slots', protect, authorize("admin", "customer", "employee"), CalenderController.superAdminSlots);
 router.get('/min-max-time', protect, authorize("admin", "customer", "employee"), CalenderController.getMinMaxTime);
 router.get('/astrologer-slots', protect, authorize("admin", "customer", "employee"), CalenderController.astrologerSlots);
+router.post('/admin-block-slots', protect, authorize("admin", "employee", "astrologer"), CalenderController.AdminblockSlot);
 
 module.exports = router;
