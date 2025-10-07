@@ -140,24 +140,31 @@ exports.checkAvailability = asyncHandler(async (req, res, next) => {
             }
         }
         intervals.forEach((interval) => {
+            let flag = false;
+
             const bookedStatus = bookingData.find((booking) => {
-                //all times are in HH:mm format
-                const startTime = moment(booking.startTime, 'HH:mm');
-                const endTime = moment(booking.endTime, 'HH:mm');
-                const intervalStart = moment(interval.display_time, 'HH:mm');
-                const intervalEnd = moment(interval.service_end_time, 'HH:mm');
-                return intervalStart.isBetween(startTime, endTime) || intervalEnd.isBetween(startTime, endTime);
+                const startTime = moment(booking.startTime, "HH:mm");
+                const endTime = moment(booking.endTime, "HH:mm");
+                const intervalStart = moment(interval.display_time, "HH:mm");
+                const intervalEnd = moment(interval.display_end_time, "HH:mm"); // use display_end_time, not service_end_time
+
+                // overlap condition: (intervalStart < bookingEnd) && (intervalEnd > bookingStart)
+                return intervalStart.isBefore(endTime) && intervalEnd.isAfter(startTime);
             });
-            if (bookedStatus) {
-                interval.status = "booked";
+
+            if (moment(req.body.date).format("YYYY-MM-DD") == moment().format("YYYY-MM-DD")) {
+                if (moment().format("HH:mm") > moment(interval.display_time, "HH:mm").format("HH:mm")) {
+                    flag = true;
+                }
             }
+
             timeSlots.push({
                 ...interval,
-                booked: bookedStatus ? true : false,
-                status: bookedStatus ? "unavailable" : "available"
-            })
+                booked: !!bookedStatus,
+                status: bookedStatus ? "unavailable" : "available",
+                disabled: flag
+            });
         });
-
 
         if (bookingMinutes) {
             // Compute is_available based on bookingMinutes and consecutive contiguous availability
@@ -344,6 +351,7 @@ exports.astrologerSlots = asyncHandler(async (req, res, next) => {
     try {
         const { day } = req.query;
         const astrologerId = req.query.astrologerId;
+        console.log("🚀 ~ astrologerId:", astrologerId);
         let startDate = req.query.sdate;
         let endDate = req.query.edate;
         if (!startDate || !endDate || startDate === "" || endDate === "" || !astrologerId || astrologerId === "") {
@@ -357,7 +365,6 @@ exports.astrologerSlots = asyncHandler(async (req, res, next) => {
         }
 
         // Fetch bookings
-        console.log("🚀 ~ astrologerId:", astrologerId);
         const bookings = await ServiceOrderItem.aggregate([
             {
                 $match: {
@@ -390,7 +397,7 @@ exports.astrologerSlots = asyncHandler(async (req, res, next) => {
                     _id: 1,
                     startTime: 1,
                     endTime: 1,
-                    bookingDate: 1,
+                    date: "$bookingDate",
                     astrologer: 1,
                     astrologerStatus: 1,
                     paymentStatus: 1,
