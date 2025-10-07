@@ -278,7 +278,8 @@ exports.superAdminSlots = asyncHandler(async (req, res, next) => {
                     status: 1,
                     customer: { $concat: ["$custData.firstName", " ", "$custData.lastName"] },
                     slot_booked: true,
-                    blocked: { $eq: ["$status", "blocked"] }
+                    blocked: { $eq: ["$status", "blocked"] },
+                    rejectReason: 1
                 }
             }
         ]);
@@ -405,7 +406,8 @@ exports.astrologerSlots = asyncHandler(async (req, res, next) => {
                     paymentStatus: 1,
                     status: 1,
                     customer: { $concat: ["$custData.firstName", " ", "$custData.lastName"] },
-                    slot_booked: true
+                    slot_booked: true,
+                    rejectReason: 1
                 }
             }
         ]);
@@ -451,8 +453,7 @@ exports.astrologerSlots = asyncHandler(async (req, res, next) => {
 // @access Private (admin)
 exports.AdminblockSlot = asyncHandler(async (req, res, next) => {
     try {
-        const { astrologer_id, date, start_time, end_time, snapshot, blocked_by } = req.body;
-        console.log("🚀 ~ astrologer_id:", astrologer_id);
+        const { astrologer_id, date, start_time, end_time, snapshot, blocked_by, rejectReason } = req.body;
         const astrologer = await User.findById(astrologer_id);
         if (!astrologer) {
             res.status(404);
@@ -467,7 +468,8 @@ exports.AdminblockSlot = asyncHandler(async (req, res, next) => {
             total: 0,
             snapshot: snapshot,
             service: null,
-            customerId: blocked_by
+            customerId: blocked_by,
+            rejectReason: rejectReason
         });
         res.ok(booking, "Booking created successfully");
     } catch (error) {
