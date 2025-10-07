@@ -156,7 +156,7 @@ exports.updateCustomerUser = asyncHandler(async (req, res) => {
 // @route   PUT /api/customer/admin-update
 // @access  Private/Admin
 exports.adminUpdateCustomerUser = asyncHandler(async (req, res, next) => {
-    const customerId = req.body.id;
+    const customerId = req.query.id;
     if (!customerId) return next(new ErrorHander("Please provide customer id", 400));
     
     const customer = await CustomerUser.findById(customerId);
