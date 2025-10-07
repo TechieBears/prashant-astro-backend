@@ -130,7 +130,8 @@ exports.checkAvailability = asyncHandler(async (req, res, next) => {
                 { status: "paid" },
                 { status: "blocked" },
                 { status: "pending" },
-            ]
+            ],
+            astrologerStatus: { $in: ["accepted", "pending"] }
         });
 
         if (bookingData.length > 0) {
@@ -242,7 +243,8 @@ exports.superAdminSlots = asyncHandler(async (req, res, next) => {
             {
                 $match: {
                     bookingDate: date,
-                    status: { $nin: ["cancelled", "refunded", "released"] }
+                    status: { $nin: ["cancelled", "refunded", "released"] },
+                    astrologerStatus: { $in: ["accepted", "pending"] }
                 }
             },
             {
@@ -369,7 +371,8 @@ exports.astrologerSlots = asyncHandler(async (req, res, next) => {
                 $match: {
                     bookingDate: { $gte: startDate, $lte: endDate },
                     astrologer: new mongoose.Types.ObjectId(astrologerId),
-                    status: { $nin: ["cancelled", "refunded", "released"] }
+                    status: { $nin: ["cancelled", "refunded", "released"] },
+                    astrologerStatus: { $in: ["accepted", "pending"] }
                 }
             },
             {
