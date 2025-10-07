@@ -166,7 +166,7 @@ exports.adminUpdateCustomerUser = asyncHandler(async (req, res, next) => {
     if (!user) return next(new ErrorHander("Linked user not found", 404));
     
     // Update profile fields
-    const { firstName, lastName, title, profileImage, email, phone, isActive } = req.body;
+    const { firstName, lastName, title, profileImage, email, phone, isActive, isDeleted } = req.body;
     
     if (firstName !== undefined) customer.firstName = firstName;
     if (lastName !== undefined) customer.lastName = lastName;
