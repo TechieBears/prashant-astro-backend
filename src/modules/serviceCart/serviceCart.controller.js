@@ -76,8 +76,8 @@ exports.addToCart = asyncHandler(async (req, res) => {
     const existingItem = cart.items.find(
       (item) =>
         item.service.toString() === service._id.toString() &&
-        String(item.astrologer) === String(astrologer?._id || '') &&
         item.serviceMode === serviceMode &&
+        String(item.astrologer) === String(astrologer?._id || '') &&
         String(item.startTime || '') === String(startTime || '') &&
         String(item.endTime || '') === String(endTime || '') &&
         String(item.date || '') === String(date || '')
@@ -96,6 +96,12 @@ exports.addToCart = asyncHandler(async (req, res) => {
         date,
         quantity,
         totalPrice: quantity * (service.price || 0),
+        cust: {
+          firstName,
+          lastName,
+          email,
+          phone,
+        },
       });
     }
 
