@@ -235,6 +235,7 @@ exports.updateEmployeeUser = asyncHandler(async (req, res, next) => {
 
     // Update user fields
     if (mobileNo) user.mobileNo = mobileNo;
+    if (profileImage) user.profileImage = profileImage;
     await user.save();
 
     res.ok(sendUser(user, user.profile), "Employee updated successfully");

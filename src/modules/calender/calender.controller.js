@@ -351,7 +351,6 @@ exports.astrologerSlots = asyncHandler(async (req, res, next) => {
     try {
         const { day } = req.query;
         const astrologerId = req.query.astrologerId;
-        console.log("🚀 ~ astrologerId:", astrologerId);
         let startDate = req.query.sdate;
         let endDate = req.query.edate;
         if (!startDate || !endDate || startDate === "" || endDate === "" || !astrologerId || astrologerId === "") {
