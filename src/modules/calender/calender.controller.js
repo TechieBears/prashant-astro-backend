@@ -407,6 +407,7 @@ exports.astrologerSlots = asyncHandler(async (req, res, next) => {
                     status: 1,
                     customer: { $concat: ["$custData.firstName", " ", "$custData.lastName"] },
                     slot_booked: true,
+                    blocked: { $eq: ["$status", "blocked"] },
                     rejectReason: 1
                 }
             }
