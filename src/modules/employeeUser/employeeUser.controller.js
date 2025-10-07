@@ -235,23 +235,6 @@ exports.updateEmployeeUser = asyncHandler(async (req, res, next) => {
   const updatedUser = await User.findById(id).populate("profile");
 
   res.ok(sendUser(updatedUser, updatedUser.profile), "Employee updated successfully");
-    // Find user + profile
-    // const user = await User.findOne({ profile: id, role: "employee" }).populate("profile");
-    const user = await User.findById(id).populate("profile");
-    if (!user) return next(new ErrorHander("Employee not found", 404));
-
-    const { firstName, lastName, mobileNo, profileImage, skills, languages, experience, startTime, endTime, days, preBooking } = req.body;
-
-    // Update profile
-    Object.assign(user.profile, { firstName, lastName, profileImage, skills, languages, experience, startTime, endTime, days, preBooking });
-    await user.profile.save();
-
-    // Update user fields
-    if (mobileNo) user.mobileNo = mobileNo;
-    if (profileImage) user.profileImage = profileImage;
-    await user.save();
-
-    res.ok(sendUser(user, user.profile), "Employee updated successfully");
 });
 
 // @desc    Delete employee user (soft delete)
