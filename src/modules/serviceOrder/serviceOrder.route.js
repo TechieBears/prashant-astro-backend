@@ -14,8 +14,8 @@ router.get('/item/get-single', protect, authorize('admin', 'employee'), serviceO
 // router.post('/update-order-status', protect, authorize('admin', "employee"), serviceOrderController.updateServiceOrder);
 
 // astrologer routes
-router.get('/astrologer/get-all', protect, authorize('employee'), serviceOrderController.getAllServiceOrdersAstrologer);
-router.get('/astrologer/get-single', protect, authorize('employee'), serviceOrderController.getServiceOrderAstrologer);
-router.post('/astrologer/update-order-status', protect, authorize('employee'), serviceOrderController.updateServiceOrderAstrologer);
+router.get('/astrologer/get-all', protect, authorize('admin','employee'), serviceOrderController.getAllServiceOrdersAstrologer);
+router.get('/astrologer/get-single', protect, authorize('admin','employee'), serviceOrderController.getServiceOrderAstrologer);
+router.post('/astrologer/update-order-status', protect, authorize('admin','employee'), serviceOrderController.updateServiceOrderAstrologer);
 
 module.exports = router;
