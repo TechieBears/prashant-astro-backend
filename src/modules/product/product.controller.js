@@ -37,7 +37,7 @@ exports.createProduct = asyncHandler(async (req, res, next) => {
   }
 
   // Validate prices
-  if (sellingPrice > mrpPrice) {
+  if (Number(sellingPrice) > Number(mrpPrice)) {
     res.status(400);
     throw new Error('Selling price cannot be greater than MRP price');
   }

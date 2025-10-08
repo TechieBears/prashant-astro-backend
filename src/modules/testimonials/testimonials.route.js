@@ -6,6 +6,7 @@ const router = express.Router();
 
 // Public routes
 router.get('/public/get-all', Controller.getPublicTestimonials);
+router.get('/public/get-all-approved', Controller.getAllApprovedPublicTestimonials);
 
 // Admin routes
 router.use(protect);
@@ -15,7 +16,8 @@ router.get('/get-single', authorize('admin', 'employee'), Controller.getTestimon
 router.put('/update', authorize('admin', 'employee'), Controller.updateTestimonial);
 router.delete('/delete', authorize('admin', 'employee'), Controller.deleteTestimonial);
 router.put('/:id/active', authorize('admin', 'employee'), Controller.toggleActive);
-router.put('/:id/approval', authorize('admin', 'employee'), Controller.setApprovalStatus);
+router.put('/approval', authorize('admin', 'employee'), Controller.setApprovalStatus);
 router.put('/reorder', authorize('admin', 'employee'), Controller.reorderTestimonials);
+router.get('/filter', authorize('admin', 'employee', 'customer'), Controller.getTestimonialsFilter);
 
 module.exports = router;
