@@ -9,6 +9,7 @@ const sendUser = (user, profile) => ({
     _id: user._id,
     email: user.email,
     mobileNo: user.mobileNo,
+    profileImage: user.profileImage,
     role: user.role,
     isActive: user.isActive,
     createdAt: user.createdAt,
@@ -215,30 +216,25 @@ exports.resetPassword = asyncHandler(async (req, res, next) => {
     res.ok({ token: newToken, employee: sendUser(employee, employee.profile) }, "Password reset successfully");
 });
 
-// @desc    Update employee user
-// @route   PUT /api/employee-users/update?id=
-// @access  Private/Admin
+// @desc Update Employee User
+// @route PUT /api/employee/update?id=employeeId
+// @access Private/Admin
 exports.updateEmployeeUser = asyncHandler(async (req, res, next) => {
-    const id = req.query.id;
-    if (!id) return next(new ErrorHander("Please provide employee id", 400));
+  const { id } = req.query;
+  if (!id) return next(new ErrorHander("Please provide employee id", 400));
 
-    // Find user + profile
-    // const user = await User.findOne({ profile: id, role: "employee" }).populate("profile");
-    const user = await User.findById(id).populate("profile");
-    if (!user) return next(new ErrorHander("Employee not found", 404));
+  // 1️⃣ Find the user
+  const user = await User.findById(id);
+  if (!user) {
+    return next(new ErrorHander("Employee not found", 404));
+  }
 
-    const { firstName, lastName, mobileNo, profileImage, skills, languages, experience, startTime, endTime, days, preBooking } = req.body;
+  await EmployeeUser.findByIdAndUpdate(user.profile, req.body, { new: true });
+  await User.findByIdAndUpdate(id, req.body, { new: true });
 
-    // Update profile
-    Object.assign(user.profile, { firstName, lastName, profileImage, skills, languages, experience, startTime, endTime, days, preBooking });
-    await user.profile.save();
+  const updatedUser = await User.findById(id).populate("profile");
 
-    // Update user fields
-    if (mobileNo) user.mobileNo = mobileNo;
-    if (profileImage) user.profileImage = profileImage;
-    await user.save();
-
-    res.ok(sendUser(user, user.profile), "Employee updated successfully");
+  res.ok(sendUser(updatedUser, updatedUser.profile), "Employee updated successfully");
 });
 
 // @desc    Delete employee user (soft delete)
