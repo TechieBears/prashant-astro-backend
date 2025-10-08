@@ -13,7 +13,7 @@ router.use(protect);
 router.post('/create', authorize('admin', 'customer'), Controller.createTestimonial);
 router.get('/get-all', authorize('admin', 'employee', 'customer'), Controller.getAllTestimonials);
 router.get('/get-single', authorize('admin', 'employee'), Controller.getTestimonialById);
-router.put('/update', authorize('admin', 'employee'), Controller.updateTestimonial);
+router.put('/update', authorize('admin', 'employee', 'customer'), Controller.updateTestimonial);
 router.delete('/delete', authorize('admin', 'employee'), Controller.deleteTestimonial);
 router.put('/:id/active', authorize('admin', 'employee'), Controller.toggleActive);
 router.put('/approval', authorize('admin', 'employee'), Controller.setApprovalStatus);
