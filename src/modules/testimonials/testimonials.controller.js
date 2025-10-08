@@ -292,6 +292,10 @@ exports.getTestimonialsFilter = asyncHandler(async (req, res) => {
   if (req.query.user && req.query.user != '') {
     query.user_id = new mongoose.Types.ObjectId(req.query.user);
   }
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
+  const skip = (page - 1) * limit;
+
   const item = await Testimonial.aggregate([
     { $match: query },
     { $lookup: { from: 'users', localField: 'user_id', foreignField: '_id', as: 'user' } },
@@ -303,6 +307,8 @@ exports.getTestimonialsFilter = asyncHandler(async (req, res) => {
     { $lookup: { from: 'products', localField: 'product_id', foreignField: '_id', as: 'product' } },
     { $unwind: { path: '$product', preserveNullAndEmptyArrays: true } },
     { $sort: { createdAt: -1 } },
+    { $skip: skip },
+    { $limit: limit },
     { $project: { user: { mobileNo: 1, email: 1, profileImage: 1, firstName: '$customer.firstName', lastName: '$customer.lastName' }, service: { name: 1, title: 1 }, product: { name: 1 }, message: 1, rating: 1, isActive: 1, createdAt: 1 } },
   ])
   if (!item) {
