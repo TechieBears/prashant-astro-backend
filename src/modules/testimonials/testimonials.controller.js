@@ -32,12 +32,33 @@ exports.createTestimonial = asyncHandler(async (req, res) => {
 exports.getPublicTestimonials = asyncHandler(async (req, res) => {
   const limit = parseInt(req.query.limit) || 20;
 
-  const items = await Testimonial.find({ isActive: true })
+  const testimonials = await Testimonial.find({ isActive: true })
     .sort({ displayOrder: 1, createdAt: -1 })
-    .limit(limit);
+    .limit(limit)
+    .populate({
+      path: "user_id",
+      select: "email mobileNo profileImage role profile",
+      populate: {
+        path: "profile", // this will populate the actual 'customer' document
+        model: "customer",
+        select: "firstName lastName fullName gender title",
+      },
+    });
 
-  res.ok(items, 'Testimonials fetched successfully');
+  res.ok(testimonials, "Testimonials fetched successfully");
 });
+
+// @desc Get public single testimonial
+// @route GET /api/testimonials/public/get-all-active
+// @access Public
+exports.getAllApprovedPublicTestimonials = asyncHandler(async (req, res) => {
+  const item = await Testimonial.findById({ isActive: true, isApproved: true });
+  if (!item) {
+    res.status(404);
+    throw new Error('Testimonial not found');
+  }
+  res.ok(item, 'Testimonial fetched successfully');
+})
 
 // @desc Get all testimonials (admin)
 // @route GET /api/testimonials/get-all
@@ -243,6 +264,7 @@ exports.setApprovalStatus = asyncHandler(async (req, res) => {
 
   if (approvedValue) {
     item.isActive = true;
+    item.isApproved = approvedValue;
     // Allow explicit values from body, else fallback to authenticated user and current time
     const bodyApprovedBy = body.approved_by || body.approvedBy;
     const bodyApprovedAt = new Date();
@@ -256,4 +278,36 @@ exports.setApprovalStatus = asyncHandler(async (req, res) => {
 
   await item.save();
   res.ok(item, approvedValue ? 'Testimonial approved' : 'Testimonial disapproved');
+});
+
+exports.getTestimonialsFilter = asyncHandler(async (req, res) => {
+  const query = {};
+
+  if (req.query.product && req.query.product != '') {
+    query.product_id = new mongoose.Types.ObjectId(req.query.product);
+  }
+  if (req.query.service && req.query.service != '') {
+    query.service_id = new mongoose.Types.ObjectId(req.query.service);
+  }
+  if (req.query.user && req.query.user != '') {
+    query.user_id = new mongoose.Types.ObjectId(req.query.user);
+  }
+  const item = await Testimonial.aggregate([
+    { $match: query },
+    { $lookup: { from: 'users', localField: 'user_id', foreignField: '_id', as: 'user' } },
+    { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } },
+    { $lookup: { from: 'customers', localField: 'user.profile', foreignField: '_id', as: 'customer' } },
+    { $unwind: { path: '$customer', preserveNullAndEmptyArrays: true } },
+    { $lookup: { from: 'services', localField: 'service_id', foreignField: '_id', as: 'service' } },
+    { $unwind: { path: '$service', preserveNullAndEmptyArrays: true } },
+    { $lookup: { from: 'products', localField: 'product_id', foreignField: '_id', as: 'product' } },
+    { $unwind: { path: '$product', preserveNullAndEmptyArrays: true } },
+    { $sort: { createdAt: -1 } },
+    { $project: { user: { mobileNo: 1, email: 1, profileImage: 1, firstName: '$customer.firstName', lastName: '$customer.lastName' }, service: { name: 1, title: 1 }, product: { name: 1 }, message: 1, rating: 1, isActive: 1, createdAt: 1 } },
+  ])
+  if (!item) {
+    res.status(404);
+    throw new Error('Testimonial not found');
+  }
+  res.ok(item);
 });
