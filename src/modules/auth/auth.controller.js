@@ -24,6 +24,7 @@ const sendUser = (user) => ({
   gender: user.profile.gender,
   createdAt: user.createdAt,
   updatedAt: user.updatedAt,
+  title: user.profile.title
 });
 
 // @desc    Login
@@ -40,7 +41,7 @@ exports.login = asyncHandler(async (req, res, next) => {
   const isMatch = await user.comparePassword(password);
   if (!isMatch) return next(new ErrorHander("Invalid email or password", 401));
   
-  if (!user.isActive) return next(new ErrorHander("Account is disabled", 403));
+  if (!user.isActive) return next(new ErrorHander("Invalid email or password", 401));
 
   const token = user.generateAuthToken();
 
