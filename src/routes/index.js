@@ -14,7 +14,7 @@ const productRoutes = require('../modules/product/product.route');
 const serviceRoutes = require('../modules/service/service.route');
 const feedbackRoutes = require('../modules/feedback/feedback.route');
 const calenderRoutes = require('../modules/calender/calender.route');
-const testimonialsRoutes = require('../modules/testimonials/testimonials.route');
+const reviewsRoutes = require('../modules/reviews/reviews.route');
 const couponRoutes = require('../modules/coupon/coupon.route');
 const configRoutes = require('../modules/config/config.route');
 
@@ -48,7 +48,7 @@ router.use('/calender', calenderRoutes);
 router.use('/coupon', couponRoutes);
 router.use('/product-order', require('../modules/productOrder/productOrder.route'));
 router.use('/service-order', require('../modules/serviceOrder/serviceOrder.route'));
-router.use('/testimonials', testimonialsRoutes);
+router.use('/reviews', reviewsRoutes);
 router.use('/config', configRoutes);
 
 // 404 handler for undefined routes (commented out temporarily to debug)
