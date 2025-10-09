@@ -402,17 +402,80 @@ exports.createServiceOrder = asyncHandler(async (req, res, next) => {
   };
 
   const serviceOrder = await ServiceOrder.create(serviceOrderPayload);
-
   // ✅ Update all items with parent orderId
   await ServiceOrderItem.updateMany(
     { _id: { $in: createdOrderItems } },
     { $set: { orderId: serviceOrder._id } }
   );
 
+  // ✅ Populate and structure final response
+  const populatedOrder = await ServiceOrder.findById(serviceOrder._id)
+    .populate({
+      path: "services",
+      populate: [
+        {
+          path: "service",
+          select: "name price durationInMinutes serviceType"
+        },
+        {
+          path: "astrologer",
+          select: "name email profile",
+          populate: {
+            path: "profile",
+            select: "employeeType startTime endTime"
+          }
+        }
+      ]
+    })
+    .populate({
+      path: "coupon",
+      select: "code discount"
+    })
+    .populate({
+      path: "user",
+      select: "name email"
+    })
+    .lean();
+
+  // ✅ Construct clean structured response
+  const formattedOrder = {
+    _id: populatedOrder._id,
+    user: populatedOrder.user,
+    totalAmount: populatedOrder.totalAmount,
+    finalAmount: populatedOrder.finalAmount,
+    payingAmount: populatedOrder.payingAmount,
+    paymentStatus: populatedOrder.paymentStatus,
+    isCoupon: populatedOrder.isCoupon,
+    coupon: populatedOrder.coupon || null,
+    services: populatedOrder.services.map(item => ({
+      _id: item._id,
+      service: {
+        _id: item.service?._id,
+        name: item.service?.name,
+        price: item.service?.price,
+        durationInMinutes: item.service?.durationInMinutes,
+        serviceType: item.service?.serviceType
+      },
+      astrologer: {
+        _id: item.astrologer?._id,
+        name: item.astrologer?.name,
+        email: item.astrologer?.email,
+      },
+      bookingDate: item.bookingDate,
+      startTime: item.startTime,
+      endTime: item.endTime,
+      serviceType: item.serviceType,
+      paymentStatus: item.paymentStatus,
+      total: item.total
+    })),
+    createdAt: populatedOrder.createdAt,
+    updatedAt: populatedOrder.updatedAt
+  };
+
   res.status(201).json({
     success: true,
     message: 'Service order created successfully with individual transactions per service',
-    order: serviceOrder,
+    order: formattedOrder,
   });
 });
 

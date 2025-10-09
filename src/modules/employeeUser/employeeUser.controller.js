@@ -398,8 +398,6 @@ exports.getAllPublicEmployees = asyncHandler(async (req, res) => {
         })
         .sort({ createdAt: -1 });
 
-    console.log("Fetched employees:", employees);
-
     // destructure employee data 
     const formattedAstrologers = employees.map(emp => ({
         _id: emp._id,
