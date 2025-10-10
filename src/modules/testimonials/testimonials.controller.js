@@ -6,7 +6,7 @@ const { default: mongoose } = require('mongoose');
 // @route POST /api/testimonials/create
 // @access Private (admin)
 exports.createTestimonial = asyncHandler(async (req, res) => {
-  const { user_id, service_id, product_id, message, rating, isActive, } = req.body;
+  const { user_id, service_id, product_id, message, rating, isActive, media, city, state } = req.body;
 
   if (!user_id || !message) {
     res.status(400);
@@ -19,7 +19,10 @@ exports.createTestimonial = asyncHandler(async (req, res) => {
     product_id,
     message,
     rating: rating ?? 5,
-    isActive: false
+    isActive: false,
+    media,
+    city,
+    state,
   };
 
   const created = await Testimonial.create(payload);
