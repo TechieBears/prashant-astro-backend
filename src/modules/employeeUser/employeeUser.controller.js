@@ -68,13 +68,24 @@ exports.createEmployeeUser = asyncHandler(async (req, res, next) => {
         preBooking
     });
 
-    // 4. Generate temp password
-    const tempPassword = Math.random().toString(36).slice(-10);
+    const generateTempPassword = () => {
+        const uppercase = firstName.charAt(0).toUpperCase();
+        let lowercase = '';
+        for (let i = 0; i < 4; i++) {
+            lowercase += String.fromCharCode(97 + Math.floor(Math.random() * 26)); // a-z
+        }
+        const specialChar = '@';
+        let digits = '';
+        for (let i = 0; i < 4; i++) {
+            digits += Math.floor(Math.random() * 10); // 0-9
+        }
+        return uppercase + lowercase + specialChar + digits;
+    };
 
     // 5. Create linked user
     const user = new User({
         email,
-        password: tempPassword,
+        password: generateTempPassword(),
         profileImage,
         mobileNo,
         role: "employee",
@@ -220,21 +231,21 @@ exports.resetPassword = asyncHandler(async (req, res, next) => {
 // @route PUT /api/employee/update?id=employeeId
 // @access Private/Admin
 exports.updateEmployeeUser = asyncHandler(async (req, res, next) => {
-  const { id } = req.query;
-  if (!id) return next(new ErrorHander("Please provide employee id", 400));
+    const { id } = req.query;
+    if (!id) return next(new ErrorHander("Please provide employee id", 400));
 
-  // 1️⃣ Find the user
-  const user = await User.findById(id);
-  if (!user) {
-    return next(new ErrorHander("Employee not found", 404));
-  }
+    // 1️⃣ Find the user
+    const user = await User.findById(id);
+    if (!user) {
+        return next(new ErrorHander("Employee not found", 404));
+    }
 
-  await EmployeeUser.findByIdAndUpdate(user.profile, req.body, { new: true });
-  await User.findByIdAndUpdate(id, req.body, { new: true });
+    await EmployeeUser.findByIdAndUpdate(user.profile, req.body, { new: true });
+    await User.findByIdAndUpdate(id, req.body, { new: true });
 
-  const updatedUser = await User.findById(id).populate("profile");
+    const updatedUser = await User.findById(id).populate("profile");
 
-  res.ok(sendUser(updatedUser, updatedUser.profile), "Employee updated successfully");
+    res.ok(sendUser(updatedUser, updatedUser.profile), "Employee updated successfully");
 });
 
 // @desc    Delete employee user (soft delete)
