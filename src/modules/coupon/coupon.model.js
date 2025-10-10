@@ -6,6 +6,38 @@ const couponSchema = new mongoose.Schema({
         required: true,
         trim: true
     },
+    // ----- Applicability Scopes -----
+    // Service scopes
+    applyAllServices: {
+        type: Boolean,
+        default: false
+    },
+    applicableServices: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Service'
+    }],
+    applicableServiceCategories: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'ServiceCategory'
+    }],
+
+    // Product scopes
+    applyAllProducts: {
+        type: Boolean,
+        default: false
+    },
+    applicableProducts: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Product'
+    }],
+    applicableProductCategories: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'ProductCategory'
+    }],
+    applicableProductSubcategories: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'ProductSubcategory'
+    }],
     couponCode: {
         type: String,
         required: true,
@@ -66,5 +98,3 @@ couponSchema.index({ unique: true });
 couponSchema.index({ isActive: 1, isDeleted: 1 });
 
 module.exports = mongoose.model('Coupon', couponSchema);
-
-
