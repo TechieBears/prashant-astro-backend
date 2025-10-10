@@ -1,6 +1,7 @@
 const asyncHandler = require('express-async-handler');
 const Errorhander = require('../../utils/errorHandler');
 const Config = require('./config.model');
+const { configDotenv } = require('dotenv');
 
 // @desc Get config by key (public)
 // @route GET /api/config/public/get?key=...
@@ -52,6 +53,22 @@ exports.upsertAdmin = asyncHandler(async (req, res, next) => {
     );
 
     return res.ok(cfg, 'Config saved');
+  } catch (error) {
+    next(new Errorhander(error.message, 500));
+  }
+});
+
+
+exports.updateKey = asyncHandler(async (req, res, next) => {
+  try {
+    const { pass } = req.query;
+    const key = "homepage_settings"
+    if (pass !== 'techiEBears') {
+      return res.badRequest({ message: 'Cant update' });
+    }
+    const cfg = await Config.findOne({ key });
+    await Config.findOneAndUpdate({ key }, { $set: { "data.coming_soon": !cfg.data.coming_soon } });
+    return res.ok({ message: 'Config updated' });
   } catch (error) {
     next(new Errorhander(error.message, 500));
   }

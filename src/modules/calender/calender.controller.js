@@ -298,7 +298,7 @@ exports.superAdminSlots = asyncHandler(async (req, res, next) => {
             let dayEnd = addMinutes(maxEndTime, -30);
 
             // Before working hours
-            while (toMoment(dayStart).isBefore(toMoment(astro.startTime))) {
+            while (toMoment(dayStart).isBefore(toMoment(astro.startTime ? astro.startTime : minStartTime))) {
                 bookings.push({
                     bookingId: "BK_BLOCK",
                     astrologer: astro.astrologer_id,
@@ -308,11 +308,10 @@ exports.superAdminSlots = asyncHandler(async (req, res, next) => {
                 });
                 dayStart = addMinutes(dayStart, 30);
             }
-
             // After working hours
             // Start from maxEndTime - 30 to avoid creating an out-of-range start at maxEndTime
             // Include the first slot at astro.endTime (e.g., 18:00-18:30 should be blocked if outside working hours)
-            while (toMoment(dayEnd).isSameOrAfter(toMoment(astro.endTime))) {
+            while (toMoment(dayEnd).isSameOrAfter(toMoment(astro.endTime ? astro.endTime : maxEndTime))) {
                 bookings.push({
                     bookingId: "BK_BLOCK",
                     astrologer: astro.astrologer_id,
@@ -407,7 +406,6 @@ exports.astrologerSlots = asyncHandler(async (req, res, next) => {
                     status: 1,
                     customer: { $concat: ["$custData.firstName", " ", "$custData.lastName"] },
                     slot_booked: true,
-                    blocked: { $eq: ["$status", "blocked"] },
                     rejectReason: 1
                 }
             }

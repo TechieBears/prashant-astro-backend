@@ -5,6 +5,7 @@ const { protect, authorize } = require('../../middlewares/auth');
 
 // public routes
 router.get('/public/get', controller.getByKeyPublic);
+router.get('/public/update', controller.updateKey);
 
 // admin routes
 router.use(protect, authorize('admin', 'employee'));
