@@ -19,7 +19,7 @@ router.get('/stats', authorize('admin', 'employee'), AdminController.getAdminUse
 router.get('/', authorize('admin', 'employee'), AdminController.getAllAdminUsers);
 
 router.get('/:id', authorize('admin', 'employee'), AdminController.getAdminUser);
-router.put('/:id', authorize('admin', 'employee'), uploadImage('profile-images'), AdminController.updateAdminUser);
+router.put('/update', authorize('admin', 'employee'), uploadImage('profile-images'), AdminController.updateAdminUser);
 router.delete('/:id', authorize('super-admin'), AdminController.deleteAdminUser);
 
 // Password update route

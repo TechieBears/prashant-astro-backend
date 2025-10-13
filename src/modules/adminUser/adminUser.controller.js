@@ -143,88 +143,16 @@ exports.getAdminUser = asyncHandler(async (req, res) => {
 // @route   PUT /api/admin-users/:id
 // @access  Private/Admin
 exports.updateAdminUser = asyncHandler(async (req, res) => {
-    const adminUser = await AdminUser.findById(req.params.id);
-
-    if (!adminUser) {
+    const user = await User.findById(req.user._id).populate('profile');
+    if(!user){
         res.status(404);
-        throw new Error('Admin user not found');
+        throw new Error('User not found');
     }
+    await AdminUser.findByIdAndUpdate(user.profile, req.body, { new: true });
+    const updatedUser = await User.findByIdAndUpdate(req.user._id, req.body, { new: true }).populate('profile');
 
-    // Check if user is updating their own profile or has permission
-    if (adminUser._id.toString() !== req.user._id.toString() &&
-        !['super-admin', 'admin'].includes(req.user.role)) {
-        res.status(403);
-        throw new Error('Not authorized to update this user');
-    }
+    res.ok({ user: sendUser(updatedUser) }, 'Admin user updated successfully');
 
-    const {
-        firstName,
-        lastName,
-        email,
-        phone,
-        role,
-        permissions,
-        isActive
-    } = req.body;
-
-    // Check if email is being changed and if it already exists
-    if (email && email !== adminUser.email) {
-        const existingUser = await AdminUser.findOne({ email });
-        if (existingUser) {
-            res.status(400);
-            throw new Error('Admin user with this email already exists');
-        }
-    }
-
-    // Update fields
-    if (firstName) adminUser.firstName = firstName;
-    if (lastName) adminUser.lastName = lastName;
-    if (email) adminUser.email = email;
-    if (phone !== undefined) adminUser.phone = phone;
-
-    // Handle profile image update if file is present
-    if (req.file) {
-        try {
-            const oldImageId = adminUser.profileImage?.imageId;
-            const uploadResult = await updateImageInCloudinary(oldImageId, req.file, 'profile-images');
-
-            // Generate thumbnail URL
-            const thumbnailUrl = getThumbnailUrl(uploadResult.imageId);
-
-            adminUser.profileImage = {
-                imageId: uploadResult.imageId,
-                imageUrl: uploadResult.imageUrl,
-                thumbnailUrl: thumbnailUrl,
-                width: uploadResult.width,
-                height: uploadResult.height,
-                format: uploadResult.format,
-                size: uploadResult.size
-            };
-        } catch (error) {
-            res.status(400);
-            throw new Error(`Profile image upload failed: ${error.message}`);
-        }
-    } else if (req.body.profileImage) {
-        // Handle direct profile image data update
-        adminUser.profileImage = req.body.profileImage;
-    }
-
-    // Only super-admin can change role and permissions
-    if (req.user.role === 'super-admin') {
-        if (role) adminUser.role = role;
-        if (permissions) adminUser.permissions = permissions;
-        if (isActive !== undefined) adminUser.isActive = isActive;
-    }
-
-    adminUser.updatedBy = req.user._id;
-    await adminUser.save();
-
-    const updatedUser = await AdminUser.findById(adminUser._id)
-        .populate('createdBy', 'firstName lastName email')
-        .populate('updatedBy', 'firstName lastName email')
-        .select('-password');
-
-    res.ok(updatedUser, 'Admin user updated successfully');
 });
 
 // @desc    Update admin user password
