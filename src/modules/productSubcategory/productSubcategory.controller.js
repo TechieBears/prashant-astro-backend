@@ -104,7 +104,7 @@ exports.getProductSubcategory = asyncHandler(async (req, res) => {
 
 // GET /api/product-subcategories/dropdown
 exports.getAllProductSubcategoriesDropdown = asyncHandler(async (req, res) => {
-  const subcategories = await ProductSubcategory.findActiveSubcategories().select('name');
+  const subcategories = await ProductSubcategory.find({isActive: true, isDeleted: false}).select('name').sort({ createdAt: 1 });
   res.ok(subcategories);
 });
 

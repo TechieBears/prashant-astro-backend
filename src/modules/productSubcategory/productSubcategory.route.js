@@ -14,7 +14,7 @@ router.post('/create', authorize('admin', 'employee'), ProductSubcategoryControl
 
 router.get('/get-all', authorize('admin', 'employee'), ProductSubcategoryController.getAllProductSubcategories);
 router.get('/get-single', authorize('admin', 'employee'), ProductSubcategoryController.getProductSubcategory);
-// router.get('/dropdown', authorize('admin', 'employee'), ProductSubcategoryController.getAllProductSubcategoriesDropdown);
+router.get('/get-dropdown', authorize('admin', 'employee'), ProductSubcategoryController.getAllProductSubcategoriesDropdown);
 // router.get('/stats', authorize('admin', 'employee'), ProductSubcategoryController.getProductSubcategoryStats);
 
 router.put('/update', authorize('admin', 'employee'), ProductSubcategoryController.updateProductSubcategory);
