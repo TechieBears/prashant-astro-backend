@@ -272,7 +272,7 @@ exports.updateProduct = asyncHandler(async (req, res, next) => {
     throw new Error('Product not found');
   }
 
-  const { name, description, images, additionalInfo, specification, highlights, category, subcategory, mrpPrice, sellingPrice, stock, gstNumber, hsnCode } = req.body;
+  const { name, description, images, additionalInfo, specification, highlights, category, subcategory, mrpPrice, sellingPrice, stock, gstNumber, hsnCode, isActive } = req.body;
 
   // Validate category if provided
   if (category) {
@@ -321,6 +321,7 @@ exports.updateProduct = asyncHandler(async (req, res, next) => {
   if (stock !== undefined) product.stock = stock;
   if (gstNumber) product.gstNumber = gstNumber;
   if (hsnCode) product.hsnCode = hsnCode;
+  if (isActive !== undefined) product.isActive = isActive;
 
   product.updatedBy = req.user._id;
   await product.save();
