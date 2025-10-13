@@ -98,7 +98,7 @@ exports.getAllTestimonials = asyncHandler(async (req, res) => {
     { $lookup: { from: 'products', localField: 'product_id', foreignField: '_id', as: 'product' } },
     { $unwind: { path: '$product', preserveNullAndEmptyArrays: true } },
     { $sort: { createdAt: -1 } },
-    { $project: { user: { mobileNo: 1, email: 1, profileImage: 1, firstName: '$customer.firstName', lastName: '$customer.lastName' }, service: { name: 1, title: 1 }, product: { name: 1 }, message: 1, rating: 1, isActive: 1, createdAt: 1 } },
+    { $project: { user: { mobileNo: 1, email: 1, profileImage: 1, firstName: '$customer.firstName', lastName: '$customer.lastName' }, city: 1, state: 1, country: 1, service: { name: 1, title: 1 }, product: { name: 1 }, message: 1, rating: 1, isActive: 1, createdAt: 1, media: 1 } },
     { $skip: skip },
     { $limit: limit }
   ])
@@ -122,7 +122,7 @@ exports.getTestimonialById = asyncHandler(async (req, res) => {
     { $lookup: { from: 'products', localField: 'product_id', foreignField: '_id', as: 'product' } },
     { $unwind: { path: '$product', preserveNullAndEmptyArrays: true } },
     { $sort: { createdAt: -1 } },
-    { $project: { user: { mobileNo: 1, email: 1, profileImage: 1, firstName: '$customer.firstName', lastName: '$customer.lastName' }, service: { name: 1, title: 1 }, product: { name: 1 }, message: 1, rating: 1, isActive: 1, createdAt: 1 } },
+    { $project: { user: { mobileNo: 1, email: 1, profileImage: 1, firstName: '$customer.firstName', lastName: '$customer.lastName' },city: 1, state: 1, country: 1, service: { name: 1, title: 1 }, product: { name: 1 }, message: 1, rating: 1, isActive: 1, createdAt: 1, media: 1 } },
   ])
   if (!item) {
     res.status(404);
