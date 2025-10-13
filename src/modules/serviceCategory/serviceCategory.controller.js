@@ -44,7 +44,7 @@ exports.getAllServiceCategoriesAdmin = asyncHandler(async (req, res) => {
   if (req.query.isActive !== undefined && req.query.isActive !== '') {
     query.isActive = req.query.isActive === 'true';
   }
-  if (req.query.search && req.query.search !== '') {
+  if (req.query.name && req.query.name !== '') {
     query.name = { $regex: req.query.search, $options: 'i' };
   }
 

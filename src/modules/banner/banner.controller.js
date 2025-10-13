@@ -75,6 +75,9 @@ exports.getActiveBanners = asyncHandler(async (req, res) => {
 exports.getAllBanners = asyncHandler(async (req, res) => { 
     const { page = 1, limit = 10 } = req.query;
 
+    const filters = { isDeleted: false };
+    if (req.query.name) filters.title = { $regex: req.query.name, $options: 'i' };
+
     const banners = await Banner.find({ isDeleted: false }).skip((page - 1) * limit).limit(limit).select("-__v").sort({ position: 1, createdAt: -1 });
     const total = await Banner.countDocuments({ isDeleted: false });
 

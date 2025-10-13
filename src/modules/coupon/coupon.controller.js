@@ -52,6 +52,7 @@ exports.getCouponsAdmin = asyncHandler(async (req, res, next) => {
     }
 
     const filter = { isDeleted: false };
+    if(req.query.name) filter.couponName = { $regex: req.query.name, $options: 'i' };
     const coupons = await Coupon.find(filter)
         .skip((page - 1) * limit)
         .limit(Number(limit))

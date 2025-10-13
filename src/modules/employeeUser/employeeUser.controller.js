@@ -82,10 +82,12 @@ exports.createEmployeeUser = asyncHandler(async (req, res, next) => {
         return uppercase + lowercase + specialChar + digits;
     };
 
+    const tempPassword = generateTempPassword();
+
     // 5. Create linked user
     const user = new User({
         email,
-        password: generateTempPassword(),
+        password: tempPassword,
         profileImage,
         mobileNo,
         role: "employee",

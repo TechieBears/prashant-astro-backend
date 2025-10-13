@@ -359,6 +359,9 @@ exports.getAllProductOrdersAdmin = asyncHandler(async (req, res) => {
   if(req.query.orderId){
     filters._id = req.query.orderId;
   }
+  if(req.query.name){
+    filters['items.snapshot.name'] = { $regex: req.query.name, $options: 'i' };
+  }
 
   // 🔹 Fetch orders with user + profile + address populated
   const orders = await ProductOrder.find( filters )
