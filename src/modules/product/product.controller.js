@@ -8,7 +8,7 @@ const Errorhander = require('../../utils/errorHandler');
 // @route POST /api/products/create
 // @access Private (admin only)
 exports.createProduct = asyncHandler(async (req, res, next) => {
-  const { name, description, images, additionalInfo, specification, highlights, category, subcategory, mrpPrice, sellingPrice, stock, gstNumber, hsnCode } = req.body;
+  const { name, description, images, additionalInfo, specification, highlights, category, subcategory, mrpPrice, sellingPrice, stock, gstNumber, hsnCode, isActive } = req.body;
 
   // Validate required fields
   if (!name || !description || !category || !subcategory || !mrpPrice || !sellingPrice || !stock) {
@@ -56,6 +56,7 @@ exports.createProduct = asyncHandler(async (req, res, next) => {
     gstNumber,
     hsnCode,
     images: images || [],
+    isActive: isActive !== undefined ? isActive : true,
     createdBy: req.user._id
   });
 
