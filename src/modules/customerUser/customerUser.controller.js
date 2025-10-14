@@ -35,54 +35,76 @@ exports.createCustomerUser = asyncHandler(async (req, res, next) => {
     // Check if email already exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-        return next(new ErrorHander("User with this email already exists", 400));
+        if (existingUser.isActive === true || existingUser.isDeleted === false) {
+            return next(new ErrorHander("User with this email already exists", 400));
+        }
     }
 
     // Start a session
     const session = await mongoose.startSession();
     session.startTransaction();
 
+    let customerUser;
+    let user;
+
     try {
-        // 1. Create Customer profile
-        const customerUser = await CustomerUser.create(
-            [
-                {
-                    firstName,
-                    lastName,
-                    title,
-                },
-            ],
-            { session }
-        );
+        if (existingUser) {
+            customerUser = await CustomerUser.findOneAndUpdate(
+                { _id: existingUser.profile },
+                { $set: { firstName, lastName, title } },
+                { new: true }
+            );
 
-        // 2. Create linked User
-        const user = await User.create(
-            [
-                {
-                    email,
-                    password,
-                    mobileNo,
-                    profileImage: "https://cdn-icons-png.flaticon.com/512/149/149071.png",
-                    role: "customer",
-                    profile: customerUser[0]._id,
-                }
-            ],
-            { session }
-        );
+            user = await User.findOneAndUpdate(
+                { _id: existingUser._id },
+                { $set: { mobileNo, isActive: true, isDeleted: false } },
+                { new: true }
+            );
 
-        // 3. Commit
-        await session.commitTransaction();
-        session.endSession();
+            customerUser = [customerUser];
+            user = [user];
+
+        } else {
+            // 1. Create Customer profile
+            customerUser = await CustomerUser.create(
+                [
+                    {
+                        firstName,
+                        lastName,
+                        title,
+                    },
+                ],
+                { session }
+            );
+
+            // 2. Create linked User
+            user = await User.create(
+                [
+                    {
+                        email,
+                        password,
+                        mobileNo,
+                        profileImage: "https://cdn-icons-png.flaticon.com/512/149/149071.png",
+                        role: "customer",
+                        profile: customerUser[0]._id,
+                    }
+                ],
+                { session }
+            );
+            // 3. Commit
+            await session.commitTransaction();
+            session.endSession();
+        }
 
         // token for immediate login after registration
         const token = user[0].generateAuthToken();
 
         switch (registerType) {
-            case 'google':{
+            case 'google': {
                 res.ok({ token, user: sendUser(user[0], customerUser[0]) }, "Customer user created successfully");
                 break;
             }
-            case 'normal':{
+            case 'normal': {
                 res.ok({ user: sendUser(user[0], customerUser[0]) }, "Customer user created successfully");
                 break;
             }
@@ -141,14 +163,6 @@ exports.updateCustomerUser = asyncHandler(async (req, res) => {
     if (isActive !== undefined) user.isActive = isActive;
     if (profileImage !== undefined) user.profileImage = profileImage;
     await user.save();
-    console.log("--------------------------------------------------------------")
-    console.log(user);
-    console.log("--------------------------------------------------------------")
-    console.log(customer);
-    console.log("--------------------------------------------------------------")
-    console.log(sendUser(user, customer));
-    console.log("--------------------------------------------------------------")
-
     return res.ok({ user: sendUser(user, customer) }, "Customer updated successfully");
 });
 
@@ -158,21 +172,21 @@ exports.updateCustomerUser = asyncHandler(async (req, res) => {
 exports.adminUpdateCustomerUser = asyncHandler(async (req, res, next) => {
     const customerId = req.query.id;
     if (!customerId) return next(new ErrorHander("Please provide customer id", 400));
-    
+
     const customer = await CustomerUser.findById(customerId);
     if (!customer) return next(new ErrorHander("Customer not found", 404));
-    
+
     const user = await User.findOne({ profile: customer._id, role: 'customer' });
     if (!user) return next(new ErrorHander("Linked user not found", 404));
-    
+
     // Update profile fields
     const { firstName, lastName, title, profileImage, email, phone, isActive, isDeleted } = req.body;
-    
+
     if (firstName !== undefined) customer.firstName = firstName;
     if (lastName !== undefined) customer.lastName = lastName;
     if (title !== undefined) customer.title = title;
     await customer.save();
-    
+
     // Update linked user fields
     if (email !== undefined) user.email = email;
     if (phone !== undefined) user.phone = phone;
@@ -180,7 +194,7 @@ exports.adminUpdateCustomerUser = asyncHandler(async (req, res, next) => {
     if (isDeleted !== undefined) user.isDeleted = isDeleted;
     if (profileImage !== undefined) user.profileImage = profileImage;
     await user.save();
-    
+
     return res.ok({ user: sendUser(user, customer) }, "Customer updated successfully");
 });
 
@@ -263,12 +277,12 @@ exports.getAllCustomerUsersWithPagination = asyncHandler(async (req, res) => {
     // 🔍 filter by name if provided
     if (req.query.name) {
         pipeline.push({
-            $match: {
-                $or: [
-                    { "profile.firstName": { $regex: req.query.name, $options: "i" } },
-                    { "profile.lastName": { $regex: req.query.name, $options: "i" } }
-                ]
+            $addFields: {
+                fullname: { $concat: ["$profile.firstName", " ", "$profile.lastName"] }
             }
+        })
+        pipeline.push({
+            $match: { fullname: { $regex: req.query.name, $options: "i" } }
         });
     }
 
@@ -313,10 +327,10 @@ exports.getAllCustomerUsersWithPagination = asyncHandler(async (req, res) => {
 exports.getSingleCustomerUser = asyncHandler(async (req, res, next) => {
     const customerId = req.query.id;
     if (!customerId) return next(new ErrorHander("Please provide customer id", 400));
-    
+
     const customer = await CustomerUser.findById(customerId);
     if (!customer) return next(new ErrorHander("Customer not found", 404));
-    
+
     const user = await User.findOne({ profile: customer._id, role: 'customer' });
     if (!user) return next(new ErrorHander("Linked user not found", 404));
 

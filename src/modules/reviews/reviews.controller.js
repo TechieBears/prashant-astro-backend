@@ -283,7 +283,6 @@ exports.setApprovalStatus = asyncHandler(async (req, res) => {
 exports.getReviewsFilter = asyncHandler(async (req, res) => {
   const query = {};
 
-  console.log("🚀 ~ req.query.product:", req.query.product);
   if (req.query.product && req.query.product != '') {
     query.product_id = new mongoose.Types.ObjectId(req.query.product);
   }
@@ -312,7 +311,6 @@ exports.getReviewsFilter = asyncHandler(async (req, res) => {
     { $limit: limit },
     { $project: { user: { mobileNo: 1, email: 1, profileImage: 1, firstName: '$customer.firstName', lastName: '$customer.lastName' }, service: { name: 1, title: 1 }, product: { name: 1 }, message: 1, rating: 1, isActive: 1, createdAt: 1 } },
   ])
-  console.log("🚀 ~ item:", item);
   if (!item) {
     res.status(404);
     throw new Error('Review not found');

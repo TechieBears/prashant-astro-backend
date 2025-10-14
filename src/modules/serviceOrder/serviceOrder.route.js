@@ -11,11 +11,12 @@ router.get('/public/item/get-single', protect, authorize('customer'), serviceOrd
 // admin routes
 router.get('/get-all', protect, authorize('admin', "employee"), serviceOrderController.getAllServiceOrdersAdmin);
 router.get('/item/get-single', protect, authorize('admin', 'employee'), serviceOrderController.getServiceOrderItemById);
+router.get('/order/get-single', protect, authorize('admin', 'employee'), serviceOrderController.getSingleServiceOrder);
 // router.post('/update-order-status', protect, authorize('admin', "employee"), serviceOrderController.updateServiceOrder);
 
 // astrologer routes
-router.get('/astrologer/get-all', protect, authorize('admin','employee'), serviceOrderController.getAllServiceOrdersAstrologer);
-router.get('/astrologer/get-single', protect, authorize('admin','employee'), serviceOrderController.getServiceOrderAstrologer);
-router.post('/astrologer/update-order-status', protect, authorize('admin','employee'), serviceOrderController.updateServiceOrderAstrologer);
+router.get('/astrologer/get-all', protect, authorize('admin', 'employee'), serviceOrderController.getAllServiceOrdersAstrologer);
+router.get('/astrologer/get-single', protect, authorize('admin', 'employee'), serviceOrderController.getServiceOrderAstrologer);
+router.post('/astrologer/update-order-status', protect, authorize('admin', 'employee'), serviceOrderController.updateServiceOrderAstrologer);
 
 module.exports = router;
