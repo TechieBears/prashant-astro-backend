@@ -8,7 +8,7 @@ const Errorhander = require('../../utils/errorHandler');
 // @route POST /api/products/create
 // @access Private (admin only)
 exports.createProduct = asyncHandler(async (req, res, next) => {
-  const { name, description, images, additionalInfo, specification, highlights, category, subcategory, mrpPrice, sellingPrice, stock, gstNumber, hsnCode } = req.body;
+  const { name, description, images, additionalInfo, specification, highlights, category, subcategory, mrpPrice, sellingPrice, stock, gstNumber, hsnCode, isActive } = req.body;
 
   // Validate required fields
   if (!name || !description || !category || !subcategory || !mrpPrice || !sellingPrice || !stock) {
@@ -56,6 +56,7 @@ exports.createProduct = asyncHandler(async (req, res, next) => {
     gstNumber,
     hsnCode,
     images: images || [],
+    isActive: isActive !== undefined ? isActive : true,
     createdBy: req.user._id
   });
 
@@ -271,7 +272,7 @@ exports.updateProduct = asyncHandler(async (req, res, next) => {
     throw new Error('Product not found');
   }
 
-  const { name, description, images, additionalInfo, specification, highlights, category, subcategory, mrpPrice, sellingPrice, stock, gstNumber, hsnCode } = req.body;
+  const { name, description, images, additionalInfo, specification, highlights, category, subcategory, mrpPrice, sellingPrice, stock, gstNumber, hsnCode, isActive } = req.body;
 
   // Validate category if provided
   if (category) {
@@ -320,6 +321,7 @@ exports.updateProduct = asyncHandler(async (req, res, next) => {
   if (stock !== undefined) product.stock = stock;
   if (gstNumber) product.gstNumber = gstNumber;
   if (hsnCode) product.hsnCode = hsnCode;
+  if (isActive !== undefined) product.isActive = isActive;
 
   product.updatedBy = req.user._id;
   await product.save();

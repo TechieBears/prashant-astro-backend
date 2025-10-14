@@ -52,6 +52,7 @@ exports.getCouponsAdmin = asyncHandler(async (req, res, next) => {
     }
 
     const filter = { isDeleted: false };
+    if(req.query.name) filter.couponName = { $regex: req.query.name, $options: 'i' };
     const coupons = await Coupon.find(filter)
         .skip((page - 1) * limit)
         .limit(Number(limit))
@@ -90,7 +91,10 @@ exports.updateCoupon = asyncHandler(async (req, res, next) => {
 
     const updatableFields = [
         'couponName', 'couponCode', 'couponType', 'discountIn', 'discount',
-        'activationDate', 'expiryDate', 'redemptionPerUser', 'totalRedemptions', 'isActive'
+        'activationDate', 'expiryDate', 'redemptionPerUser', 'totalRedemptions', 'isActive',
+        // scopes
+        'applyAllServices', 'applicableServices', 'applicableServiceCategories',
+        'applyAllProducts', 'applicableProducts', 'applicableProductCategories', 'applicableProductSubcategories'
     ];
 
     for (const field of updatableFields) {
@@ -100,7 +104,10 @@ exports.updateCoupon = asyncHandler(async (req, res, next) => {
     }
 
     await coupon.save();
-    res.ok(coupon, 'Coupon updated successfully');
+
+    const updatedCoupon = await Coupon.findById(id);
+
+    res.ok(updatedCoupon, 'Coupon updated successfully');
 });
 
 // @desc    Soft delete coupon

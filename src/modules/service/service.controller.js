@@ -5,7 +5,7 @@ const Errorhander = require('../../utils/errorHandler');
 const mongoose = require('mongoose');
 
 exports.createServiceAdmin = asyncHandler(async (req, res, next) => {
-    const { name, title, subTitle, htmlContent, category, image, videoUrl, price, durationInMinutes, serviceType, gstNumber, hsnCode } = req.body;
+    const { name, title, subTitle, htmlContent, category, image, videoUrl, price, durationInMinutes, serviceType, gstNumber, hsnCode, isActive } = req.body;
 
     // use for each field validation
     for (const field of ['name', 'title', 'subTitle', 'htmlContent', 'category', 'image', 'videoUrl', 'price', 'durationInMinutes']) {
@@ -36,6 +36,7 @@ exports.createServiceAdmin = asyncHandler(async (req, res, next) => {
         htmlContent: htmlContent.trim(),
         category,
         image,
+        isActive: isActive !== undefined ? isActive : true,
         videoUrl,
         price,
         gstNumber,
