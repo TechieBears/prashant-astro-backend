@@ -7,6 +7,7 @@ const router = express.Router();
 // Public routes
 router.get('/public/get-all', Controller.getPublicReviews);
 router.get('/public/get-all-approved', Controller.getAllApprovedPublicReviews);
+router.get('/public/filter', Controller.getReviewsFilter);
 
 // Admin routes
 router.use(protect);
