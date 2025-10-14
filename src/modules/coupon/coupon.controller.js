@@ -127,4 +127,182 @@ exports.deleteCoupon = asyncHandler(async (req, res, next) => {
     res.ok(null, 'Coupon deleted successfully');
 });
 
+// @desc    Apply coupon for services
+// @route   POST /api/coupons/apply/service
+// @access  Private/User
+exports.applyServiceCoupon = asyncHandler(async (req, res, next) => {
+  const { couponCode, services = [] } = req.body;
+  const userId = req.user._id;
 
+  if (!couponCode || !Array.isArray(services) || services.length === 0)
+    return next(new ErrorHandler("Please provide couponCode and services", 400));
+
+  // Find coupon
+  const coupon = await Coupon.findOne({
+    couponCode: couponCode.toUpperCase(),
+    isActive: true,
+    isDeleted: false,
+    couponType: { $in: ["services", "both"] }
+  });
+
+  if (!coupon) return next(new ErrorHandler("Invalid or inactive coupon", 400));
+
+  const now = new Date();
+  if (now < coupon.activationDate || now > coupon.expiryDate)
+    return next(new ErrorHandler("Coupon is not active or expired", 400));
+
+  // Check usage limits
+  const usedCount = await Order.countDocuments({
+    user: userId,
+    coupon: coupon._id
+  });
+  if (usedCount >= coupon.redemptionPerUser)
+    return next(new ErrorHandler("You have already used this coupon", 400));
+
+  // Get all service details
+  const serviceDocs = await Service.find({ _id: { $in: services }, isDeleted: false });
+  if (!serviceDocs.length) return next(new ErrorHandler("Invalid service IDs", 400));
+
+  // Eligibility logic
+  let eligible = false;
+  let eligibleServices = [];
+
+  if (coupon.applyAllServices) {
+    eligible = true;
+    eligibleServices = serviceDocs;
+  } else {
+    // Match specific service/category applicability
+    eligibleServices = serviceDocs.filter(svc =>
+      coupon.applicableServices.includes(svc._id) ||
+      coupon.applicableServiceCategories.includes(svc.category)
+    );
+    eligible = eligibleServices.length > 0;
+  }
+
+  if (!eligible) return next(new ErrorHandler("Coupon not applicable to selected services", 400));
+
+  // Calculate discount
+  const total = eligibleServices.reduce((acc, svc) => acc + svc.price, 0);
+  let discountAmount = 0;
+
+  if (coupon.discountIn === "percent") {
+    discountAmount = (total * coupon.discount) / 100;
+  } else {
+    discountAmount = coupon.discount;
+  }
+
+  const finalTotal = total - discountAmount;
+
+//   res.success(
+//     {
+//       couponCode: coupon.couponCode,
+//       discountIn: coupon.discountIn,
+//       discountValue: coupon.discount,
+//       originalTotal: total,
+//       discountAmount,
+//       finalTotal,
+//     },
+//     "Coupon applied successfully"
+//   );
+
+res.ok({
+    couponCode: coupon.couponCode,
+    discountIn: coupon.discountIn,
+    discountValue: coupon.discount,
+    originalTotal: total,
+    discountAmount,
+    finalTotal
+}, "Coupon applied");
+
+});
+
+// @desc    Apply coupon for products
+// @route   POST /api/coupons/apply/product
+// @access  Private/User
+exports.applyProductCoupon = asyncHandler(async (req, res, next) => {
+  const { couponCode, products = [] } = req.body;
+  const userId = req.user._id;
+
+  if (!couponCode || !Array.isArray(products) || products.length === 0)
+    return next(new ErrorHandler("Please provide couponCode and products", 400));
+
+  // Find coupon
+  const coupon = await Coupon.findOne({
+    couponCode: couponCode.toUpperCase(),
+    isActive: true,
+    isDeleted: false,
+    couponType: { $in: ["products", "both"] }
+  });
+
+  if (!coupon) return next(new ErrorHandler("Invalid or inactive coupon", 400));
+
+  const now = new Date();
+  if (now < coupon.activationDate || now > coupon.expiryDate)
+    return next(new ErrorHandler("Coupon is not active or expired", 400));
+
+  // Check usage limits
+  const usedCount = await Order.countDocuments({
+    user: userId,
+    coupon: coupon._id
+  });
+  if (usedCount >= coupon.redemptionPerUser)
+    return next(new ErrorHandler("You have already used this coupon", 400));
+
+  // Get all product details
+  const productDocs = await Product.find({ _id: { $in: products }, isDeleted: false });
+  if (!productDocs.length) return next(new ErrorHandler("Invalid product IDs", 400));
+
+  // Eligibility logic
+  let eligible = false;
+  let eligibleProducts = [];
+
+  if (coupon.applyAllProducts) {
+    eligible = true;
+    eligibleProducts = productDocs;
+  } else {
+    // Match specific product/category/subcategory applicability
+    eligibleProducts = productDocs.filter(p =>
+      coupon.applicableProducts.includes(p._id) ||
+      coupon.applicableProductCategories.includes(p.category) ||
+      coupon.applicableProductSubcategories.includes(p.subcategory)
+    );
+    eligible = eligibleProducts.length > 0;
+  }
+
+  if (!eligible)
+    return next(new ErrorHandler("Coupon not applicable to selected products", 400));
+
+  // Calculate discount
+  const total = eligibleProducts.reduce((acc, p) => acc + p.sellingPrice, 0);
+  let discountAmount = 0;
+
+  if (coupon.discountIn === "percent") {
+    discountAmount = (total * coupon.discount) / 100;
+  } else {
+    discountAmount = coupon.discount;
+  }
+
+  const finalTotal = total - discountAmount;
+
+//   res.success(
+//     {
+//       couponCode: coupon.couponCode,
+//       discountIn: coupon.discountIn,
+//       discountValue: coupon.discount,
+//       originalTotal: total,
+//       discountAmount,
+//       finalTotal,
+//     },
+//     "Coupon applied successfully"
+//   );
+
+  res.ok({
+    couponCode: coupon.couponCode,
+    discountIn: coupon.discountIn,
+    discountValue: coupon.discount,
+    originalTotal: total,
+    discountAmount,
+    finalTotal
+  }, "Coupon applied");
+
+});
