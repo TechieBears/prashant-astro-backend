@@ -34,22 +34,30 @@ exports.createTestimonial = asyncHandler(async (req, res) => {
 // @route GET /api/testimonials/public
 // @access Public
 exports.getPublicTestimonials = asyncHandler(async (req, res) => {
-  const limit = parseInt(req.query.limit) || 20;
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
+  const skip = (page - 1) * limit;
 
-  const testimonials = await Testimonial.find({ isActive: true })
-    .sort({ displayOrder: 1, createdAt: -1 })
-    .limit(limit)
-    .populate({
-      path: "user_id",
-      select: "email mobileNo profileImage role profile",
-      populate: {
-        path: "profile", // this will populate the actual 'customer' document
-        model: "customer",
-        select: "firstName lastName fullName gender title",
-      },
-    });
+  const query = { isActive: true };
 
-  res.ok(testimonials, "Testimonials fetched successfully");
+  const items = await Testimonial.aggregate([
+    { $match: query },
+    { $lookup: { from: 'users', localField: 'user_id', foreignField: '_id', as: 'user' } },
+    { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } },
+    { $lookup: { from: 'customers', localField: 'user.profile', foreignField: '_id', as: 'customer' } },
+    { $unwind: { path: '$customer', preserveNullAndEmptyArrays: true } },
+    { $lookup: { from: 'services', localField: 'service_id', foreignField: '_id', as: 'service' } },
+    { $unwind: { path: '$service', preserveNullAndEmptyArrays: true } },
+    { $lookup: { from: 'products', localField: 'product_id', foreignField: '_id', as: 'product' } },
+    { $unwind: { path: '$product', preserveNullAndEmptyArrays: true } },
+    { $sort: { createdAt: -1 } },
+    { $project: { user: { mobileNo: 1, email: 1, profileImage: 1, firstName: '$customer.firstName', lastName: '$customer.lastName' }, city: 1, state: 1, country: 1, service: { name: 1, title: 1 }, product: { name: 1 }, message: 1, rating: 1, isActive: 1, createdAt: 1, media: 1 } },
+    { $skip: skip },
+    { $limit: limit }
+  ])
+  const total = await Testimonial.countDocuments(query);
+
+  res.paginated(items, { page, limit, total, pages: Math.ceil(total / limit) }, 'Testimonials fetched successfully');
 });
 
 // @desc Get public single testimonial
@@ -122,7 +130,7 @@ exports.getTestimonialById = asyncHandler(async (req, res) => {
     { $lookup: { from: 'products', localField: 'product_id', foreignField: '_id', as: 'product' } },
     { $unwind: { path: '$product', preserveNullAndEmptyArrays: true } },
     { $sort: { createdAt: -1 } },
-    { $project: { user: { mobileNo: 1, email: 1, profileImage: 1, firstName: '$customer.firstName', lastName: '$customer.lastName' },city: 1, state: 1, country: 1, service: { name: 1, title: 1 }, product: { name: 1 }, message: 1, rating: 1, isActive: 1, createdAt: 1, media: 1 } },
+    { $project: { user: { mobileNo: 1, email: 1, profileImage: 1, firstName: '$customer.firstName', lastName: '$customer.lastName' }, city: 1, state: 1, country: 1, service: { name: 1, title: 1 }, product: { name: 1 }, message: 1, rating: 1, isActive: 1, createdAt: 1, media: 1 } },
   ])
   if (!item) {
     res.status(404);
