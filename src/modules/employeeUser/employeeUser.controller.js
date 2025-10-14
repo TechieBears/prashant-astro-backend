@@ -407,22 +407,25 @@ exports.getAllPublicEmployees = asyncHandler(async (req, res) => {
             model: "employee",
             match: { employeeType: employeeType }, // filter only astrologers
             select:
-                "firstName lastName fullName skills languages experience profile _id"
+                "firstName lastName fullName skills languages experience profile _id employeeType"
         })
-        .sort({ createdAt: -1 });
+        .sort({ createdAt: -1 });;
 
     // destructure employee data 
-    const formattedAstrologers = employees.map(emp => ({
-        _id: emp._id,
-        profileImage: emp.profileImage,
-        fullName: emp.profile?.fullName,
-        //   firstName: emp.profile?.firstName,
-        //   lastName: emp.profile?.lastName,
-        skills: emp.profile?.skills,
-        empId: emp.profile?._id,
-        languages: emp.profile?.languages,
-        experience: emp.profile?.experience,
-    }));
+    const formattedAstrologers = employees.filter(emp => {
+        if (emp?.profile?.employeeType !== employeeType) return;
+        return ({
+            _id: emp._id,
+            profileImage: emp.profileImage,
+            fullName: emp.profile?.fullName,
+            //   firstName: emp.profile?.firstName,
+            //   lastName: emp.profile?.lastName,
+            skills: emp.profile?.skills,
+            empId: emp.profile?._id,
+            languages: emp.profile?.languages,
+            experience: emp.profile?.experience,
+        });
+    });
 
     res.ok(formattedAstrologers, "Public employee users fetched successfully");
 });
