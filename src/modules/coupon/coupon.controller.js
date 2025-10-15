@@ -2,6 +2,10 @@ const asyncHandler = require('express-async-handler');
 const mongoose = require('mongoose');
 const Coupon = require('./coupon.model');
 const ErrorHandler = require('../../utils/errorHandler');
+const Product = require('../product/product.model');
+const Service = require('../service/service.model');
+const ProductOrder = require('../productOrder/productOrder.model');
+const ServiceOrder = require('../serviceOrder/serviceOrder.model');
 
 // @desc    Create a new coupon
 // @route   POST /api/coupons/create
@@ -152,7 +156,7 @@ exports.applyServiceCoupon = asyncHandler(async (req, res, next) => {
     return next(new ErrorHandler("Coupon is not active or expired", 400));
 
   // Check usage limits
-  const usedCount = await Order.countDocuments({
+  const usedCount = await ServiceOrder.countDocuments({
     user: userId,
     coupon: coupon._id
   });
@@ -241,7 +245,7 @@ exports.applyProductCoupon = asyncHandler(async (req, res, next) => {
     return next(new ErrorHandler("Coupon is not active or expired", 400));
 
   // Check usage limits
-  const usedCount = await Order.countDocuments({
+  const usedCount = await ProductOrder.countDocuments({
     user: userId,
     coupon: coupon._id
   });
