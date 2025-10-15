@@ -10,6 +10,7 @@ const ErrorHandler = require('../../utils/errorHandler');
 const moment = require('moment');
 const Coupon = require('../coupon/coupon.model');
 const ProductOrder = require('../productOrder/productOrder.model');
+const addressSchema = require('../customerAddress/customerAddress.model');
 
 // @desc Create Service Order (Buy Now - Multiple Services)
 // @route POST /api/service-order/create
@@ -241,6 +242,7 @@ exports.createServiceOrder = asyncHandler(async (req, res, next) => {
     paymentId,
     paymentDetails,
     couponId,
+    addressId
   } = req.body;
 
   if (!Array.isArray(serviceItems) || serviceItems.length === 0) {
@@ -351,6 +353,7 @@ exports.createServiceOrder = asyncHandler(async (req, res, next) => {
 
     if (overlapBooking)
       return next(new ErrorHandler('Astrologer already booked for this time slot', 400));
+
 
     // ✅ Create Order Item
     const orderItem = await ServiceOrderItem.create({
@@ -603,10 +606,10 @@ exports.getAllServiceOrdersAdmin = asyncHandler(async (req, res, next) => {
     filters._id = req.query.orderId;
   }
   if (req.query.status) {
-    filters.status = req.query.status;
+    filters.paymentStatus = req.query.status.toLowerCase();
   }
   if (req.query.date) {
-    filters.createdAt = req.query.date;
+    filters.createdAt = { $gte: new Date(req.query.date), $lte: new Date(new Date(req.query.date).setHours(23, 59, 59, 999)) };
   }
 
   // ✅ Handle astrologerId filtering
@@ -1030,3 +1033,107 @@ exports.getServiceOrderItemById = asyncHandler(async (req, res, next) => {
   });
 });
 
+// @desc Get Single Service Order Item (Astrologer)
+// @route GET /api/service-order/astrologer/get-single-item
+// @access Astrologer & Admin
+exports.getSingleServiceOrder = asyncHandler(async (req, res, next) => {
+  try {
+    const { id } = req.query;
+    console.log("🚀 ~ id:", id);
+
+    const orderData = await ServiceOrderItem.aggregate([
+      {
+        $match: { orderId: id }
+      },
+      {
+        $addFields: {
+          orderObjId: {
+            $convert: { input: '$orderId', to: 'objectId', onError: null, onNull: null }
+          }
+        }
+      },
+      {
+        $lookup: {
+          from: 'serviceorders',
+          localField: 'orderObjId',
+          foreignField: '_id',
+          as: 'orderData'
+        }
+      },
+      { $unwind: '$orderData' },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'orderData.user',
+          foreignField: '_id',
+          as: 'userData'
+        }
+      },
+      {
+        $unwind: '$userData'
+      },
+      {
+        $lookup: {
+          from: 'services',
+          localField: 'service',
+          foreignField: '_id',
+          as: 'serviceData'
+        }
+      },
+      {
+        $unwind: {
+          path: '$serviceData',
+          preserveNullAndEmptyArrays: true
+        }
+      },
+      {
+        $group: {
+          _id: '$orderId',
+          orderData: { $first: '$orderData' },
+          items: {
+            $push: {
+              _id: '$_id',
+              serviceName: '$serviceData.name',
+              servicePrice: '$serviceData.price',
+              serviceDuration: '$serviceData.durationInMinutes',
+              serviceType: '$serviceData.serviceType',
+              quantity: '$quantity',
+              price: '$price',
+              total: '$total',
+              status: '$status',
+              cust: "$cust",
+              astrologerStatus: "$astrologerStatus",
+              bookingStatus: "$status",
+              paymentStatus: "$paymentStatus",
+              bookingDate: "$bookingDate",
+              startTime: "$startTime",
+              endTime: "$endTime",
+              createdAt: '$createdAt'
+            }
+          }
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          orderData: 1,
+          items: 1
+        }
+      }
+    ]);
+
+
+    if (!orderData) {
+      return next(new ErrorHandler("Service Order Item not found", 404));
+    }
+
+    res.status(200).json({
+      success: true,
+      orderData,
+      message: "Service order item fetched successfully",
+    });
+
+  } catch (err) {
+    console.log("🚀 ~ err:", err);
+  }
+})
