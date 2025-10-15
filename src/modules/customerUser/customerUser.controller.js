@@ -5,6 +5,7 @@ const ErrorHander = require('../../utils/errorHandler');
 const sendEmail = require('../../services/email.service');
 const crypto = require('crypto');
 const mongoose = require('mongoose');
+const Wallet = require('../wallet/wallet.model');
 
 const sendUser = (user, profile) => ({
     _id: user._id,
@@ -176,7 +177,7 @@ exports.createCustomerUser = asyncHandler(async (req, res, next) => {
       );
 
       // 3️⃣ Link wallet to customer
-      customerUser[0].walletId = wallet[0]._id;
+      customerUser[0].wallet = wallet[0]._id;
       await customerUser[0].save({ session });
 
       // 4️⃣ Create User
@@ -198,9 +199,9 @@ exports.createCustomerUser = asyncHandler(async (req, res, next) => {
       if (referralCode) {
         const referrer = await CustomerUser.findOne({ referralCode }).populate("walletId");
 
-        if (referrer && referrer.walletId) {
-          referrer.walletId.balance += 200; // add ₹200 to referrer
-          await referrer.walletId.save({ session });
+        if (referrer && referrer.wallet) {
+          referrer.wallet.balance += 200; // add ₹200 to referrer
+          await referrer.wallet.save({ session });
         }
       }
 
