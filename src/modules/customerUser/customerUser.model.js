@@ -22,6 +22,15 @@ const customerUserSchema = new mongoose.Schema({
     gender: {
         type: String,
     },
+    referralCode: {
+        type: String,
+        unique: true,
+        index: true,
+    },
+    wallet: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Wallet",
+    },
     // location: String,
     addresses: [
         {
