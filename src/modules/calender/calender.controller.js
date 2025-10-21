@@ -153,8 +153,9 @@ exports.checkAvailability = asyncHandler(async (req, res, next) => {
                 return intervalStart.isBefore(endTime) && intervalEnd.isAfter(startTime);
             });
 
+            const currentTime = process.env.NODE_ENV == 'dev' ? moment().format("HH:mm") : moment().add(5, 'hours', 30, 'minutes').format("HH:mm");
             if (moment(req.body.date).format("YYYY-MM-DD") == moment().format("YYYY-MM-DD")) {
-                if (moment().format("HH:mm") > moment(interval.display_time, "HH:mm").format("HH:mm")) {
+                if (currentTime > moment(interval.display_time, "HH:mm").format("HH:mm")) {
                     flag = true;
                 }
             }

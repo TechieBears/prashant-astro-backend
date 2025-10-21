@@ -11,7 +11,7 @@ router.get('/public/item/get-single', protect, authorize('customer'), serviceOrd
 // admin routes
 router.get('/get-all', protect, authorize('admin', "employee"), serviceOrderController.getAllServiceOrdersAdmin);
 router.get('/item/get-single', protect, authorize('admin', 'employee'), serviceOrderController.getServiceOrderItemById);
-router.get('/order/get-single', protect, authorize('admin', 'employee'), serviceOrderController.getSingleServiceOrder);
+router.get('/order/get-single', protect, authorize('admin', 'employee', 'customer'), serviceOrderController.getSingleServiceOrder);
 // router.post('/update-order-status', protect, authorize('admin', "employee"), serviceOrderController.updateServiceOrder);
 
 // astrologer routes

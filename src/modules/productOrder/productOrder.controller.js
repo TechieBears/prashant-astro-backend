@@ -6,64 +6,66 @@ const mongoose = require('mongoose');
 const ErrorHandler = require('../../utils/errorHandler');
 const Coupon = require('../coupon/coupon.model');
 const ServiceOrder = require('../serviceOrder/serviceOrder.model');
+const moment = require('moment');
+
 
 // @desc    checkout a product order
 // @route   POST /api/product-order/checkout
 // @access  Private (customer)
-exports.checkoutProductOrder = asyncHandler(async (req, res) => {});
+exports.checkoutProductOrder = asyncHandler(async (req, res) => { });
 
 // @desc    Create a new product order
 // @route   POST /api/product-order/create
 // @access  Private (customer)
 exports.createProductOrder = asyncHandler(async (req, res) => {
   const { items, address, paymentMethod, paymentDetails, couponId } = req.body;
-    // --------------- ✅ Validate Coupon (if provided) ----------------
-    let coupon = null;
-    if (couponId) {
-      if (!mongoose.Types.ObjectId.isValid(couponId)) {
-        throw new Error('Invalid couponId');
-      }
-
-      coupon = await Coupon.findOne({ _id: couponId, isDeleted: false });
-      if (!coupon) {
-        return res.ok([], 'Coupon not found');
-      }
-
-      if (!coupon.isActive) {
-        throw new Error('Coupon is inactive');
-      }
-
-      const now = new Date();
-      if (coupon.activationDate && now < coupon.activationDate) {
-        throw new Error('Coupon is not yet active');
-      }
-      if (coupon.expiryDate && now > coupon.expiryDate) {
-        throw new Error('Coupon has expired');
-      }
-
-      if (!['products'].includes(coupon.couponType)) {
-        throw new Error('Coupon not applicable for products');
-      }
-
-      // Check redemption limits
-      const [userProductUses, userServiceUses, totalProductUses, totalServiceUses] = await Promise.all([
-        ProductOrder.countDocuments({ user: userId, coupon: couponId }),
-        ServiceOrder.countDocuments({ user: userId, coupon: couponId }),
-        ProductOrder.countDocuments({ coupon: couponId }),
-        ServiceOrder.countDocuments({ coupon: couponId })
-      ]);
-
-      const userTotalUses = userProductUses + userServiceUses;
-      const globalTotalUses = totalProductUses + totalServiceUses;
-
-      if (coupon.redemptionPerUser && coupon.redemptionPerUser > 0 && userTotalUses >= coupon.redemptionPerUser) {
-        throw new Error('Coupon redemption limit reached for this user');
-      }
-
-      if (coupon.totalRedemptions && coupon.totalRedemptions > 0 && globalTotalUses >= coupon.totalRedemptions) {
-        throw new Error('Coupon redemption limit reached');
-      }
+  // --------------- ✅ Validate Coupon (if provided) ----------------
+  let coupon = null;
+  if (couponId) {
+    if (!mongoose.Types.ObjectId.isValid(couponId)) {
+      throw new Error('Invalid couponId');
     }
+
+    coupon = await Coupon.findOne({ _id: couponId, isDeleted: false });
+    if (!coupon) {
+      return res.ok([], 'Coupon not found');
+    }
+
+    if (!coupon.isActive) {
+      throw new Error('Coupon is inactive');
+    }
+
+    const now = new Date();
+    if (coupon.activationDate && now < coupon.activationDate) {
+      throw new Error('Coupon is not yet active');
+    }
+    if (coupon.expiryDate && now > coupon.expiryDate) {
+      throw new Error('Coupon has expired');
+    }
+
+    if (!['products'].includes(coupon.couponType)) {
+      throw new Error('Coupon not applicable for products');
+    }
+
+    // Check redemption limits
+    const [userProductUses, userServiceUses, totalProductUses, totalServiceUses] = await Promise.all([
+      ProductOrder.countDocuments({ user: userId, coupon: couponId }),
+      ServiceOrder.countDocuments({ user: userId, coupon: couponId }),
+      ProductOrder.countDocuments({ coupon: couponId }),
+      ServiceOrder.countDocuments({ coupon: couponId })
+    ]);
+
+    const userTotalUses = userProductUses + userServiceUses;
+    const globalTotalUses = totalProductUses + totalServiceUses;
+
+    if (coupon.redemptionPerUser && coupon.redemptionPerUser > 0 && userTotalUses >= coupon.redemptionPerUser) {
+      throw new Error('Coupon redemption limit reached for this user');
+    }
+
+    if (coupon.totalRedemptions && coupon.totalRedemptions > 0 && globalTotalUses >= coupon.totalRedemptions) {
+      throw new Error('Coupon redemption limit reached');
+    }
+  }
   const userId = req.user._id; // assuming you set req.user in auth middleware
 
   if (!items || items.length === 0) {
@@ -166,6 +168,9 @@ exports.createProductOrder = asyncHandler(async (req, res) => {
     });
 
     await transaction.save({ session });
+
+    // remove all from cart
+    await ProductCart.deleteMany({ user: userId }, { session });
 
     await session.commitTransaction();
     session.endSession();
@@ -350,21 +355,24 @@ exports.getAllProductOrdersAdmin = asyncHandler(async (req, res) => {
   const skip = (page - 1) * limit;
 
   const filters = {};
-  if(req.query.status){
+  if (req.query.status) {
     filters.orderStatus = req.query.status;
   }
-  if(req.query.date){
-    filters.createdAt = req.query.date;
+  if (req.query.date) {
+    filters.createdAt = {
+      $gte: moment(req.query.date).startOf('day').toDate(),
+      $lte: moment(req.query.date).endOf('day').toDate(),
+    };
   }
-  if(req.query.orderId){
+  if (req.query.orderId) {
     filters._id = req.query.orderId;
   }
-  if(req.query.name){
+  if (req.query.name) {
     filters['items.snapshot.name'] = { $regex: req.query.name, $options: 'i' };
   }
 
   // 🔹 Fetch orders with user + profile + address populated
-  const orders = await ProductOrder.find( filters )
+  const orders = await ProductOrder.find(filters)
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(limit)
@@ -432,7 +440,7 @@ exports.getAllProductOrdersAdmin = asyncHandler(async (req, res) => {
     };
   });
 
-  const totalOrders = await ProductOrder.countDocuments( filters );
+  const totalOrders = await ProductOrder.countDocuments(filters);
 
   res.paginated(formattedOrders, {
     page,
@@ -446,7 +454,7 @@ exports.getAllProductOrdersAdmin = asyncHandler(async (req, res) => {
 // @route   GET /api/product-order/get-single/:id
 // @access  Private (admin)
 exports.getProductOrderByIdAdmin = asyncHandler(async (req, res) => {
-  
+
   res.ok({}, 'Order found');
 });
 
@@ -454,16 +462,16 @@ exports.getProductOrderByIdAdmin = asyncHandler(async (req, res) => {
 // @route   POST /api/product-order/update-order-status
 // @access  Private (admin)
 exports.updateOrderStatusAdmin = asyncHandler(async (req, res, next) => {
-  const {orderId, status} = req.body;
+  const { orderId, status } = req.body;
 
   // check order id validity
   const order = await ProductOrder.findById(orderId);
-  if(!order) return next(new ErrorHandler('Order not found', 404));
-  
-  // ensure order status flow is like this: "['PENDING', 'CONFIRMED', 'SHIPPED', 'DELIVERED', 'CANCELLED', 'REFUNDED'],"
-  if(!['PENDING', 'CONFIRMED', 'SHIPPED', 'DELIVERED', 'CANCELLED', 'REFUNDED'].includes(status)) return next(new ErrorHandler('Invalid order status', 400));
+  if (!order) return next(new ErrorHandler('Order not found', 404));
 
-  if(order.orderStatus === status) return next(new ErrorHandler('Order status already updated', 400));
+  // ensure order status flow is like this: "['PENDING', 'CONFIRMED', 'SHIPPED', 'DELIVERED', 'CANCELLED', 'REFUNDED'],"
+  if (!['PENDING', 'CONFIRMED', 'SHIPPED', 'DELIVERED', 'CANCELLED', 'REFUNDED'].includes(status)) return next(new ErrorHandler('Invalid order status', 400));
+
+  if (order.orderStatus === status) return next(new ErrorHandler('Order status already updated', 400));
 
   order.orderStatus = status;
   order.orderHistory.push({

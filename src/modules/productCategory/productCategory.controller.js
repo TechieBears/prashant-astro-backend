@@ -84,7 +84,7 @@ exports.updateProductCategory = asyncHandler(async (req, res) => {
     throw new Error('Category not found');
   }
 
-  const { name, image } = req.body;
+  const { name, image, isActive } = req.body;
   if (name && name !== category.name) {
     const existing = await ProductCategory.findByName(name);
     if (existing && existing._id.toString() !== req.query.id) {
@@ -95,6 +95,7 @@ exports.updateProductCategory = asyncHandler(async (req, res) => {
 
   if (name) category.name = name;
   if (image) category.image = image;
+  if (isActive !== undefined && isActive !== null) category.isActive = isActive;
   category.updatedBy = req.user._id;
   await category.save();
 
@@ -140,7 +141,7 @@ exports.deleteProductCategory = asyncHandler(async (req, res) => {
   }
 
   if (category.image?.imageId) {
-    try { await deleteImageFromCloudinary(category.image.imageId); } catch (e) {}
+    try { await deleteImageFromCloudinary(category.image.imageId); } catch (e) { }
   }
 
   category.isActive = false;
@@ -213,7 +214,7 @@ exports.getProductCategoryStats = asyncHandler(async (req, res) => {
 // @access public
 exports.getOurProductCategories = asyncHandler(async (req, res) => {
   const categories = await ProductCategory.find({ isActive: true }).select('name _id').sort({ name: 1 });
-  res.ok(categories, "Our Product Categories fetched successfully");  
+  res.ok(categories, "Our Product Categories fetched successfully");
 });
 
 // @desc Get AstroGuid product categories with products

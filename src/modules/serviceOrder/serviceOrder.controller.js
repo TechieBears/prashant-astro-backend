@@ -1039,7 +1039,6 @@ exports.getServiceOrderItemById = asyncHandler(async (req, res, next) => {
 exports.getSingleServiceOrder = asyncHandler(async (req, res, next) => {
   try {
     const { id } = req.query;
-    console.log("🚀 ~ id:", id);
 
     const orderData = await ServiceOrderItem.aggregate([
       {
@@ -1061,6 +1060,24 @@ exports.getSingleServiceOrder = asyncHandler(async (req, res, next) => {
         }
       },
       { $unwind: '$orderData' },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'astrologer',
+          foreignField: '_id',
+          as: 'astrologerData'
+        }
+      },
+      { $unwind: '$astrologerData' },
+      {
+        $lookup: {
+          from: 'employees',
+          localField: 'astrologerData.profile',
+          foreignField: '_id',
+          as: 'astroNameData'
+        }
+      },
+      { $unwind: '$astroNameData' },
       {
         $lookup: {
           from: 'users',
@@ -1093,6 +1110,10 @@ exports.getSingleServiceOrder = asyncHandler(async (req, res, next) => {
           items: {
             $push: {
               _id: '$_id',
+              astrologerFirstName: '$astroNameData.firstName',
+              astrologerLastName: '$astroNameData.lastName',
+              astrologerEmail: '$astrologerData.email',
+              astrologerMobileNo: '$astrologerData.mobileNo',
               serviceName: '$serviceData.name',
               servicePrice: '$serviceData.price',
               serviceDuration: '$serviceData.durationInMinutes',
