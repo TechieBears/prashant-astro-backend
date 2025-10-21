@@ -20,7 +20,15 @@ exports.createCoupon = asyncHandler(async (req, res, next) => {
         activationDate,
         expiryDate,
         redemptionPerUser,
-        totalRedemptions
+        totalRedemptions,
+        // scopes
+        applyAllServices,
+        applicableServices = [],
+        applicableServiceCategories = [],
+        applyAllProducts,
+        applicableProducts = [],
+        applicableProductCategories = [],
+        applicableProductSubcategories = []
     } = req.body;
 
     const existing = await Coupon.findOne({ couponCode: couponCode?.toUpperCase(), isDeleted: false });
@@ -36,6 +44,13 @@ exports.createCoupon = asyncHandler(async (req, res, next) => {
         expiryDate,
         redemptionPerUser,
         totalRedemptions,
+        applyAllServices: !!applyAllServices,
+        applicableServices,
+        applicableServiceCategories,
+        applyAllProducts: !!applyAllProducts,
+        applicableProducts,
+        applicableProductCategories,
+        applicableProductSubcategories,
         userId: req.user._id
     });
 
@@ -146,7 +161,7 @@ exports.applyServiceCoupon = asyncHandler(async (req, res, next) => {
     couponCode: couponCode.toUpperCase(),
     isActive: true,
     isDeleted: false,
-    couponType: { $in: ["services", "both"] }
+    couponType: "services"
   });
 
   if (!coupon) return next(new ErrorHandler("Invalid or inactive coupon", 400));
