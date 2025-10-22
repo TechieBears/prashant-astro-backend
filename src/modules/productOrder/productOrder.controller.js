@@ -2,6 +2,7 @@ const asyncHandler = require('express-async-handler');
 const Transaction = require('../transaction/transaction.Model');
 const ProductOrder = require('./productOrder.model');
 const Product = require('../product/product.model');
+const ProductCart = require('../productCart/productCart.model');
 const mongoose = require('mongoose');
 const ErrorHandler = require('../../utils/errorHandler');
 const Coupon = require('../coupon/coupon.model');
@@ -83,7 +84,7 @@ exports.createProductOrder = asyncHandler(async (req, res) => {
 
     for (const item of items) {
       const product = await Product.findById(item.product).populate('category', 'name').populate('subcategory', 'name').session(session);
-      console.log(product._id);
+      // console.log(product._id);
       if (!product || !product.isActive) {
         throw new Error(`Product not found: ${item.product}`);
       }
