@@ -22,103 +22,6 @@ const sendUser = (user, profile) => ({
     createdAt: user.createdAt,
 });
 
-// @desc    Create new customer user with token
-// @route   POST /api/customer/register
-// @access  Public
-// exports.createCustomerUser = asyncHandler(async (req, res, next) => {
-//     const { email, password, mobileNo, firstName, lastName, title, registerType, } = req.body;
-
-//     // check if registerType is 'google' or 'normal'
-//     if (!['google', 'normal'].includes(registerType)) {
-//         return next(new ErrorHander("Invalid register type", 400));
-//     }
-
-//     // Check if email already exists
-//     const existingUser = await User.findOne({ email });
-//     if (existingUser) {
-//         if (existingUser.isActive === true || existingUser.isDeleted === false) {
-//             return next(new ErrorHander("User with this email already exists", 400));
-//         }
-//     }
-
-//     // Start a session
-//     const session = await mongoose.startSession();
-//     session.startTransaction();
-
-//     let customerUser;
-//     let user;
-
-//     try {
-//         if (existingUser) {
-//             customerUser = await CustomerUser.findOneAndUpdate(
-//                 { _id: existingUser.profile },
-//                 { $set: { firstName, lastName, title } },
-//                 { new: true }
-//             );
-
-//             user = await User.findOneAndUpdate(
-//                 { _id: existingUser._id },
-//                 { $set: { mobileNo, isActive: true, isDeleted: false } },
-//                 { new: true }
-//             );
-
-//             customerUser = [customerUser];
-//             user = [user];
-
-//         } else {
-//             // 1. Create Customer profile
-//             customerUser = await CustomerUser.create(
-//                 [
-//                     {
-//                         firstName,
-//                         lastName,
-//                         title,
-//                     },
-//                 ],
-//                 { session }
-//             );
-
-//             // 2. Create linked User
-//             user = await User.create(
-//                 [
-//                     {
-//                         email,
-//                         password,
-//                         mobileNo,
-//                         profileImage: "https://cdn-icons-png.flaticon.com/512/149/149071.png",
-//                         role: "customer",
-//                         profile: customerUser[0]._id,
-//                     }
-//                 ],
-//                 { session }
-//             );
-//             // 3. Commit
-//             await session.commitTransaction();
-//             session.endSession();
-//         }
-
-//         // token for immediate login after registration
-//         const token = user[0].generateAuthToken();
-
-//         switch (registerType) {
-//             case 'google': {
-//                 res.ok({ token, user: sendUser(user[0], customerUser[0]) }, "Customer user created successfully");
-//                 break;
-//             }
-//             case 'normal': {
-//                 res.ok({ user: sendUser(user[0], customerUser[0]) }, "Customer user created successfully");
-//                 break;
-//             }
-//             default:
-//                 break;
-//         }
-//     } catch (error) {
-//         // ❌ Rollback
-//         await session.abortTransaction();
-//         session.endSession();
-//         return next(error);
-//     }
-// });
 exports.createCustomerUser = asyncHandler(async (req, res, next) => {
   const {
     email,
@@ -161,10 +64,10 @@ exports.createCustomerUser = asyncHandler(async (req, res, next) => {
       const customerUser = await CustomerUser.create(
         [
           {
-            firstName,
-            lastName,
+            firstName: firstName || null,
+            lastName: lastName || null,
             title,
-            gender,
+            gender: gender || null,
           },
         ],
         { session }
@@ -191,7 +94,7 @@ exports.createCustomerUser = asyncHandler(async (req, res, next) => {
           {
             email,
             // password: null,
-            mobileNo: mobileNo || undefined,
+            mobileNo: mobileNo || null,
             role: "customer",
             profileImage: profileImage || "https://cdn-icons-png.flaticon.com/512/149/149071.png",
             profile: customerUser[0]._id,
