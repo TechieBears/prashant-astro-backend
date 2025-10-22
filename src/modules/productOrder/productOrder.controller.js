@@ -20,6 +20,7 @@ exports.checkoutProductOrder = asyncHandler(async (req, res) => { });
 // @access  Private (customer)
 exports.createProductOrder = asyncHandler(async (req, res) => {
   const { items, address, paymentMethod, paymentDetails, couponId } = req.body;
+  const userId = req.user._id; // assuming you set req.user in auth middleware
   // --------------- ✅ Validate Coupon (if provided) ----------------
   let coupon = null;
   if (couponId) {
@@ -67,7 +68,6 @@ exports.createProductOrder = asyncHandler(async (req, res) => {
       throw new Error('Coupon redemption limit reached');
     }
   }
-  const userId = req.user._id; // assuming you set req.user in auth middleware
 
   if (!items || items.length === 0) {
     res.status(400);
