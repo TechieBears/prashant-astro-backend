@@ -17,7 +17,8 @@ const customerUserSchema = new mongoose.Schema({
     },
     title: {
         type: String,
-        enum: ["Mr", "Mrs", "Miss", "Baby", "Master"]
+        enum: ["Mr", "Mrs", "Miss", "Baby", "Master"],
+        default: "Mr"
     },
     gender: {
         type: String,
@@ -41,8 +42,26 @@ const customerUserSchema = new mongoose.Schema({
 });
 
 // Virtual for full name
-customerUserSchema.virtual('fullName').get(function() {
-  return `${this.firstName} ${this.lastName}`;
+customerUserSchema.virtual('fullName').get(function () {
+    return `${this.firstName} ${this.lastName}`;
 });
+
+// helper function to generate referral code
+function generateReferralCode(firstName = "") {
+    const prefix = firstName
+        ? firstName.trim().substring(0, 3).toUpperCase()
+        : "USR";
+    const hash = crypto.randomBytes(3).toString("hex").toUpperCase(); // 6 chars
+    return `${prefix}${hash}`;
+}
+
+// 🔹 Pre-save hook to generate referral code if not already set
+customerUserSchema.pre("save", async function (next) {
+    if (!this.referralCode) {
+        this.referralCode = generateReferralCode(this.firstName);
+    }
+    next();
+});
+
 
 module.exports = mongoose.model("customer", customerUserSchema);

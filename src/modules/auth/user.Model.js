@@ -20,17 +20,17 @@ const userSchema = new mongoose.Schema({
   mobileNo: {
     type: String,
     validate: {
-      validator: function(v) {
+      validator: function (v) {
         return !v || validator.isMobilePhone(v);
       },
       message: 'Please provide a valid phone number'
     }
   },
-  profileImage:{
+  profileImage: {
     type: String,
     default: "https://cdn-icons-png.flaticon.com/512/149/149071.png"
   },
-  fcmToken:{
+  fcmToken: {
     type: String,
     default: null
   },
@@ -55,23 +55,34 @@ const userSchema = new mongoose.Schema({
   },
   resetPasswordToken: String,
   resetPasswordExpire: Date,
+  type: {
+    type: String,
+    enum: ["google", "normal"],
+  }
 }, { timestamps: true });
 
-// 🔒 password hashing
-userSchema.pre("save", async function(next) {
-  if (this.isModified("password")) {
-    this.password = await bcrypt.hash(this.password, 10);
-  }
+// 🔒 Pre-save hook to hash password
+userSchema.pre("save", async function (next) {
+    if (this.type === "google") {
+      this.password = undefined; // no password for google users
+    }
+    else {
+      if (typeof this.password !== "string") {
+        this.password = undefined; // prevent bcrypt from crashing
+      } else {
+        this.password = await bcrypt.hash(this.password, 10);
+      }
+    }
   next();
 });
 
 // 🔑 compare password
-userSchema.methods.comparePassword = async function(candidatePassword) {
+userSchema.methods.comparePassword = async function (candidatePassword) {
   return bcrypt.compare(candidatePassword, this.password);
 };
 
 // 🔑 generate JWT
-userSchema.methods.generateAuthToken = function() {
+userSchema.methods.generateAuthToken = function () {
   return jwt.sign(
     { id: this._id, role: this.role },
     process.env.JWT_SECRET,
@@ -79,7 +90,7 @@ userSchema.methods.generateAuthToken = function() {
   );
 };
 
-userSchema.methods.getResetPasswordToken = function() {
+userSchema.methods.getResetPasswordToken = function () {
   const resetToken = crypto.randomBytes(20).toString("hex");
 
   // Hash the token and store in DB
