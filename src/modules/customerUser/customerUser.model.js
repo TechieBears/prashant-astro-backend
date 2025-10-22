@@ -7,12 +7,10 @@ const customerUserSchema = new mongoose.Schema({
     uniqueId: String,
     firstName: {
         type: String,
-        required: [true, "First name is required"],
         maxlength: 50
     },
     lastName: {
         type: String,
-        required: [true, "Last name is required"],
         maxlength: 50
     },
     title: {
