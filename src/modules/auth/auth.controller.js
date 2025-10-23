@@ -24,7 +24,8 @@ const sendUser = (user) => ({
   gender: user.profile.gender,
   createdAt: user.createdAt,
   updatedAt: user.updatedAt,
-  title: user.profile.title
+  title: user.profile.title,
+  referralCode: user.referralCode || null,
 });
 
 // @desc    Login
