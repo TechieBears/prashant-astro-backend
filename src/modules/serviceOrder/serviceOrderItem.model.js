@@ -77,6 +77,10 @@ const serviceItemSchema = new mongoose.Schema({
         enum: ['pending', 'paid', 'cancelled', 'refunded', 'blocked', 'released'],
         default: 'pending'
     },
+    address: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'customerAddress',
+    },
     zoomLink: {
         type: String
     }

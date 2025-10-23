@@ -10,226 +10,6 @@ const ErrorHandler = require('../../utils/errorHandler');
 const moment = require('moment');
 const Coupon = require('../coupon/coupon.model');
 const ProductOrder = require('../productOrder/productOrder.model');
-const addressSchema = require('../customerAddress/customerAddress.model');
-
-// @desc Create Service Order (Buy Now - Multiple Services)
-// @route POST /api/service-order/create
-// @access Customer
-// exports.createServiceOrder = asyncHandler(async (req, res, next) => {
-//   const userId = req.user._id;
-//   const {
-//     serviceItems, // <-- array of service items
-//     paymentType,
-//     paymentId,
-//     paymentDetails,
-//     couponId,
-//   } = req.body;
-
-//   if (!Array.isArray(serviceItems) || serviceItems.length === 0) {
-//     return next(new ErrorHandler('At least one service item is required', 400));
-//   }
-
-//   // --------------- ✅ Validate Coupon (if provided) ----------------
-//   let coupon = null;
-//   if (couponId) {
-//     if (!mongoose.Types.ObjectId.isValid(couponId)) {
-//       return next(new ErrorHandler('Invalid couponId', 400));
-//     }
-
-//     coupon = await Coupon.findOne({ _id: couponId, isDeleted: false });
-//     if (!coupon) {
-//       return next(new ErrorHandler('Coupon not found', 404));
-//     }
-
-//     if (!coupon.isActive) {
-//       return next(new ErrorHandler('Coupon is inactive', 400));
-//     }
-
-//     const now = new Date();
-//     if (coupon.activationDate && now < coupon.activationDate) {
-//       return next(new ErrorHandler('Coupon is not yet active', 400));
-//     }
-//     if (coupon.expiryDate && now > coupon.expiryDate) {
-//       return next(new ErrorHandler('Coupon has expired', 400));
-//     }
-
-//     if (!['services'].includes(coupon.couponType)) {
-//       return next(new ErrorHandler('Coupon not applicable for services', 400));
-//     }
-
-//     // Check redemption limits
-//     const [userServiceUses, userProductUses, totalServiceUses, totalProductUses] = await Promise.all([
-//       ServiceOrder.countDocuments({ user: userId, coupon: couponId }),
-//       ProductOrder.countDocuments({ user: userId, coupon: couponId }),
-//       ServiceOrder.countDocuments({ coupon: couponId }),
-//       ProductOrder.countDocuments({ coupon: couponId })
-//     ]);
-
-//     const userTotalUses = userServiceUses + userProductUses;
-//     const globalTotalUses = totalServiceUses + totalProductUses;
-
-//     if (coupon.redemptionPerUser && coupon.redemptionPerUser > 0 && userTotalUses >= coupon.redemptionPerUser) {
-//       return next(new ErrorHandler('Coupon redemption limit reached for this user', 400));
-//     }
-
-//     if (coupon.totalRedemptions && coupon.totalRedemptions > 0 && globalTotalUses >= coupon.totalRedemptions) {
-//       return next(new ErrorHandler('Coupon redemption limit reached', 400));
-//     }
-//   }
-
-//   // --------------- ✅ Process Each Service Item ----------------
-//   let totalAmount = 0;
-//   const createdOrderItems = [];
-
-//   for (const item of serviceItems) {
-//     const {
-//       serviceId,
-//       astrologerId,
-//       bookingDate,
-//       startTime,
-//       firstName,
-//       lastName,
-//       email,
-//       phone,
-//       address
-//     } = item;
-
-//     if (!mongoose.Types.ObjectId.isValid(serviceId)) {
-//       return next(new ErrorHandler('Invalid serviceId', 400));
-//     }
-//     if (!mongoose.Types.ObjectId.isValid(astrologerId)) {
-//       return next(new ErrorHandler('Invalid astrologerId', 400));
-//     }
-//     if (!bookingDate || !startTime) {
-//       return next(new ErrorHandler('Booking date and start time are required', 400));
-//     }
-
-//     // Fetch service
-//     const service = await Service.findById(serviceId);
-//     if (!service) return next(new ErrorHandler('Service not found', 404));
-
-//     // check serviceType for address
-//     if (service.serviceType === 'pooja_at_home' && !address) {
-//       return next(new ErrorHandler('Please provide address', 400));
-//     }
-
-//     // Fetch astrologer
-//     const astrologer = await User.findById(astrologerId).populate('profile');
-//     if (!astrologer || astrologer.profile.employeeType !== 'astrologer') {
-//       return next(new ErrorHandler('Astrologer not found', 404));
-//     }
-
-//     // --------------- ✅ Day Check ----------------
-//     const bookingDay = moment(bookingDate).format('dddd');
-//     if (!astrologer.profile.days.includes(bookingDay)) {
-//       return next(new ErrorHandler(`Astrologer not available on ${bookingDay}`, 400));
-//     }
-
-//     // --------------- ✅ Time Window Check ----------------
-//     const serviceDuration = parseInt(service.durationInMinutes, 10);
-//     const bookingStart = moment(`${bookingDate} ${startTime}`, 'YYYY-MM-DD HH:mm');
-//     const bookingEnd = moment(bookingStart).add(serviceDuration, 'minutes');
-
-//     const astrologerStart = moment(`${bookingDate} ${astrologer.profile.startTime}`, 'YYYY-MM-DD HH:mm');
-//     const astrologerEnd = moment(`${bookingDate} ${astrologer.profile.endTime}`, 'YYYY-MM-DD HH:mm');
-
-//     if (bookingStart.isBefore(astrologerStart) || bookingEnd.isAfter(astrologerEnd)) {
-//       return next(new ErrorHandler('Please select a time slot within the astrologer\'s available time window', 400));
-//     }
-
-//     // --------------- ✅ Pre-Booking Check ----------------
-//     if (astrologer.profile.preBooking) {
-//       const now = moment();
-//       const diffHours = bookingStart.diff(now, 'hours');
-//       if (diffHours < astrologer.profile.preBooking) {
-//         return next(new ErrorHandler(`Booking must be at least ${astrologer.profile.preBooking} hours in advance`, 400));
-//       }
-//     }
-
-//     // --------------- ✅ Overlap Check ----------------
-//     const overlapBooking = await ServiceOrderItem.findOne({
-//       astrologer: astrologerId,
-//       bookingDate: { $eq: bookingDate },
-//       $or: [
-//         {
-//           startTime: { $lt: bookingEnd.format('HH:mm') },
-//           endTime: { $gt: bookingStart.format('HH:mm') }
-//         }
-//       ]
-//     });
-
-//     if (overlapBooking) {
-//       return next(new ErrorHandler('Astrologer already booked for this time slot', 400));
-//     }
-
-//     // --------------- ✅ Create Order Item ----------------
-//     const orderItem = new ServiceOrderItem({
-//       customerId: userId,
-//       cust: { firstName, lastName, email, phone },
-//       service: service._id,
-//       astrologer: astrologerId,
-//       snapshot: {
-//         price: service.price,
-//         durationInMinutes: serviceDuration
-//       },
-//       bookingDate: bookingDate,
-//       startTime: bookingStart.format('HH:mm'),
-//       endTime: bookingEnd.format('HH:mm'),
-//       serviceType: service.serviceType,
-//       total: service.price
-//     });
-
-//     await orderItem.save();
-//     createdOrderItems.push(orderItem._id);
-
-//     totalAmount += service.price;
-//   }
-
-//   // --------------- ✅ Create Transaction ----------------
-//   const transaction = await Transaction.create({
-//     from: 'service',
-//     serviceId: serviceItems[0].serviceId,
-//     type: paymentType || 'OTHER',
-//     status: 'unpaid',
-//     amount: 0, // to be filled from webhook
-//     pendingAmount: totalAmount + (coupon ? coupon.discount : 0),
-//     payingAmount: totalAmount + (coupon ? coupon.discount : 0),
-//     isCoupon: coupon ? true : false,
-//     paymentId: paymentId || `PAY-${Date.now()}`,
-//     userId,
-//     paymentDetails: paymentDetails || {}
-//   });
-
-//   // --------------- ✅ Create Service Order ----------------
-//   const serviceOrderPayload = {
-//     user: userId,
-//     services: createdOrderItems,
-//     paymentStatus: 'pending',
-//     totalAmount,
-//     finalAmount: totalAmount,
-//     payingAmount: totalAmount + (coupon ? coupon.discount : 0),
-//     transaction: transaction._id,
-//   };
-
-//   if (couponId && mongoose.Types.ObjectId.isValid(couponId)) {
-//     serviceOrderPayload.coupon = couponId;
-//     serviceOrderPayload.isCoupon = true;
-//   }
-
-//   const serviceOrder = await ServiceOrder.create(serviceOrderPayload);
-
-//   // update each order item with serviceOrder._id
-//   await ServiceOrderItem.updateMany(
-//     { _id: { $in: createdOrderItems } },
-//     { $set: { orderId: serviceOrder._id } }
-//   );
-
-//   res.status(201).json({
-//     success: true,
-//     message: 'Service order created successfully',
-//     order: serviceOrder
-//   });
-// });
 
 // @desc Create Service Order (Buy Now - Multiple Services)
 // @route POST /api/service-order/create
@@ -242,7 +22,6 @@ exports.createServiceOrder = asyncHandler(async (req, res, next) => {
     paymentId,
     paymentDetails,
     couponId,
-    addressId
   } = req.body;
 
   if (!Array.isArray(serviceItems) || serviceItems.length === 0) {
@@ -367,6 +146,7 @@ exports.createServiceOrder = asyncHandler(async (req, res, next) => {
       endTime: bookingEnd.format('HH:mm'),
       serviceType: service.serviceType,
       total: service.price,
+      address: address || null,
     });
 
     // ✅ Create Transaction for this item
@@ -595,79 +375,677 @@ exports.getServiceOrder = asyncHandler(async (req, res, next) => {
 // @desc Get All Service Orders (Admin)
 // @route GET /api/service-order/get-all
 // @access Admin
+// exports.getAllServiceOrdersAdmin = asyncHandler(async (req, res, next) => {
+//   const page = parseInt(req.query.page) || 1;
+//   const limit = parseInt(req.query.limit) || 20;
+//   const skip = (page - 1) * limit;
+
+//   let filters = {};
+
+//   if (req.query.orderId) {
+//     filters._id = req.query.orderId;
+//   }
+//   if (req.query.status) {
+//     filters.paymentStatus = req.query.status.toLowerCase();
+//   }
+//   if (req.query.date) {
+//     filters.createdAt = { $gte: new Date(req.query.date), $lte: new Date(new Date(req.query.date).setHours(23, 59, 59, 999)) };
+//   }
+
+//   // ✅ Handle astrologerId filtering
+//   if (req.query.astrologerId) {
+//     const astrologerServices = await ServiceOrderItem.find({
+//       astrologer: req.query.astrologerId,
+//     }).select("_id");
+
+//     const serviceIds = astrologerServices.map(s => s._id);
+
+//     filters.services = { $in: serviceIds };
+//   }
+
+//   const orders = await ServiceOrder.find(filters)
+//     .populate({
+//       path: "services",
+//       populate: [
+//         { path: "service", model: "Service" },
+//         { path: "astrologer", model: "User", select: "name" },
+//       ],
+//     })
+//     .populate("transaction")
+//     .populate("address")
+//     .sort({ createdAt: -1 })
+//     .skip(skip)
+//     .limit(limit);
+
+//   const destructuredOrders = orders.map((order) => ({
+//     orderId: order._id,
+//     services: order.services.map((service) => ({
+//       serviceId: service.service._id,
+//       serviceName: service.service.name,
+//       astrologerName: service.astrologer?.name || null,
+//       servicePrice: service.snapshot.price,
+//       durationInMinutes: service.snapshot.durationInMinutes,
+//       startTime: service.startTime,
+//       endTime: service.endTime,
+//       bookingDate: service.bookingDate,
+//       serviceType: service.serviceType,
+//       total: service.total,
+//       astrologerStatus: service.astrologerStatus,
+//       rejectReason: service.rejectReason || null,
+//       bookingStatus: service.status,
+//       paymentStatus: service.paymentStatus,
+//       zoomLink: service.zoomLink || null,
+//     })),
+//     paymentStatus: order.paymentStatus,
+//     totalAmount: order.totalAmount,
+//     finalAmount: order.finalAmount,
+//     paymentId: order.transaction?.paymentId || null,
+//     paymentDetails: order.transaction?.paymentDetails || null,
+//     address: order.address || null,
+//     createdAt: order.createdAt,
+//   }));
+
+//   res.paginated(
+//     destructuredOrders,
+//     { page, limit, total: orders.length, pages: Math.ceil(orders.length / limit) },
+//     "Orders fetched successfully"
+//   );
+// });
+// exports.getAllServiceOrdersAdmin = asyncHandler(async (req, res, next) => {
+//   const page = parseInt(req.query.page) || 1;
+//   const limit = parseInt(req.query.limit) || 20;
+//   const skip = (page - 1) * limit;
+
+//   // Build match stage
+//   const matchStage = {};
+  
+//   if (req.query.orderId) {
+//     matchStage._id = new mongoose.Types.ObjectId(req.query.orderId);
+//   }
+  
+//   if (req.query.status) {
+//     matchStage.paymentStatus = req.query.status.toLowerCase();
+//   }
+  
+//   if (req.query.date) {
+//     const startDate = new Date(req.query.date);
+//     const endDate = new Date(startDate);
+//     endDate.setHours(23, 59, 59, 999);
+    
+//     matchStage.createdAt = {
+//       $gte: startDate,
+//       $lte: endDate
+//     };
+//   }
+
+//   // Handle astrologerId filtering with aggregation
+//   if (req.query.astrologerId) {
+//     matchStage['services.astrologer'] = new mongoose.Types.ObjectId(req.query.astrologerId);
+//   }
+
+//   const aggregationPipeline = [
+//     // Match orders based on filters
+//     ...(Object.keys(matchStage).length > 0 ? [{ $match: matchStage }] : []),
+    
+//     // Lookup services with populated data
+//     {
+//       $lookup: {
+//         from: 'serviceorderitems',
+//         localField: 'services',
+//         foreignField: '_id',
+//         as: 'serviceItems',
+//         pipeline: [
+//           // Filter by astrologerId if provided
+//           ...(req.query.astrologerId ? [{
+//             $match: {
+//               astrologer: new mongoose.Types.ObjectId(req.query.astrologerId)
+//             }
+//           }] : []),
+          
+//           // Lookup service details
+//           {
+//             $lookup: {
+//               from: 'services',
+//               localField: 'service',
+//               foreignField: '_id',
+//               as: 'serviceDetails'
+//             }
+//           },
+//           { $unwind: { path: '$serviceDetails', preserveNullAndEmptyArrays: true } },
+          
+//           // Lookup astrologer details
+//           {
+//             $lookup: {
+//               from: 'users',
+//               localField: 'astrologer',
+//               foreignField: '_id',
+//               as: 'astrologerDetails',
+//               pipeline: [
+//                 { $project: { name: 1 } }
+//               ]
+//             }
+//           },
+//           { $unwind: { path: '$astrologerDetails', preserveNullAndEmptyArrays: true } }
+//         ]
+//       }
+//     },
+    
+//     // Lookup user details
+//     {
+//       $lookup: {
+//         from: 'users',
+//         localField: 'user',
+//         foreignField: '_id',
+//         as: 'userDetails',
+//         pipeline: [
+//           { 
+//             $project: { 
+//               email: 1, 
+//               mobileNo: 1,
+//               profile: 1,
+//               role: 1
+//             } 
+//           }
+//         ]
+//       }
+//     },
+//     { $unwind: { path: '$userDetails', preserveNullAndEmptyArrays: true } },
+    
+//     // Lookup customer profile details (where firstName and lastName are stored)
+//     {
+//       $lookup: {
+//         from: 'customers',
+//         localField: 'userDetails.profile',
+//         foreignField: '_id',
+//         as: 'customerProfile',
+//         pipeline: [
+//           {
+//             $project: {
+//               firstName: 1,
+//               lastName: 1,
+//               title: 1
+//             }
+//           }
+//         ]
+//       }
+//     },
+//     { $unwind: { path: '$customerProfile', preserveNullAndEmptyArrays: true } },
+    
+//     // Lookup transaction details
+//     {
+//       $lookup: {
+//         from: 'transactions',
+//         localField: 'transaction',
+//         foreignField: '_id',
+//         as: 'transactionDetails'
+//       }
+//     },
+//     { $unwind: { path: '$transactionDetails', preserveNullAndEmptyArrays: true } },
+    
+//     // Lookup address details
+//     {
+//       $lookup: {
+//         from: 'customeraddresses',
+//         localField: 'address',
+//         foreignField: '_id',
+//         as: 'addressDetails'
+//       }
+//     },
+//     { $unwind: { path: '$addressDetails', preserveNullAndEmptyArrays: true } },
+    
+//     // Lookup coupon details
+//     {
+//       $lookup: {
+//         from: 'coupons',
+//         localField: 'coupon',
+//         foreignField: '_id',
+//         as: 'couponDetails',
+//         pipeline: [
+//           {
+//             $project: {
+//               couponName: 1,
+//               couponCode: 1,
+//               discountIn: 1,
+//               discount: 1
+//             }
+//           }
+//         ]
+//       }
+//     },
+//     { $unwind: { path: '$couponDetails', preserveNullAndEmptyArrays: true } },
+    
+//     // Project the final structure
+//     {
+//       $project: {
+//         orderId: '$_id',
+//         customer: {
+//           email: '$userDetails.email',
+//           mobileNo: '$userDetails.mobileNo',
+//           firstName: '$customerProfile.firstName',
+//           lastName: '$customerProfile.lastName',
+//           name: {
+//             $cond: {
+//               if: {
+//                 $and: [
+//                   '$customerProfile.firstName',
+//                   '$customerProfile.lastName'
+//                 ]
+//               },
+//               then: {
+//                 $concat: [
+//                   { $ifNull: ['$customerProfile.firstName', ''] },
+//                   ' ',
+//                   { $ifNull: ['$customerProfile.lastName', ''] }
+//                 ]
+//               },
+//               else: null
+//             }
+//           }
+//         },
+//         services: {
+//           $map: {
+//             input: '$serviceItems',
+//             as: 'service',
+//             in: {
+//               serviceId: '$$service.serviceDetails._id',
+//               serviceName: '$$service.serviceDetails.name',
+//               astrologerName: '$$service.astrologerDetails.name',
+//               servicePrice: '$$service.snapshot.price',
+//               durationInMinutes: '$$service.snapshot.durationInMinutes',
+//               startTime: '$$service.startTime',
+//               endTime: '$$service.endTime',
+//               bookingDate: '$$service.bookingDate',
+//               serviceType: '$$service.serviceType',
+//               total: '$$service.total',
+//               astrologerStatus: '$$service.astrologerStatus',
+//               rejectReason: '$$service.rejectReason',
+//               bookingStatus: '$$service.status',
+//               paymentStatus: '$$service.paymentStatus',
+//               zoomLink: '$$service.zoomLink'
+//             }
+//           }
+//         },
+//         paymentStatus: 1,
+//         totalAmount: 1,
+//         finalAmount: 1,
+//         payingAmount: 1,
+//         isCoupon: 1,
+//         coupon: {
+//           $cond: {
+//             if: { $eq: [{ $type: '$couponDetails' }, 'missing'] },
+//             then: null,
+//             else: {
+//               couponName: '$couponDetails.couponName',
+//               couponCode: '$couponDetails.couponCode',
+//               discountIn: '$couponDetails.discountIn',
+//               discount: '$couponDetails.discount'
+//             }
+//           }
+//         },
+//         paymentId: '$transactionDetails.paymentId',
+//         paymentDetails: '$transactionDetails.paymentDetails',
+//         address: {
+//           $cond: {
+//             if: { $eq: [{ $type: '$addressDetails' }, 'missing'] },
+//             then: null,
+//             else: '$addressDetails'
+//           }
+//         },
+//         createdAt: 1
+//       }
+//     },
+    
+//     // Sort by creation date (newest first)
+//     { $sort: { createdAt: -1 } },
+    
+//     // Pagination
+//     { $skip: skip },
+//     { $limit: limit }
+//   ];
+
+//   // Get total count for pagination
+//   const countPipeline = [
+//     ...(Object.keys(matchStage).length > 0 ? [{ $match: matchStage }] : []),
+    
+//     // Handle astrologer filtering in count
+//     ...(req.query.astrologerId ? [{
+//       $lookup: {
+//         from: 'serviceorderitems',
+//         localField: 'services',
+//         foreignField: '_id',
+//         as: 'serviceItems',
+//         pipeline: [{
+//           $match: {
+//             astrologer: new mongoose.Types.ObjectId(req.query.astrologerId)
+//           }
+//         }]
+//       }
+//     }, {
+//       $match: {
+//         'serviceItems.0': { $exists: true }
+//       }
+//     }] : []),
+    
+//     { $count: 'total' }
+//   ];
+
+//   // Execute both pipelines in parallel
+//   const [ordersResult, countResult] = await Promise.all([
+//     ServiceOrder.aggregate(aggregationPipeline),
+//     ServiceOrder.aggregate(countPipeline)
+//   ]);
+
+//   const total = countResult.length > 0 ? countResult[0].total : 0;
+//   const pages = Math.ceil(total / limit);
+
+//   res.paginated(
+//     ordersResult,
+//     { page, limit, total, pages },
+//     "Orders fetched successfully"
+//   );
+// });
 exports.getAllServiceOrdersAdmin = asyncHandler(async (req, res, next) => {
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 20;
   const skip = (page - 1) * limit;
 
-  let filters = {};
-
+  // Build match stage
+  const matchStage = {};
+  
   if (req.query.orderId) {
-    filters._id = req.query.orderId;
+    matchStage._id = new mongoose.Types.ObjectId(req.query.orderId);
   }
+  
   if (req.query.status) {
-    filters.paymentStatus = req.query.status.toLowerCase();
+    matchStage.paymentStatus = req.query.status.toLowerCase();
   }
+  
   if (req.query.date) {
-    filters.createdAt = { $gte: new Date(req.query.date), $lte: new Date(new Date(req.query.date).setHours(23, 59, 59, 999)) };
+    const startDate = new Date(req.query.date);
+    const endDate = new Date(startDate);
+    endDate.setHours(23, 59, 59, 999);
+    
+    matchStage.createdAt = {
+      $gte: startDate,
+      $lte: endDate
+    };
   }
 
-  // ✅ Handle astrologerId filtering
+  // Handle astrologerId filtering with aggregation
   if (req.query.astrologerId) {
-    const astrologerServices = await ServiceOrderItem.find({
-      astrologer: req.query.astrologerId,
-    }).select("_id");
-
-    const serviceIds = astrologerServices.map(s => s._id);
-
-    filters.services = { $in: serviceIds };
+    matchStage['services.astrologer'] = new mongoose.Types.ObjectId(req.query.astrologerId);
   }
 
-  const orders = await ServiceOrder.find(filters)
-    .populate({
-      path: "services",
-      populate: [
-        { path: "service", model: "Service" },
-        { path: "astrologer", model: "User", select: "name" },
-      ],
-    })
-    .populate("transaction")
-    .populate("address")
-    .sort({ createdAt: -1 })
-    .skip(skip)
-    .limit(limit);
+  const aggregationPipeline = [
+    // Match orders based on filters
+    ...(Object.keys(matchStage).length > 0 ? [{ $match: matchStage }] : []),
+    
+    // Lookup services with populated data
+    {
+      $lookup: {
+        from: 'serviceorderitems',
+        localField: 'services',
+        foreignField: '_id',
+        as: 'serviceItems',
+        pipeline: [
+          // Filter by astrologerId if provided
+          ...(req.query.astrologerId ? [{
+            $match: {
+              astrologer: new mongoose.Types.ObjectId(req.query.astrologerId)
+            }
+          }] : []),
+          
+          // Lookup service details
+          {
+            $lookup: {
+              from: 'services',
+              localField: 'service',
+              foreignField: '_id',
+              as: 'serviceDetails'
+            }
+          },
+          { $unwind: { path: '$serviceDetails', preserveNullAndEmptyArrays: true } },
+          
+          // Lookup astrologer details
+          {
+            $lookup: {
+              from: 'users',
+              localField: 'astrologer',
+              foreignField: '_id',
+              as: 'astrologerDetails',
+              pipeline: [
+                { $project: { name: 1 } }
+              ]
+            }
+          },
+          { $unwind: { path: '$astrologerDetails', preserveNullAndEmptyArrays: true } },
+          
+          // Lookup address details for each service item
+          {
+            $lookup: {
+              from: 'customeraddresses',
+              localField: 'address',
+              foreignField: '_id',
+              as: 'addressDetails'
+            }
+          },
+          { $unwind: { path: '$addressDetails', preserveNullAndEmptyArrays: true } }
+        ]
+      }
+    },
+    
+    // Lookup user details
+    {
+      $lookup: {
+        from: 'users',
+        localField: 'user',
+        foreignField: '_id',
+        as: 'userDetails',
+        pipeline: [
+          { 
+            $project: { 
+              email: 1, 
+              mobileNo: 1,
+              profile: 1,
+              role: 1
+            } 
+          }
+        ]
+      }
+    },
+    { $unwind: { path: '$userDetails', preserveNullAndEmptyArrays: true } },
+    
+    // Lookup customer profile details (where firstName and lastName are stored)
+    {
+      $lookup: {
+        from: 'customers',
+        localField: 'userDetails.profile',
+        foreignField: '_id',
+        as: 'customerProfile',
+        pipeline: [
+          {
+            $project: {
+              firstName: 1,
+              lastName: 1,
+              title: 1
+            }
+          }
+        ]
+      }
+    },
+    { $unwind: { path: '$customerProfile', preserveNullAndEmptyArrays: true } },
+    
+    // Lookup transaction details
+    {
+      $lookup: {
+        from: 'transactions',
+        localField: 'transaction',
+        foreignField: '_id',
+        as: 'transactionDetails'
+      }
+    },
+    { $unwind: { path: '$transactionDetails', preserveNullAndEmptyArrays: true } },
+    
+    // Lookup coupon details
+    {
+      $lookup: {
+        from: 'coupons',
+        localField: 'coupon',
+        foreignField: '_id',
+        as: 'couponDetails',
+        pipeline: [
+          {
+            $project: {
+              couponName: 1,
+              couponCode: 1,
+              discountIn: 1,
+              discount: 1
+            }
+          }
+        ]
+      }
+    },
+    { $unwind: { path: '$couponDetails', preserveNullAndEmptyArrays: true } },
+    
+    // Project the final structure
+    {
+      $project: {
+        orderId: '$_id',
+        customer: {
+          email: '$userDetails.email',
+          mobileNo: '$userDetails.mobileNo',
+          firstName: '$customerProfile.firstName',
+          lastName: '$customerProfile.lastName',
+          name: {
+            $cond: {
+              if: {
+                $and: [
+                  '$customerProfile.firstName',
+                  '$customerProfile.lastName'
+                ]
+              },
+              then: {
+                $concat: [
+                  { $ifNull: ['$customerProfile.firstName', ''] },
+                  ' ',
+                  { $ifNull: ['$customerProfile.lastName', ''] }
+                ]
+              },
+              else: null
+            }
+          }
+        },
+        services: {
+          $map: {
+            input: '$serviceItems',
+            as: 'service',
+            in: {
+              serviceId: '$$service.serviceDetails._id',
+              serviceName: '$$service.serviceDetails.name',
+              astrologerName: '$$service.astrologerDetails.name',
+              servicePrice: '$$service.snapshot.price',
+              durationInMinutes: '$$service.snapshot.durationInMinutes',
+              startTime: '$$service.startTime',
+              endTime: '$$service.endTime',
+              bookingDate: '$$service.bookingDate',
+              serviceType: '$$service.serviceType',
+              total: '$$service.total',
+              astrologerStatus: '$$service.astrologerStatus',
+              rejectReason: '$$service.rejectReason',
+              bookingStatus: '$$service.status',
+              paymentStatus: '$$service.paymentStatus',
+              zoomLink: '$$service.zoomLink',
+              address: {
+                $cond: {
+                  if: { $eq: [{ $type: '$$service.addressDetails' }, 'missing'] },
+                  then: null,
+                  else: {
+                    _id: '$$service.addressDetails._id',
+                    firstName: '$$service.addressDetails.firstName',
+                    lastName: '$$service.addressDetails.lastName',
+                    phoneNumber: '$$service.addressDetails.phoneNumber',
+                    addressType: '$$service.addressDetails.addressType',
+                    address: '$$service.addressDetails.address',
+                    country: '$$service.addressDetails.country',
+                    state: '$$service.addressDetails.state',
+                    city: '$$service.addressDetails.city',
+                    postalCode: '$$service.addressDetails.postalCode',
+                    isDefault: '$$service.addressDetails.isDefault'
+                  }
+                }
+              }
+            }
+          }
+        },
+        paymentStatus: 1,
+        totalAmount: 1,
+        finalAmount: 1,
+        payingAmount: 1,
+        isCoupon: 1,
+        coupon: {
+          $cond: {
+            if: { $eq: [{ $type: '$couponDetails' }, 'missing'] },
+            then: null,
+            else: {
+              couponName: '$couponDetails.couponName',
+              couponCode: '$couponDetails.couponCode',
+              discountIn: '$couponDetails.discountIn',
+              discount: '$couponDetails.discount'
+            }
+          }
+        },
+        paymentId: '$transactionDetails.paymentId',
+        paymentDetails: '$transactionDetails.paymentDetails',
+        createdAt: 1
+      }
+    },
+    
+    // Sort by creation date (newest first)
+    { $sort: { createdAt: -1 } },
+    
+    // Pagination
+    { $skip: skip },
+    { $limit: limit }
+  ];
 
-  const destructuredOrders = orders.map((order) => ({
-    orderId: order._id,
-    services: order.services.map((service) => ({
-      serviceId: service.service._id,
-      serviceName: service.service.name,
-      astrologerName: service.astrologer?.name || null,
-      servicePrice: service.snapshot.price,
-      durationInMinutes: service.snapshot.durationInMinutes,
-      startTime: service.startTime,
-      endTime: service.endTime,
-      bookingDate: service.bookingDate,
-      serviceType: service.serviceType,
-      total: service.total,
-      astrologerStatus: service.astrologerStatus,
-      rejectReason: service.rejectReason || null,
-      bookingStatus: service.status,
-      paymentStatus: service.paymentStatus,
-      zoomLink: service.zoomLink || null,
-    })),
-    paymentStatus: order.paymentStatus,
-    totalAmount: order.totalAmount,
-    finalAmount: order.finalAmount,
-    paymentId: order.transaction?.paymentId || null,
-    paymentDetails: order.transaction?.paymentDetails || null,
-    address: order.address || null,
-    createdAt: order.createdAt,
-  }));
+  // Get total count for pagination
+  const countPipeline = [
+    ...(Object.keys(matchStage).length > 0 ? [{ $match: matchStage }] : []),
+    
+    // Handle astrologer filtering in count
+    ...(req.query.astrologerId ? [{
+      $lookup: {
+        from: 'serviceorderitems',
+        localField: 'services',
+        foreignField: '_id',
+        as: 'serviceItems',
+        pipeline: [{
+          $match: {
+            astrologer: new mongoose.Types.ObjectId(req.query.astrologerId)
+          }
+        }]
+      }
+    }, {
+      $match: {
+        'serviceItems.0': { $exists: true }
+      }
+    }] : []),
+    
+    { $count: 'total' }
+  ];
+
+  // Execute both pipelines in parallel
+  const [ordersResult, countResult] = await Promise.all([
+    ServiceOrder.aggregate(aggregationPipeline),
+    ServiceOrder.aggregate(countPipeline)
+  ]);
+
+  const total = countResult.length > 0 ? countResult[0].total : 0;
+  const pages = Math.ceil(total / limit);
 
   res.paginated(
-    destructuredOrders,
-    { page, limit, total: orders.length, pages: Math.ceil(orders.length / limit) },
+    ordersResult,
+    { page, limit, total, pages },
     "Orders fetched successfully"
   );
 });

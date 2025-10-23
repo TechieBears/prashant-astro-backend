@@ -39,10 +39,10 @@ const serviceOrderSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Transaction',
     },
-    address: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'customerAddress',
-    }
+    // address: {
+    //     type: mongoose.Schema.Types.ObjectId,
+    //     ref: 'customerAddress',
+    // }
 }, { timestamps: true });
 
 module.exports = mongoose.model('ServiceOrder', serviceOrderSchema);
