@@ -26,6 +26,14 @@ const customerUserSchema = new mongoose.Schema({
         unique: true,
         index: true,
     },
+    referredBy:{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "customer",
+    },
+    referralRewardGiven:{
+        type: Boolean,
+        default: false
+    },
     wallet: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Wallet",

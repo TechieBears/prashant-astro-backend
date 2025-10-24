@@ -23,6 +23,242 @@ const sendUser = (user, profile) => ({
     createdAt: user.createdAt,
 });
 
+// @desc    Create new customer user
+// @route   POST /api/customer/register
+// @access  Public
+// exports.createCustomerUser = asyncHandler(async (req, res, next) => {
+//   const {
+//     email,
+//     password,
+//     mobileNo,
+//     profileImage,
+//     firstName,
+//     lastName,
+//     title,
+//     registerType,
+//     gender,
+//     referralCode, // 👈 referral code entered by new user
+//   } = req.body;
+
+//   // Validate registerType
+//   if (!["google", "normal"].includes(registerType)) {
+//     return next(new ErrorHander("Invalid register type", 400));
+//   }
+
+//   // Check existing user
+//   const existingUser = await User.findOne({ email }).populate("profile");
+
+//   // ---------------- GOOGLE REGISTER/LOGIN FLOW ----------------
+//   if (registerType === "google") {
+//     if (existingUser) {
+//       const token = existingUser.generateAuthToken();
+//       return res.ok(
+//         { token, user: sendUser(existingUser, existingUser.profile) },
+//         "Customer Registered Successfully"
+//       );
+//     }
+
+//     const session = await mongoose.startSession();
+//     session.startTransaction();
+
+//     try {
+//       // 1️⃣ Create Customer
+//       const customerUser = await CustomerUser.create(
+//         [
+//           {
+//             firstName: firstName || null,
+//             lastName: lastName || null,
+//             title,
+//             gender: gender || null,
+//           },
+//         ],
+//         { session }
+//       );
+
+//       // 2️⃣ Create Wallet (check referral)
+//       const initialBalance = referralCode ? 200 : 0;
+//       const wallet = await Wallet.create(
+//         [
+//           {
+//             balance: initialBalance,
+//           },
+//         ],
+//         { session }
+//       );
+
+//       // 3️⃣ Link wallet to customer
+//       customerUser[0].wallet = wallet[0]._id;
+//       await customerUser[0].save({ session });
+
+//       // 4️⃣ Create User
+//       const user = await User.create(
+//         [
+//           {
+//             email,
+//             // password: null,
+//             mobileNo: mobileNo || null,
+//             role: "customer",
+//             profileImage: profileImage || "https://cdn-icons-png.flaticon.com/512/149/149071.png",
+//             profile: customerUser[0]._id,
+//             type: "google",
+//           },
+//         ],
+//         { session }
+//       );
+
+//       // 5️⃣ If referral code exists, verify it and reward referrer (optional)
+//       if (referralCode) {
+//         const referrer = await CustomerUser.findOne({ referralCode }).populate("wallet");
+//         if (referrer) {
+//           referrer.wallet.balance += 200; // add ₹200 to referrer
+//           await referrer.wallet.save({ session });
+//         }
+//         else{
+//           await session.abortTransaction();
+//           session.endSession();
+//           return next(new ErrorHander("Invalid referral code", 400));
+//         }
+//       }
+
+//       // 2️⃣ Create Wallet (check referral)
+//       const initialBalancee = referralCode ? 200 : 0; // If both referer and referred needs credited
+//       // const initialBalance = 0; // If only referred needs credited
+//       const wallett = await Wallet.create(
+//         [
+//           {
+//             userId: user[0]._id,
+//             balance: initialBalancee,
+//           },
+//         ],
+//         { session }
+//       );
+
+//       // 3️⃣ Link wallet to customer
+//       customerUser[0].wallet = wallett[0]._id;
+//       await customerUser[0].save({ session });
+
+//       await session.commitTransaction();
+//       session.endSession();
+
+//       const token = user[0].generateAuthToken();
+
+//       return res.ok(
+//         { token, user: sendUser(user[0], customerUser[0]) },
+//         "Customer Registered Successfully"
+//       );
+//     } catch (error) {
+//       await session.abortTransaction();
+//       session.endSession();
+//       return next(error);
+//     }
+//   }
+
+//   // ---------------- NORMAL REGISTRATION FLOW ----------------
+//   if (registerType === "normal") {
+//     if (existingUser) {
+//       if (existingUser.isActive === true || existingUser.isDeleted === false) {
+//         return next(new ErrorHander("User with this email already exists", 400));
+//       }
+//     }
+//     const session = await mongoose.startSession();
+//     session.startTransaction();
+
+//     try {
+//       let customerUser;
+//       let user;
+//       if (existingUser) {
+//         customerUser = await CustomerUser.findOneAndUpdate(
+//           { _id: existingUser.profile },
+//           { $set: { firstName, lastName, title } },
+//           { new: true }
+//         );
+
+//         user = await User.findOneAndUpdate(
+//           { _id: existingUser._id },
+//           { $set: { mobileNo, isActive: true, isDeleted: false } },
+//           { new: true }
+//         );
+
+//         customerUser = [customerUser];
+//         user = [user];
+
+//       } else {
+//         // 1️⃣ Create Customer
+//         customerUser = await CustomerUser.create(
+//           [
+//             {
+//               firstName,
+//               lastName,
+//               title,
+//             },
+//           ],
+//           { session }
+//         );
+
+//         // 4️⃣ Create User
+//         user = await User.create(
+//           [
+//             {
+//               email,
+//               password,
+//               mobileNo,
+//               role: "customer",
+//               profileImage: "https://cdn-icons-png.flaticon.com/512/149/149071.png",
+//               profile: customerUser[0]._id,
+//               type: "normal",
+//             },
+//           ],
+//           { session }
+//         );
+
+//         // 5️⃣ Handle referral reward for referrer (if code provided)
+//         if (referralCode) {
+//           const referrer = await CustomerUser.findOne({ referralCode }).populate("wallet");
+//           if (referrer) {
+//             console.log("Referrer found: ", referrer);
+//             referrer.wallet.balance += 200; // reward referrer
+//             await referrer.wallet.save({ session });
+//           }
+//           else {
+//             await session.abortTransaction();
+//             session.endSession();
+//             return next(new ErrorHander("Invalid referral code", 400));
+//           }
+//         }
+//       }
+//       // 2️⃣ Create Wallet (check referral)
+//       const initialBalance = referralCode ? 200 : 0; // If both referer and referred needs credited
+//       // const initialBalance = 0; // If only referred needs credited
+//       const wallet = await Wallet.create(
+//         [
+//           {
+//             userId: user[0]._id,
+//             balance: initialBalance,
+//           },
+//         ],
+//         { session }
+//       );
+
+//       // 3️⃣ Link wallet to customer
+//       customerUser[0].wallet = wallet[0]._id;
+//       await customerUser[0].save({ session });
+
+//       await session.commitTransaction();
+//       session.endSession();
+
+//       const token = user[0].generateAuthToken();
+
+//       return res.ok(
+//         { token, user: sendUser(user[0], customerUser[0]) },
+//         "Customer user created successfully"
+//       );
+//     } catch (error) {
+//       await session.abortTransaction();
+//       session.endSession();
+//       return next(error);
+//     }
+//   }
+// });
 exports.createCustomerUser = asyncHandler(async (req, res, next) => {
   const {
     email,
@@ -59,6 +295,18 @@ exports.createCustomerUser = asyncHandler(async (req, res, next) => {
     session.startTransaction();
 
     try {
+      let referrer = null;
+      
+      // Validate referral code if provided
+      if (referralCode) {
+        referrer = await CustomerUser.findOne({ referralCode });
+        if (!referrer) {
+          await session.abortTransaction();
+          session.endSession();
+          return next(new ErrorHander("Invalid referral code", 400));
+        }
+      }
+
       // 1️⃣ Create Customer
       const customerUser = await CustomerUser.create(
         [
@@ -67,17 +315,17 @@ exports.createCustomerUser = asyncHandler(async (req, res, next) => {
             lastName: lastName || null,
             title,
             gender: gender || null,
+            referredBy: referrer ? referrer._id : null, // 👈 Store referrer info
           },
         ],
         { session }
       );
 
-      // 2️⃣ Create Wallet (check referral)
-      const initialBalance = referralCode ? 200 : 0;
+      // 2️⃣ Create Wallet with 0 balance initially
       const wallet = await Wallet.create(
         [
           {
-            balance: initialBalance,
+            balance: 0,
           },
         ],
         { session }
@@ -92,7 +340,6 @@ exports.createCustomerUser = asyncHandler(async (req, res, next) => {
         [
           {
             email,
-            // password: null,
             mobileNo: mobileNo || null,
             role: "customer",
             profileImage: profileImage || "https://cdn-icons-png.flaticon.com/512/149/149071.png",
@@ -102,37 +349,6 @@ exports.createCustomerUser = asyncHandler(async (req, res, next) => {
         ],
         { session }
       );
-
-      // 5️⃣ If referral code exists, verify it and reward referrer (optional)
-      if (referralCode) {
-        const referrer = await CustomerUser.findOne({ referralCode }).populate("wallet");
-        if (referrer) {
-          referrer.wallet.balance += 200; // add ₹200 to referrer
-          await referrer.wallet.save({ session });
-        }
-        else{
-          await session.abortTransaction();
-          session.endSession();
-          return next(new ErrorHander("Invalid referral code", 400));
-        }
-      }
-
-      // 2️⃣ Create Wallet (check referral)
-      const initialBalancee = referralCode ? 200 : 0; // If both referer and referred needs credited
-      // const initialBalance = 0; // If only referred needs credited
-      const wallett = await Wallet.create(
-        [
-          {
-            userId: user[0]._id,
-            balance: initialBalancee,
-          },
-        ],
-        { session }
-      );
-
-      // 3️⃣ Link wallet to customer
-      customerUser[0].wallet = wallett[0]._id;
-      await customerUser[0].save({ session });
 
       await session.commitTransaction();
       session.endSession();
@@ -161,12 +377,31 @@ exports.createCustomerUser = asyncHandler(async (req, res, next) => {
     session.startTransaction();
 
     try {
+      let referrer = null;
+      
+      // Validate referral code if provided
+      if (referralCode) {
+        referrer = await CustomerUser.findOne({ referralCode });
+        if (!referrer) {
+          await session.abortTransaction();
+          session.endSession();
+          return next(new ErrorHander("Invalid referral code", 400));
+        }
+      }
+
       let customerUser;
       let user;
       if (existingUser) {
         customerUser = await CustomerUser.findOneAndUpdate(
           { _id: existingUser.profile },
-          { $set: { firstName, lastName, title } },
+          { 
+            $set: { 
+              firstName, 
+              lastName, 
+              title,
+              referredBy: referrer ? referrer._id : null // 👈 Update referrer info
+            } 
+          },
           { new: true }
         );
 
@@ -178,7 +413,6 @@ exports.createCustomerUser = asyncHandler(async (req, res, next) => {
 
         customerUser = [customerUser];
         user = [user];
-
       } else {
         // 1️⃣ Create Customer
         customerUser = await CustomerUser.create(
@@ -187,6 +421,7 @@ exports.createCustomerUser = asyncHandler(async (req, res, next) => {
               firstName,
               lastName,
               title,
+              referredBy: referrer ? referrer._id : null, // 👈 Store referrer info
             },
           ],
           { session }
@@ -207,30 +442,14 @@ exports.createCustomerUser = asyncHandler(async (req, res, next) => {
           ],
           { session }
         );
-
-        // 5️⃣ Handle referral reward for referrer (if code provided)
-        if (referralCode) {
-          const referrer = await CustomerUser.findOne({ referralCode }).populate("wallet");
-          if (referrer) {
-            console.log("Referrer found: ", referrer);
-            referrer.wallet.balance += 200; // reward referrer
-            await referrer.wallet.save({ session });
-          }
-          else {
-            await session.abortTransaction();
-            session.endSession();
-            return next(new ErrorHander("Invalid referral code", 400));
-          }
-        }
       }
-      // 2️⃣ Create Wallet (check referral)
-      const initialBalance = referralCode ? 200 : 0; // If both referer and referred needs credited
-      // const initialBalance = 0; // If only referred needs credited
+
+      // 2️⃣ Create Wallet with 0 balance initially
       const wallet = await Wallet.create(
         [
           {
             userId: user[0]._id,
-            balance: initialBalance,
+            balance: 0, // 👈 Start with 0 balance
           },
         ],
         { session }
