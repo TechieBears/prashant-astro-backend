@@ -802,3 +802,12 @@ exports.resetPassword = asyncHandler(async (req, res, next) => {
     // 7. Send success response
     res.ok({ token: newToken, customer: sendUser(customer, customer.profile) }, "Password reset successfully");
 });
+
+exports.getWalletBalance = asyncHandler(async (req, res, next) => {
+  const user = req.user._id;
+  const wallet = await Wallet.findOne({ userId: user });
+  if (!wallet) {
+    return res.ok({ balance: 0 }, "Wallet balance fetched successfully");
+  }
+  res.ok({ balance: wallet.balance }, "Wallet balance fetched successfully");
+});

@@ -1,10 +1,16 @@
 const CustomerUser = require("../modules/customerUser/customerUser.model");
 const Wallet = require("../modules/wallet/wallet.model");
+const User = require("../modules/auth/user.Model");
 
-exports.processReferralReward = async (customerUserId, session = null) => {
+exports.processReferralReward = async (userId, session = null) => {
   try {
-    // Find the customer with referredBy info
-    const customer = await CustomerUser.findById(customerUserId)
+    // Find user and their customer profile
+    const user = await User.findById(userId).populate('profile');
+    if (!user || !user.profile) {
+      return { success: false, message: "User or customer profile not found" };
+    }
+
+    const customer = await CustomerUser.findById(user.profile._id)
       .populate('referredBy')
       .populate('wallet');
 
@@ -39,7 +45,9 @@ exports.processReferralReward = async (customerUserId, session = null) => {
       message: "Referral rewards processed successfully",
       data: {
         referredUserCredited: 100,
-        referrerCredited: 100
+        referrerCredited: 100,
+        referredUserNewBalance: customer.wallet.balance,
+        referrerNewBalance: referrer.wallet.balance
       }
     };
   } catch (error) {

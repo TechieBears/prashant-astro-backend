@@ -45,6 +45,11 @@ const productOrderSchema = new mongoose.Schema({
     payingAmount:{
         type: Number,
     },
+    walletUsed: { // 👈 NEW: Track how much wallet was used
+      type: Number,
+      default: 0,
+      min: 0
+    },
     isCoupon: {
         type: Boolean,
         default: false

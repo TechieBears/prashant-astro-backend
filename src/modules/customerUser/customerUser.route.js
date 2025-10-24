@@ -8,6 +8,7 @@ const router = express.Router();
 router.post('/register', CustomerController.createCustomerUser);
 router.put('/update', protect, authorize("customer"), CustomerController.updateCustomerUser);
 router.delete('/delete', protect, authorize("customer"), CustomerController.deleteCustomerUser);
+router.get('/get-wallet-balance', protect, authorize("customer"), CustomerController.getWalletBalance);
 
 // password reset routes
 router.post('/forgot-password', CustomerController.forgotPassword);

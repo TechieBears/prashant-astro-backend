@@ -41,6 +41,11 @@ const transactionSchema = new mongoose.Schema({
         min: 0,
         default: 0
     },
+    walletUsed: { // 👈 NEW: Track wallet usage in transaction
+        type: Number,
+        default: 0,
+        min: 0
+    },
     isCoupon: {
         type: Boolean,
         default: false
@@ -65,6 +70,6 @@ const transactionSchema = new mongoose.Schema({
         type: Date,
         default: Date.now
     }
-});
+}, { timestamps: true });
 
 module.exports = mongoose.model('Transaction', transactionSchema);
