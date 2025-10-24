@@ -77,18 +77,18 @@ exports.getAllReviews = asyncHandler(async (req, res) => {
   if (req.query.search && req.query.search.trim() !== '') {
     const s = req.query.search.trim();
     query.$or = [
-      { name: { $regex: s, $options: 'i' } },
-      { designation: { $regex: s, $options: 'i' } },
+      { "customer.firstName": { $regex: s, $options: 'i' } },
+      { "customer.lastName": { $regex: s, $options: 'i' } },
       { message: { $regex: s, $options: 'i' } },
     ];
   }
 
   const items = await Review.aggregate([
-    { $match: query },
     { $lookup: { from: 'users', localField: 'user_id', foreignField: '_id', as: 'user' } },
     { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } },
     { $lookup: { from: 'customers', localField: 'user.profile', foreignField: '_id', as: 'customer' } },
     { $unwind: { path: '$customer', preserveNullAndEmptyArrays: true } },
+    { $match: query },
     { $lookup: { from: 'services', localField: 'service_id', foreignField: '_id', as: 'service' } },
     { $unwind: { path: '$service', preserveNullAndEmptyArrays: true } },
     { $lookup: { from: 'products', localField: 'product_id', foreignField: '_id', as: 'product' } },
