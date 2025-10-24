@@ -10,10 +10,259 @@ const ErrorHandler = require('../../utils/errorHandler');
 const moment = require('moment');
 const Coupon = require('../coupon/coupon.model');
 const ProductOrder = require('../productOrder/productOrder.model');
+const { processReferralReward } = require('../../services/referral.service');
 
 // @desc Create Service Order (Buy Now - Multiple Services)
 // @route POST /api/service-order/create
 // @access Customer
+// exports.createServiceOrder = asyncHandler(async (req, res, next) => {
+//   const userId = req.user._id;
+//   const {
+//     serviceItems, // array of service items
+//     paymentType,
+//     paymentId,
+//     paymentDetails,
+//     couponId,
+//   } = req.body;
+
+//   if (!Array.isArray(serviceItems) || serviceItems.length === 0) {
+//     return next(new ErrorHandler('At least one service item is required', 400));
+//   }
+
+//   // --------------- ✅ Validate Coupon (if provided) ----------------
+//   let coupon = null;
+//   if (couponId) {
+//     if (!mongoose.Types.ObjectId.isValid(couponId)) {
+//       return next(new ErrorHandler('Invalid couponId', 400));
+//     }
+
+//     coupon = await Coupon.findOne({ _id: couponId, isDeleted: false });
+//     if (!coupon) return next(new ErrorHandler('Coupon not found', 404));
+//     if (!coupon.isActive) return next(new ErrorHandler('Coupon is inactive', 400));
+
+//     const now = new Date();
+//     if (coupon.activationDate && now < coupon.activationDate)
+//       return next(new ErrorHandler('Coupon not yet active', 400));
+//     if (coupon.expiryDate && now > coupon.expiryDate)
+//       return next(new ErrorHandler('Coupon expired', 400));
+
+//     if (!['services'].includes(coupon.couponType))
+//       return next(new ErrorHandler('Coupon not applicable for services', 400));
+
+//     // Check redemption limits
+//     const [userServiceUses, userProductUses, totalServiceUses, totalProductUses] = await Promise.all([
+//       ServiceOrder.countDocuments({ user: userId, coupon: couponId }),
+//       ProductOrder.countDocuments({ user: userId, coupon: couponId }),
+//       ServiceOrder.countDocuments({ coupon: couponId }),
+//       ProductOrder.countDocuments({ coupon: couponId }),
+//     ]);
+
+//     const userTotalUses = userServiceUses + userProductUses;
+//     const globalTotalUses = totalServiceUses + totalProductUses;
+
+//     if (coupon.redemptionPerUser && userTotalUses >= coupon.redemptionPerUser)
+//       return next(new ErrorHandler('Coupon redemption limit reached for this user', 400));
+
+//     if (coupon.totalRedemptions && globalTotalUses >= coupon.totalRedemptions)
+//       return next(new ErrorHandler('Coupon redemption limit reached', 400));
+//   }
+
+//   // --------------- ✅ Process Each Service Item ----------------
+//   let totalAmount = 0;
+//   const createdOrderItems = [];
+
+//   for (const item of serviceItems) {
+//     const {
+//       serviceId,
+//       astrologerId,
+//       bookingDate,
+//       startTime,
+//       firstName,
+//       lastName,
+//       email,
+//       phone,
+//       address,
+//     } = item;
+
+//     if (!mongoose.Types.ObjectId.isValid(serviceId))
+//       return next(new ErrorHandler('Invalid serviceId', 400));
+//     if (!mongoose.Types.ObjectId.isValid(astrologerId))
+//       return next(new ErrorHandler('Invalid astrologerId', 400));
+//     if (!bookingDate || !startTime)
+//       return next(new ErrorHandler('Booking date and start time required', 400));
+
+//     const service = await Service.findById(serviceId);
+//     if (!service) return next(new ErrorHandler('Service not found', 404));
+
+//     if (service.serviceType === 'pooja_at_home' && !address)
+//       return next(new ErrorHandler('Address required for pooja_at_home', 400));
+
+//     const astrologer = await User.findById(astrologerId).populate('profile');
+//     if (!astrologer || astrologer.profile.employeeType !== 'astrologer')
+//       return next(new ErrorHandler('Astrologer not found', 404));
+
+//     const bookingDay = moment(bookingDate).format('dddd');
+//     if (!astrologer.profile.days.includes(bookingDay))
+//       return next(new ErrorHandler(`Astrologer not available on ${bookingDay}`, 400));
+
+//     const serviceDuration = parseInt(service.durationInMinutes, 10);
+//     const bookingStart = moment(`${bookingDate} ${startTime}`, 'YYYY-MM-DD HH:mm');
+//     const bookingEnd = moment(bookingStart).add(serviceDuration, 'minutes');
+//     const astrologerStart = moment(`${bookingDate} ${astrologer.profile.startTime}`, 'YYYY-MM-DD HH:mm');
+//     const astrologerEnd = moment(`${bookingDate} ${astrologer.profile.endTime}`, 'YYYY-MM-DD HH:mm');
+
+//     if (bookingStart.isBefore(astrologerStart) || bookingEnd.isAfter(astrologerEnd))
+//       return next(new ErrorHandler('Select time within astrologer\'s available window', 400));
+
+//     if (astrologer.profile.preBooking) {
+//       const diffHours = bookingStart.diff(moment(), 'hours');
+//       if (diffHours < astrologer.profile.preBooking)
+//         return next(new ErrorHandler(`Booking must be at least ${astrologer.profile.preBooking} hours in advance`, 400));
+//     }
+
+//     const overlapBooking = await ServiceOrderItem.findOne({
+//       astrologer: astrologerId,
+//       bookingDate: { $eq: bookingDate },
+//       $or: [
+//         {
+//           startTime: { $lt: bookingEnd.format('HH:mm') },
+//           endTime: { $gt: bookingStart.format('HH:mm') },
+//         },
+//       ],
+//     });
+
+//     if (overlapBooking)
+//       return next(new ErrorHandler('Astrologer already booked for this time slot', 400));
+
+
+//     // ✅ Create Order Item
+//     const orderItem = await ServiceOrderItem.create({
+//       customerId: userId,
+//       cust: { firstName, lastName, email, phone },
+//       service: service._id,
+//       astrologer: astrologerId,
+//       snapshot: { price: service.price, durationInMinutes: serviceDuration },
+//       bookingDate,
+//       startTime: bookingStart.format('HH:mm'),
+//       endTime: bookingEnd.format('HH:mm'),
+//       serviceType: service.serviceType,
+//       total: service.price,
+//       address: address || null,
+//     });
+
+//     // ✅ Create Transaction for this item
+//     const transaction = await Transaction.create({
+//       from: 'service',
+//       serviceId: service._id,
+//       type: paymentType || 'OTHER',
+//       status: 'unpaid',
+//       amount: 0,
+//       pendingAmount: service.price,
+//       payingAmount: service.price,
+//       isCoupon: !!coupon,
+//       paymentId: `${paymentId || 'PAY'}-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+//       userId,
+//       paymentDetails: paymentDetails || {},
+//     });
+
+//     // Link transaction to orderItem (if you want)
+//     orderItem.transaction = transaction._id;
+//     await orderItem.save();
+
+//     createdOrderItems.push(orderItem._id);
+//     totalAmount += service.price;
+//   }
+
+//   // ✅ Create a Single ServiceOrder (parent record)
+//   const serviceOrderPayload = {
+//     user: userId,
+//     services: createdOrderItems,
+//     paymentStatus: 'pending',
+//     totalAmount,
+//     finalAmount: totalAmount,
+//     payingAmount: totalAmount,
+//     isCoupon: !!coupon,
+//     coupon: coupon?._id || null,
+//   };
+
+//   const serviceOrder = await ServiceOrder.create(serviceOrderPayload);
+//   // ✅ Update all items with parent orderId
+//   await ServiceOrderItem.updateMany(
+//     { _id: { $in: createdOrderItems } },
+//     { $set: { orderId: serviceOrder._id } }
+//   );
+
+//   // ✅ Populate and structure final response
+//   const populatedOrder = await ServiceOrder.findById(serviceOrder._id)
+//     .populate({
+//       path: "services",
+//       populate: [
+//         {
+//           path: "service",
+//           select: "name price durationInMinutes serviceType"
+//         },
+//         {
+//           path: "astrologer",
+//           select: "name email profile",
+//           populate: {
+//             path: "profile",
+//             select: "employeeType startTime endTime"
+//           }
+//         }
+//       ]
+//     })
+//     .populate({
+//       path: "coupon",
+//       select: "code discount"
+//     })
+//     .populate({
+//       path: "user",
+//       select: "name email"
+//     })
+//     .lean();
+
+//   // ✅ Construct clean structured response
+//   const formattedOrder = {
+//     _id: populatedOrder._id,
+//     user: populatedOrder.user,
+//     totalAmount: populatedOrder.totalAmount,
+//     finalAmount: populatedOrder.finalAmount,
+//     payingAmount: populatedOrder.payingAmount,
+//     paymentStatus: populatedOrder.paymentStatus,
+//     isCoupon: populatedOrder.isCoupon,
+//     coupon: populatedOrder.coupon || null,
+//     services: populatedOrder.services.map(item => ({
+//       _id: item._id,
+//       service: {
+//         _id: item.service?._id,
+//         name: item.service?.name,
+//         price: item.service?.price,
+//         durationInMinutes: item.service?.durationInMinutes,
+//         serviceType: item.service?.serviceType
+//       },
+//       astrologer: {
+//         _id: item.astrologer?._id,
+//         name: item.astrologer?.name,
+//         email: item.astrologer?.email,
+//       },
+//       bookingDate: item.bookingDate,
+//       startTime: item.startTime,
+//       endTime: item.endTime,
+//       serviceType: item.serviceType,
+//       paymentStatus: item.paymentStatus,
+//       total: item.total
+//     })),
+//     createdAt: populatedOrder.createdAt,
+//     updatedAt: populatedOrder.updatedAt
+//   };
+
+//   res.status(201).json({
+//     success: true,
+//     message: 'Service order created successfully with individual transactions per service',
+//     order: formattedOrder,
+//   });
+// });
+
 exports.createServiceOrder = asyncHandler(async (req, res, next) => {
   const userId = req.user._id;
   const {
@@ -28,238 +277,346 @@ exports.createServiceOrder = asyncHandler(async (req, res, next) => {
     return next(new ErrorHandler('At least one service item is required', 400));
   }
 
-  // --------------- ✅ Validate Coupon (if provided) ----------------
-  let coupon = null;
-  if (couponId) {
-    if (!mongoose.Types.ObjectId.isValid(couponId)) {
-      return next(new ErrorHandler('Invalid couponId', 400));
+  const session = await mongoose.startSession(); // 👈 Start session for transaction
+  session.startTransaction();
+
+  try {
+    // --------------- ✅ Validate Coupon (if provided) ----------------
+    let coupon = null;
+    if (couponId) {
+      if (!mongoose.Types.ObjectId.isValid(couponId)) {
+        await session.abortTransaction();
+        session.endSession();
+        return next(new ErrorHandler('Invalid couponId', 400));
+      }
+
+      coupon = await Coupon.findOne({ _id: couponId, isDeleted: false });
+      if (!coupon) {
+        await session.abortTransaction();
+        session.endSession();
+        return next(new ErrorHandler('Coupon not found', 404));
+      }
+      if (!coupon.isActive) {
+        await session.abortTransaction();
+        session.endSession();
+        return next(new ErrorHandler('Coupon is inactive', 400));
+      }
+
+      const now = new Date();
+      if (coupon.activationDate && now < coupon.activationDate) {
+        await session.abortTransaction();
+        session.endSession();
+        return next(new ErrorHandler('Coupon not yet active', 400));
+      }
+      if (coupon.expiryDate && now > coupon.expiryDate) {
+        await session.abortTransaction();
+        session.endSession();
+        return next(new ErrorHandler('Coupon expired', 400));
+      }
+
+      if (!['services'].includes(coupon.couponType)) {
+        await session.abortTransaction();
+        session.endSession();
+        return next(new ErrorHandler('Coupon not applicable for services', 400));
+      }
+
+      // Check redemption limits
+      const [userServiceUses, userProductUses, totalServiceUses, totalProductUses] = await Promise.all([
+        ServiceOrder.countDocuments({ user: userId, coupon: couponId }),
+        ProductOrder.countDocuments({ user: userId, coupon: couponId }),
+        ServiceOrder.countDocuments({ coupon: couponId }),
+        ProductOrder.countDocuments({ coupon: couponId }),
+      ]);
+
+      const userTotalUses = userServiceUses + userProductUses;
+      const globalTotalUses = totalServiceUses + totalProductUses;
+
+      if (coupon.redemptionPerUser && userTotalUses >= coupon.redemptionPerUser) {
+        await session.abortTransaction();
+        session.endSession();
+        return next(new ErrorHandler('Coupon redemption limit reached for this user', 400));
+      }
+
+      if (coupon.totalRedemptions && globalTotalUses >= coupon.totalRedemptions) {
+        await session.abortTransaction();
+        session.endSession();
+        return next(new ErrorHandler('Coupon redemption limit reached', 400));
+      }
     }
 
-    coupon = await Coupon.findOne({ _id: couponId, isDeleted: false });
-    if (!coupon) return next(new ErrorHandler('Coupon not found', 404));
-    if (!coupon.isActive) return next(new ErrorHandler('Coupon is inactive', 400));
+    // --------------- ✅ Process Each Service Item ----------------
+    let totalAmount = 0;
+    const createdOrderItems = [];
 
-    const now = new Date();
-    if (coupon.activationDate && now < coupon.activationDate)
-      return next(new ErrorHandler('Coupon not yet active', 400));
-    if (coupon.expiryDate && now > coupon.expiryDate)
-      return next(new ErrorHandler('Coupon expired', 400));
+    for (const item of serviceItems) {
+      const {
+        serviceId,
+        astrologerId,
+        bookingDate,
+        startTime,
+        firstName,
+        lastName,
+        email,
+        phone,
+        address,
+      } = item;
 
-    if (!['services'].includes(coupon.couponType))
-      return next(new ErrorHandler('Coupon not applicable for services', 400));
+      if (!mongoose.Types.ObjectId.isValid(serviceId)) {
+        await session.abortTransaction();
+        session.endSession();
+        return next(new ErrorHandler('Invalid serviceId', 400));
+      }
+      if (!mongoose.Types.ObjectId.isValid(astrologerId)) {
+        await session.abortTransaction();
+        session.endSession();
+        return next(new ErrorHandler('Invalid astrologerId', 400));
+      }
+      if (!bookingDate || !startTime) {
+        await session.abortTransaction();
+        session.endSession();
+        return next(new ErrorHandler('Booking date and start time required', 400));
+      }
 
-    // Check redemption limits
-    const [userServiceUses, userProductUses, totalServiceUses, totalProductUses] = await Promise.all([
-      ServiceOrder.countDocuments({ user: userId, coupon: couponId }),
-      ProductOrder.countDocuments({ user: userId, coupon: couponId }),
-      ServiceOrder.countDocuments({ coupon: couponId }),
-      ProductOrder.countDocuments({ coupon: couponId }),
-    ]);
+      const service = await Service.findById(serviceId);
+      if (!service) {
+        await session.abortTransaction();
+        session.endSession();
+        return next(new ErrorHandler('Service not found', 404));
+      }
 
-    const userTotalUses = userServiceUses + userProductUses;
-    const globalTotalUses = totalServiceUses + totalProductUses;
+      if (service.serviceType === 'pooja_at_home' && !address) {
+        await session.abortTransaction();
+        session.endSession();
+        return next(new ErrorHandler('Address required for pooja_at_home', 400));
+      }
 
-    if (coupon.redemptionPerUser && userTotalUses >= coupon.redemptionPerUser)
-      return next(new ErrorHandler('Coupon redemption limit reached for this user', 400));
+      const astrologer = await User.findById(astrologerId).populate('profile');
+      if (!astrologer || astrologer.profile.employeeType !== 'astrologer') {
+        await session.abortTransaction();
+        session.endSession();
+        return next(new ErrorHandler('Astrologer not found', 404));
+      }
 
-    if (coupon.totalRedemptions && globalTotalUses >= coupon.totalRedemptions)
-      return next(new ErrorHandler('Coupon redemption limit reached', 400));
-  }
+      const bookingDay = moment(bookingDate).format('dddd');
+      if (!astrologer.profile.days.includes(bookingDay)) {
+        await session.abortTransaction();
+        session.endSession();
+        return next(new ErrorHandler(`Astrologer not available on ${bookingDay}`, 400));
+      }
 
-  // --------------- ✅ Process Each Service Item ----------------
-  let totalAmount = 0;
-  const createdOrderItems = [];
+      const serviceDuration = parseInt(service.durationInMinutes, 10);
+      const bookingStart = moment(`${bookingDate} ${startTime}`, 'YYYY-MM-DD HH:mm');
+      const bookingEnd = moment(bookingStart).add(serviceDuration, 'minutes');
+      const astrologerStart = moment(`${bookingDate} ${astrologer.profile.startTime}`, 'YYYY-MM-DD HH:mm');
+      const astrologerEnd = moment(`${bookingDate} ${astrologer.profile.endTime}`, 'YYYY-MM-DD HH:mm');
 
-  for (const item of serviceItems) {
-    const {
-      serviceId,
-      astrologerId,
-      bookingDate,
-      startTime,
-      firstName,
-      lastName,
-      email,
-      phone,
-      address,
-    } = item;
+      if (bookingStart.isBefore(astrologerStart) || bookingEnd.isAfter(astrologerEnd)) {
+        await session.abortTransaction();
+        session.endSession();
+        return next(new ErrorHandler('Select time within astrologer\'s available window', 400));
+      }
 
-    if (!mongoose.Types.ObjectId.isValid(serviceId))
-      return next(new ErrorHandler('Invalid serviceId', 400));
-    if (!mongoose.Types.ObjectId.isValid(astrologerId))
-      return next(new ErrorHandler('Invalid astrologerId', 400));
-    if (!bookingDate || !startTime)
-      return next(new ErrorHandler('Booking date and start time required', 400));
-
-    const service = await Service.findById(serviceId);
-    if (!service) return next(new ErrorHandler('Service not found', 404));
-
-    if (service.serviceType === 'pooja_at_home' && !address)
-      return next(new ErrorHandler('Address required for pooja_at_home', 400));
-
-    const astrologer = await User.findById(astrologerId).populate('profile');
-    if (!astrologer || astrologer.profile.employeeType !== 'astrologer')
-      return next(new ErrorHandler('Astrologer not found', 404));
-
-    const bookingDay = moment(bookingDate).format('dddd');
-    if (!astrologer.profile.days.includes(bookingDay))
-      return next(new ErrorHandler(`Astrologer not available on ${bookingDay}`, 400));
-
-    const serviceDuration = parseInt(service.durationInMinutes, 10);
-    const bookingStart = moment(`${bookingDate} ${startTime}`, 'YYYY-MM-DD HH:mm');
-    const bookingEnd = moment(bookingStart).add(serviceDuration, 'minutes');
-    const astrologerStart = moment(`${bookingDate} ${astrologer.profile.startTime}`, 'YYYY-MM-DD HH:mm');
-    const astrologerEnd = moment(`${bookingDate} ${astrologer.profile.endTime}`, 'YYYY-MM-DD HH:mm');
-
-    if (bookingStart.isBefore(astrologerStart) || bookingEnd.isAfter(astrologerEnd))
-      return next(new ErrorHandler('Select time within astrologer\'s available window', 400));
-
-    if (astrologer.profile.preBooking) {
-      const diffHours = bookingStart.diff(moment(), 'hours');
-      if (diffHours < astrologer.profile.preBooking)
-        return next(new ErrorHandler(`Booking must be at least ${astrologer.profile.preBooking} hours in advance`, 400));
-    }
-
-    const overlapBooking = await ServiceOrderItem.findOne({
-      astrologer: astrologerId,
-      bookingDate: { $eq: bookingDate },
-      $or: [
-        {
-          startTime: { $lt: bookingEnd.format('HH:mm') },
-          endTime: { $gt: bookingStart.format('HH:mm') },
-        },
-      ],
-    });
-
-    if (overlapBooking)
-      return next(new ErrorHandler('Astrologer already booked for this time slot', 400));
-
-
-    // ✅ Create Order Item
-    const orderItem = await ServiceOrderItem.create({
-      customerId: userId,
-      cust: { firstName, lastName, email, phone },
-      service: service._id,
-      astrologer: astrologerId,
-      snapshot: { price: service.price, durationInMinutes: serviceDuration },
-      bookingDate,
-      startTime: bookingStart.format('HH:mm'),
-      endTime: bookingEnd.format('HH:mm'),
-      serviceType: service.serviceType,
-      total: service.price,
-      address: address || null,
-    });
-
-    // ✅ Create Transaction for this item
-    const transaction = await Transaction.create({
-      from: 'service',
-      serviceId: service._id,
-      type: paymentType || 'OTHER',
-      status: 'unpaid',
-      amount: 0,
-      pendingAmount: service.price,
-      payingAmount: service.price,
-      isCoupon: !!coupon,
-      paymentId: `${paymentId || 'PAY'}-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-      userId,
-      paymentDetails: paymentDetails || {},
-    });
-
-    // Link transaction to orderItem (if you want)
-    orderItem.transaction = transaction._id;
-    await orderItem.save();
-
-    createdOrderItems.push(orderItem._id);
-    totalAmount += service.price;
-  }
-
-  // ✅ Create a Single ServiceOrder (parent record)
-  const serviceOrderPayload = {
-    user: userId,
-    services: createdOrderItems,
-    paymentStatus: 'pending',
-    totalAmount,
-    finalAmount: totalAmount,
-    payingAmount: totalAmount,
-    isCoupon: !!coupon,
-    coupon: coupon?._id || null,
-  };
-
-  const serviceOrder = await ServiceOrder.create(serviceOrderPayload);
-  // ✅ Update all items with parent orderId
-  await ServiceOrderItem.updateMany(
-    { _id: { $in: createdOrderItems } },
-    { $set: { orderId: serviceOrder._id } }
-  );
-
-  // ✅ Populate and structure final response
-  const populatedOrder = await ServiceOrder.findById(serviceOrder._id)
-    .populate({
-      path: "services",
-      populate: [
-        {
-          path: "service",
-          select: "name price durationInMinutes serviceType"
-        },
-        {
-          path: "astrologer",
-          select: "name email profile",
-          populate: {
-            path: "profile",
-            select: "employeeType startTime endTime"
-          }
+      if (astrologer.profile.preBooking) {
+        const diffHours = bookingStart.diff(moment(), 'hours');
+        if (diffHours < astrologer.profile.preBooking) {
+          await session.abortTransaction();
+          session.endSession();
+          return next(new ErrorHandler(`Booking must be at least ${astrologer.profile.preBooking} hours in advance`, 400));
         }
-      ]
-    })
-    .populate({
-      path: "coupon",
-      select: "code discount"
-    })
-    .populate({
-      path: "user",
-      select: "name email"
-    })
-    .lean();
+      }
 
-  // ✅ Construct clean structured response
-  const formattedOrder = {
-    _id: populatedOrder._id,
-    user: populatedOrder.user,
-    totalAmount: populatedOrder.totalAmount,
-    finalAmount: populatedOrder.finalAmount,
-    payingAmount: populatedOrder.payingAmount,
-    paymentStatus: populatedOrder.paymentStatus,
-    isCoupon: populatedOrder.isCoupon,
-    coupon: populatedOrder.coupon || null,
-    services: populatedOrder.services.map(item => ({
-      _id: item._id,
-      service: {
-        _id: item.service?._id,
-        name: item.service?.name,
-        price: item.service?.price,
-        durationInMinutes: item.service?.durationInMinutes,
-        serviceType: item.service?.serviceType
-      },
-      astrologer: {
-        _id: item.astrologer?._id,
-        name: item.astrologer?.name,
-        email: item.astrologer?.email,
-      },
-      bookingDate: item.bookingDate,
-      startTime: item.startTime,
-      endTime: item.endTime,
-      serviceType: item.serviceType,
-      paymentStatus: item.paymentStatus,
-      total: item.total
-    })),
-    createdAt: populatedOrder.createdAt,
-    updatedAt: populatedOrder.updatedAt
-  };
+      const overlapBooking = await ServiceOrderItem.findOne({
+        astrologer: astrologerId,
+        bookingDate: { $eq: bookingDate },
+        $or: [
+          {
+            startTime: { $lt: bookingEnd.format('HH:mm') },
+            endTime: { $gt: bookingStart.format('HH:mm') },
+          },
+        ],
+      });
 
-  res.status(201).json({
-    success: true,
-    message: 'Service order created successfully with individual transactions per service',
-    order: formattedOrder,
-  });
+      if (overlapBooking) {
+        await session.abortTransaction();
+        session.endSession();
+        return next(new ErrorHandler('Astrologer already booked for this time slot', 400));
+      }
+
+      // ✅ Create Order Item
+      const orderItem = await ServiceOrderItem.create([{
+        customerId: userId,
+        cust: { firstName, lastName, email, phone },
+        service: service._id,
+        astrologer: astrologerId,
+        snapshot: { price: service.price, durationInMinutes: serviceDuration },
+        bookingDate,
+        startTime: bookingStart.format('HH:mm'),
+        endTime: bookingEnd.format('HH:mm'),
+        serviceType: service.serviceType,
+        total: service.price,
+        address: address || null,
+      }], { session });
+
+      // ✅ Create Transaction for this item
+      const transaction = await Transaction.create([{
+        from: 'service',
+        serviceId: service._id,
+        type: paymentType || 'OTHER',
+        status: 'unpaid',
+        amount: 0,
+        pendingAmount: service.price,
+        payingAmount: service.price,
+        isCoupon: !!coupon,
+        paymentId: `${paymentId || 'PAY'}-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        userId,
+        paymentDetails: paymentDetails || {},
+      }], { session });
+
+      // Link transaction to orderItem
+      orderItem[0].transaction = transaction[0]._id;
+      await orderItem[0].save({ session });
+
+      createdOrderItems.push(orderItem[0]._id);
+      totalAmount += service.price;
+    }
+
+    // ✅ Create a Single ServiceOrder (parent record)
+    const serviceOrderPayload = {
+      user: userId,
+      services: createdOrderItems,
+      paymentStatus: 'pending',
+      totalAmount,
+      finalAmount: totalAmount,
+      payingAmount: totalAmount,
+      isCoupon: !!coupon,
+      coupon: coupon?._id || null,
+    };
+
+    const serviceOrder = await ServiceOrder.create([serviceOrderPayload], { session });
+    
+    // ✅ Update all items with parent orderId
+    await ServiceOrderItem.updateMany(
+      { _id: { $in: createdOrderItems } },
+      { $set: { orderId: serviceOrder[0]._id } },
+      { session }
+    );
+
+    // ✅ Process referral reward if payment is successful (immediate payment)
+    // If your payment is asynchronous, you might want to move this to a webhook
+    let referralResult = null;
+    if (paymentType && paymentType !== 'COD' && paymentId) {
+      // For non-COD payments, if payment is already successful
+      referralResult = await processReferralReward(userId, session);
+      
+      // Update payment status to paid if referral was processed successfully
+      if (referralResult.success) {
+        await ServiceOrder.updateOne(
+          { _id: serviceOrder[0]._id },
+          { $set: { paymentStatus: 'paid' } },
+          { session }
+        );
+        
+        // Update all service order items to paid
+        await ServiceOrderItem.updateMany(
+          { _id: { $in: createdOrderItems } },
+          { $set: { paymentStatus: 'paid', status: 'paid' } },
+          { session }
+        );
+        
+        // Update transactions to paid
+        await Transaction.updateMany(
+          { userId: userId, status: 'unpaid' },
+          { 
+            $set: { 
+              status: 'paid',
+              amount: totalAmount,
+              pendingAmount: 0
+            } 
+          },
+          { session }
+        );
+      }
+    }
+
+    await session.commitTransaction();
+    session.endSession();
+
+    // ✅ Populate and structure final response
+    const populatedOrder = await ServiceOrder.findById(serviceOrder[0]._id)
+      .populate({
+        path: "services",
+        populate: [
+          {
+            path: "service",
+            select: "name price durationInMinutes serviceType"
+          },
+          {
+            path: "astrologer",
+            select: "name email profile",
+            populate: {
+              path: "profile",
+              select: "employeeType startTime endTime"
+            }
+          }
+        ]
+      })
+      .populate({
+        path: "coupon",
+        select: "code discount"
+      })
+      .populate({
+        path: "user",
+        select: "name email"
+      })
+      .lean();
+
+    // ✅ Construct clean structured response
+    const formattedOrder = {
+      _id: populatedOrder._id,
+      user: populatedOrder.user,
+      totalAmount: populatedOrder.totalAmount,
+      finalAmount: populatedOrder.finalAmount,
+      payingAmount: populatedOrder.payingAmount,
+      paymentStatus: populatedOrder.paymentStatus,
+      isCoupon: populatedOrder.isCoupon,
+      coupon: populatedOrder.coupon || null,
+      services: populatedOrder.services.map(item => ({
+        _id: item._id,
+        service: {
+          _id: item.service?._id,
+          name: item.service?.name,
+          price: item.service?.price,
+          durationInMinutes: item.service?.durationInMinutes,
+          serviceType: item.service?.serviceType
+        },
+        astrologer: {
+          _id: item.astrologer?._id,
+          name: item.astrologer?.name,
+          email: item.astrologer?.email,
+        },
+        bookingDate: item.bookingDate,
+        startTime: item.startTime,
+        endTime: item.endTime,
+        serviceType: item.serviceType,
+        paymentStatus: item.paymentStatus,
+        total: item.total
+      })),
+      createdAt: populatedOrder.createdAt,
+      updatedAt: populatedOrder.updatedAt
+    };
+
+    res.status(201).json({
+      success: true,
+      message: 'Service order created successfully with individual transactions per service',
+      order: formattedOrder,
+      referralReward: referralResult // 👈 Include referral result in response
+    });
+
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    return next(error);
+  }
 });
 
 // @desc Get All Service Orders (Customer)
@@ -458,20 +815,20 @@ exports.getServiceOrder = asyncHandler(async (req, res, next) => {
 
 //   // Build match stage
 //   const matchStage = {};
-  
+
 //   if (req.query.orderId) {
 //     matchStage._id = new mongoose.Types.ObjectId(req.query.orderId);
 //   }
-  
+
 //   if (req.query.status) {
 //     matchStage.paymentStatus = req.query.status.toLowerCase();
 //   }
-  
+
 //   if (req.query.date) {
 //     const startDate = new Date(req.query.date);
 //     const endDate = new Date(startDate);
 //     endDate.setHours(23, 59, 59, 999);
-    
+
 //     matchStage.createdAt = {
 //       $gte: startDate,
 //       $lte: endDate
@@ -486,7 +843,7 @@ exports.getServiceOrder = asyncHandler(async (req, res, next) => {
 //   const aggregationPipeline = [
 //     // Match orders based on filters
 //     ...(Object.keys(matchStage).length > 0 ? [{ $match: matchStage }] : []),
-    
+
 //     // Lookup services with populated data
 //     {
 //       $lookup: {
@@ -501,7 +858,7 @@ exports.getServiceOrder = asyncHandler(async (req, res, next) => {
 //               astrologer: new mongoose.Types.ObjectId(req.query.astrologerId)
 //             }
 //           }] : []),
-          
+
 //           // Lookup service details
 //           {
 //             $lookup: {
@@ -512,7 +869,7 @@ exports.getServiceOrder = asyncHandler(async (req, res, next) => {
 //             }
 //           },
 //           { $unwind: { path: '$serviceDetails', preserveNullAndEmptyArrays: true } },
-          
+
 //           // Lookup astrologer details
 //           {
 //             $lookup: {
@@ -529,7 +886,7 @@ exports.getServiceOrder = asyncHandler(async (req, res, next) => {
 //         ]
 //       }
 //     },
-    
+
 //     // Lookup user details
 //     {
 //       $lookup: {
@@ -550,7 +907,7 @@ exports.getServiceOrder = asyncHandler(async (req, res, next) => {
 //       }
 //     },
 //     { $unwind: { path: '$userDetails', preserveNullAndEmptyArrays: true } },
-    
+
 //     // Lookup customer profile details (where firstName and lastName are stored)
 //     {
 //       $lookup: {
@@ -570,7 +927,7 @@ exports.getServiceOrder = asyncHandler(async (req, res, next) => {
 //       }
 //     },
 //     { $unwind: { path: '$customerProfile', preserveNullAndEmptyArrays: true } },
-    
+
 //     // Lookup transaction details
 //     {
 //       $lookup: {
@@ -581,7 +938,7 @@ exports.getServiceOrder = asyncHandler(async (req, res, next) => {
 //       }
 //     },
 //     { $unwind: { path: '$transactionDetails', preserveNullAndEmptyArrays: true } },
-    
+
 //     // Lookup address details
 //     {
 //       $lookup: {
@@ -592,7 +949,7 @@ exports.getServiceOrder = asyncHandler(async (req, res, next) => {
 //       }
 //     },
 //     { $unwind: { path: '$addressDetails', preserveNullAndEmptyArrays: true } },
-    
+
 //     // Lookup coupon details
 //     {
 //       $lookup: {
@@ -613,7 +970,7 @@ exports.getServiceOrder = asyncHandler(async (req, res, next) => {
 //       }
 //     },
 //     { $unwind: { path: '$couponDetails', preserveNullAndEmptyArrays: true } },
-    
+
 //     // Project the final structure
 //     {
 //       $project: {
@@ -694,10 +1051,10 @@ exports.getServiceOrder = asyncHandler(async (req, res, next) => {
 //         createdAt: 1
 //       }
 //     },
-    
+
 //     // Sort by creation date (newest first)
 //     { $sort: { createdAt: -1 } },
-    
+
 //     // Pagination
 //     { $skip: skip },
 //     { $limit: limit }
@@ -706,7 +1063,7 @@ exports.getServiceOrder = asyncHandler(async (req, res, next) => {
 //   // Get total count for pagination
 //   const countPipeline = [
 //     ...(Object.keys(matchStage).length > 0 ? [{ $match: matchStage }] : []),
-    
+
 //     // Handle astrologer filtering in count
 //     ...(req.query.astrologerId ? [{
 //       $lookup: {
@@ -725,7 +1082,7 @@ exports.getServiceOrder = asyncHandler(async (req, res, next) => {
 //         'serviceItems.0': { $exists: true }
 //       }
 //     }] : []),
-    
+
 //     { $count: 'total' }
 //   ];
 
@@ -751,20 +1108,20 @@ exports.getAllServiceOrdersAdmin = asyncHandler(async (req, res, next) => {
 
   // Build match stage
   const matchStage = {};
-  
+
   if (req.query.orderId) {
     matchStage._id = new mongoose.Types.ObjectId(req.query.orderId);
   }
-  
+
   if (req.query.status) {
     matchStage.paymentStatus = req.query.status.toLowerCase();
   }
-  
+
   if (req.query.date) {
     const startDate = new Date(req.query.date);
     const endDate = new Date(startDate);
     endDate.setHours(23, 59, 59, 999);
-    
+
     matchStage.createdAt = {
       $gte: startDate,
       $lte: endDate
@@ -779,7 +1136,7 @@ exports.getAllServiceOrdersAdmin = asyncHandler(async (req, res, next) => {
   const aggregationPipeline = [
     // Match orders based on filters
     ...(Object.keys(matchStage).length > 0 ? [{ $match: matchStage }] : []),
-    
+
     // Lookup services with populated data
     {
       $lookup: {
@@ -794,7 +1151,7 @@ exports.getAllServiceOrdersAdmin = asyncHandler(async (req, res, next) => {
               astrologer: new mongoose.Types.ObjectId(req.query.astrologerId)
             }
           }] : []),
-          
+
           // Lookup service details
           {
             $lookup: {
@@ -805,7 +1162,7 @@ exports.getAllServiceOrdersAdmin = asyncHandler(async (req, res, next) => {
             }
           },
           { $unwind: { path: '$serviceDetails', preserveNullAndEmptyArrays: true } },
-          
+
           // Lookup astrologer details
           {
             $lookup: {
@@ -819,7 +1176,7 @@ exports.getAllServiceOrdersAdmin = asyncHandler(async (req, res, next) => {
             }
           },
           { $unwind: { path: '$astrologerDetails', preserveNullAndEmptyArrays: true } },
-          
+
           // Lookup address details for each service item
           {
             $lookup: {
@@ -833,7 +1190,7 @@ exports.getAllServiceOrdersAdmin = asyncHandler(async (req, res, next) => {
         ]
       }
     },
-    
+
     // Lookup user details
     {
       $lookup: {
@@ -842,19 +1199,19 @@ exports.getAllServiceOrdersAdmin = asyncHandler(async (req, res, next) => {
         foreignField: '_id',
         as: 'userDetails',
         pipeline: [
-          { 
-            $project: { 
-              email: 1, 
+          {
+            $project: {
+              email: 1,
               mobileNo: 1,
               profile: 1,
               role: 1
-            } 
+            }
           }
         ]
       }
     },
     { $unwind: { path: '$userDetails', preserveNullAndEmptyArrays: true } },
-    
+
     // Lookup customer profile details (where firstName and lastName are stored)
     {
       $lookup: {
@@ -874,7 +1231,7 @@ exports.getAllServiceOrdersAdmin = asyncHandler(async (req, res, next) => {
       }
     },
     { $unwind: { path: '$customerProfile', preserveNullAndEmptyArrays: true } },
-    
+
     // Lookup transaction details
     {
       $lookup: {
@@ -885,7 +1242,7 @@ exports.getAllServiceOrdersAdmin = asyncHandler(async (req, res, next) => {
       }
     },
     { $unwind: { path: '$transactionDetails', preserveNullAndEmptyArrays: true } },
-    
+
     // Lookup coupon details
     {
       $lookup: {
@@ -906,7 +1263,7 @@ exports.getAllServiceOrdersAdmin = asyncHandler(async (req, res, next) => {
       }
     },
     { $unwind: { path: '$couponDetails', preserveNullAndEmptyArrays: true } },
-    
+
     // Project the final structure
     {
       $project: {
@@ -999,10 +1356,10 @@ exports.getAllServiceOrdersAdmin = asyncHandler(async (req, res, next) => {
         createdAt: 1
       }
     },
-    
+
     // Sort by creation date (newest first)
     { $sort: { createdAt: -1 } },
-    
+
     // Pagination
     { $skip: skip },
     { $limit: limit }
@@ -1011,7 +1368,7 @@ exports.getAllServiceOrdersAdmin = asyncHandler(async (req, res, next) => {
   // Get total count for pagination
   const countPipeline = [
     ...(Object.keys(matchStage).length > 0 ? [{ $match: matchStage }] : []),
-    
+
     // Handle astrologer filtering in count
     ...(req.query.astrologerId ? [{
       $lookup: {
@@ -1030,7 +1387,7 @@ exports.getAllServiceOrdersAdmin = asyncHandler(async (req, res, next) => {
         'serviceItems.0': { $exists: true }
       }
     }] : []),
-    
+
     { $count: 'total' }
   ];
 
