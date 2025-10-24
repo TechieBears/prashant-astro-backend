@@ -74,8 +74,8 @@ exports.getAllReviews = asyncHandler(async (req, res) => {
     query.isActive = req.query.isActive === 'true';
   }
 
-  if (req.query.search && req.query.search.trim() !== '') {
-    const s = req.query.search.trim();
+  if (req.query.name && req.query.name.trim() !== '') {
+    const s = req.query.name.trim();
     query.$or = [
       { "customer.firstName": { $regex: s, $options: 'i' } },
       { "customer.lastName": { $regex: s, $options: 'i' } },
