@@ -300,18 +300,10 @@ exports.getAllEmployeeUsersWithPagination = asyncHandler(async (req, res) => {
 
     // 🔍 Name search inside employee profile
     if (req.query.name) {
-        matchStage.$expr = {
-            $regexMatch: {
-                input: { $concat: ["$profile.firstName", " ", "$profile.lastName"] },
-                regex: req.query.name,
-                options: "i"
-            }
-        };
+        matchStage.names = { $regex: req.query.name, $options: "i" };
     }
 
     const employeesAgg = await User.aggregate([
-        { $match: { role: "employee", isDeleted: false } },
-
         // join with employee profile
         {
             $lookup: {
@@ -322,21 +314,8 @@ exports.getAllEmployeeUsersWithPagination = asyncHandler(async (req, res) => {
             }
         },
         { $unwind: "$profile" },
-
-        // 🔍 filter by name if query provided
-        ...(req.query.name
-            ? [
-                {
-                    $match: {
-                        $or: [
-                            { "profile.firstName": { $regex: req.query.name, $options: "i" } },
-                            { "profile.lastName": { $regex: req.query.name, $options: "i" } }
-                        ]
-                    }
-                }
-            ]
-            : []),
-
+        { $addFields: { names: { $concat: ["$profile.firstName", " ", "$profile.lastName"] } } },
+        { $match: matchStage },
         // hide sensitive fields
         {
             $project: {
