@@ -62,9 +62,11 @@ exports.getActiveBanners = asyncHandler(async (req, res) => {
     const { type } = req.query;
     if(!type) return res.status(400).json({ message: "Type query parameter is required" });
     const banners = await Banner.find({ 
-        type: type, 
-        isActive: true, 
-        isDeleted: false 
+        type: type,
+        isActive: true,
+        isDeleted: false,
+        startDate: { $lte: new Date() },
+        endDate: { $gte: new Date() }
     }).select("-__v");
     res.ok(banners);
 });
