@@ -194,8 +194,204 @@ exports.checkoutProductOrder = asyncHandler(async (req, res) => { });
 // @desc    Create a new product order
 // @route   POST /api/product-order/create
 // @access  Private (customer)
+// exports.createProductOrder = asyncHandler(async (req, res) => {
+//   const { items, address, paymentMethod, paymentDetails, couponId } = req.body;
+//   const userId = req.user._id;
+
+//   // --------------- ✅ Validate Coupon (if provided) ----------------
+//   let coupon = null;
+//   if (couponId) {
+//     if (!mongoose.Types.ObjectId.isValid(couponId)) {
+//       throw new Error('Invalid couponId');
+//     }
+
+//     coupon = await Coupon.findOne({ _id: couponId, isDeleted: false });
+//     if (!coupon) {
+//       return res.ok([], 'Coupon not found');
+//     }
+
+//     if (!coupon.isActive) {
+//       throw new Error('Coupon is inactive');
+//     }
+
+//     const now = new Date();
+//     if (coupon.activationDate && now < coupon.activationDate) {
+//       throw new Error('Coupon is not yet active');
+//     }
+//     if (coupon.expiryDate && now > coupon.expiryDate) {
+//       throw new Error('Coupon has expired');
+//     }
+
+//     if (!['products'].includes(coupon.couponType)) {
+//       throw new Error('Coupon not applicable for products');
+//     }
+
+//     // Check redemption limits
+//     const [userProductUses, userServiceUses, totalProductUses, totalServiceUses] = await Promise.all([
+//       ProductOrder.countDocuments({ user: userId, coupon: couponId }),
+//       ServiceOrder.countDocuments({ user: userId, coupon: couponId }),
+//       ProductOrder.countDocuments({ coupon: couponId }),
+//       ServiceOrder.countDocuments({ coupon: couponId })
+//     ]);
+
+//     const userTotalUses = userProductUses + userServiceUses;
+//     const globalTotalUses = totalProductUses + totalServiceUses;
+
+//     if (coupon.redemptionPerUser && coupon.redemptionPerUser > 0 && userTotalUses >= coupon.redemptionPerUser) {
+//       throw new Error('Coupon redemption limit reached for this user');
+//     }
+
+//     if (coupon.totalRedemptions && coupon.totalRedemptions > 0 && globalTotalUses >= coupon.totalRedemptions) {
+//       throw new Error('Coupon redemption limit reached');
+//     }
+//   }
+
+//   if (!items || items.length === 0) {
+//     res.status(400);
+//     throw new Error('No items in order');
+//   }
+
+//   // Start session for transaction safety
+//   const session = await mongoose.startSession();
+//   session.startTransaction();
+
+//   try {
+//     let totalAmount = 0;
+//     const orderItems = [];
+
+//     for (const item of items) {
+//       const product = await Product.findById(item.product).populate('category', 'name').populate('subcategory', 'name').session(session);
+      
+//       if (!product || !product.isActive) {
+//         throw new Error(`Product not found: ${item.product}`);
+//       }
+
+//       if (product.stock < item.quantity) {
+//         throw new Error(`Insufficient stock for ${product.name}`);
+//       }
+
+//       const subtotal = product.sellingPrice * item.quantity;
+//       totalAmount += subtotal;
+
+//       // Snapshot product data
+//       const snapshot = {
+//         name: product.name,
+//         categoryName: product.category?.name || '',
+//         subCategoryName: product.subcategory?.name || '',
+//         mrpPrice: product.mrpPrice,
+//         sellingPrice: product.sellingPrice,
+//         stock: product.stock,
+//         images: product.images?.[0] || null,
+//       };
+
+//       orderItems.push({
+//         product: product._id,
+//         snapshot,
+//         quantity: item.quantity,
+//         subtotal,
+//       });
+
+//       // Deduct stock
+//       product.stock -= item.quantity;
+//       await product.save({ session });
+//     }
+
+//     // GST & amounts (dummy logic, adjust as needed)
+//     const gst = totalAmount * 0.18; // 18%
+//     const finalAmount = totalAmount + gst;
+//     const payingAmount = finalAmount - (coupon ? coupon.discount : 0);
+
+//     // Create order
+//     const productOrderPayload = {
+//       user: userId,
+//       items: orderItems,
+//       totalAmount,
+//       finalAmount,
+//       payingAmount: payingAmount > 0 ? payingAmount : 0,
+//       isCoupon: !!coupon,
+//       coupon: coupon ? coupon._id : null,
+//       amount: {
+//         currency: 'INR',
+//         gst,
+//         basePrice: totalAmount,
+//       },
+//       address,
+//       paymentMethod,
+//       paymentDetails: paymentDetails || {},
+//       orderStatus: 'PENDING',
+//       paymentStatus: paymentMethod === 'COD' ? 'PENDING' : 'PAID',
+//     };
+
+//     if (couponId && mongoose.Types.ObjectId.isValid(couponId)) {
+//       productOrderPayload.coupon = couponId;
+//     }
+
+//     const productOrder = new ProductOrder(productOrderPayload);
+//     const savedOrder = await productOrder.save({ session });
+
+//     // Create transaction entry
+//     const transaction = new Transaction({
+//       from: 'product',
+//       productOrderId: savedOrder._id,
+//       type: paymentMethod,
+//       status: paymentMethod === 'COD' ? 'unpaid' : 'paid',
+//       amount: paymentMethod === 'COD' ? 0 : payingAmount,
+//       pendingAmount: paymentMethod === 'COD' ? payingAmount : 0,
+//       payingAmount: payingAmount,
+//       isCoupon: !!coupon,
+//       paymentId: paymentDetails?.transactionId || `PROD-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+//       userId,
+//       paymentDetails: paymentDetails || {},
+//     });
+
+//     await transaction.save({ session });
+
+//     // ✅ Process referral reward for non-COD payments (immediate payment)
+//     let referralResult = null;
+//     if (paymentMethod !== 'COD' && paymentMethod !== 'CASH') {
+//       // For online payments, process referral reward immediately
+//       referralResult = await processReferralReward(userId, session);
+      
+//       // If referral was processed successfully and payment is online, update order status
+//       if (referralResult.success) {
+//         savedOrder.paymentStatus = 'PAID';
+//         savedOrder.orderStatus = 'CONFIRMED';
+//         savedOrder.orderHistory.push({
+//           status: 'CONFIRMED',
+//           date: new Date()
+//         });
+//         await savedOrder.save({ session });
+//       }
+//     }
+
+//     // remove all from cart
+//     await ProductCart.deleteMany({ user: userId }, { session });
+
+//     await session.commitTransaction();
+//     session.endSession();
+
+//     res.status(201).json({
+//       success: true,
+//       message: 'Order created successfully',
+//       data: {
+//         order: savedOrder,
+//         transaction,
+//         referralReward: referralResult // 👈 Include referral result in response
+//       },
+//     });
+//   } catch (error) {
+//     await session.abortTransaction();
+//     session.endSession();
+//     res.status(400);
+//     throw new Error(error.message || 'Failed to create order');
+//   }
+// });
+
+// @desc    Create a new product order
+// @route   POST /api/product-order/create
+// @access  Private (customer)
 exports.createProductOrder = asyncHandler(async (req, res) => {
-  const { items, address, paymentMethod, paymentDetails, couponId } = req.body;
+  const { items, address, paymentMethod, paymentDetails, couponId, useCredits } = req.body; // 👈 Added useCredits
   const userId = req.user._id;
 
   // --------------- ✅ Validate Coupon (if provided) ----------------
@@ -299,7 +495,41 @@ exports.createProductOrder = asyncHandler(async (req, res) => {
     // GST & amounts (dummy logic, adjust as needed)
     const gst = totalAmount * 0.18; // 18%
     const finalAmount = totalAmount + gst;
-    const payingAmount = finalAmount - (coupon ? coupon.discount : 0);
+    const amountAfterCoupon = finalAmount - (coupon ? coupon.discount : 0);
+
+    // --------------- ✅ WALLET CREDITS LOGIC ----------------
+    let walletUsed = 0;
+    let payingAmount = amountAfterCoupon;
+    let walletBalance = 0;
+
+    if (useCredits) {
+      // Get user's customer profile and wallet
+      const user = await User.findById(userId).populate('profile').session(session);
+      if (user && user.profile) {
+        const customer = await CustomerUser.findById(user.profile._id)
+          .populate('wallet')
+          .session(session);
+        
+        if (customer && customer.wallet) {
+          walletBalance = customer.wallet.balance;
+          
+          // Calculate how much wallet balance to use
+          if (walletBalance > 0) {
+            walletUsed = Math.min(walletBalance, amountAfterCoupon);
+            payingAmount = amountAfterCoupon - walletUsed;
+            
+            // Deduct from wallet
+            customer.wallet.balance -= walletUsed;
+            await customer.wallet.save({ session });
+            
+            console.log(`Wallet credits used: ${walletUsed}, Remaining balance: ${customer.wallet.balance}, Paying amount: ${payingAmount}`);
+          }
+        }
+      }
+    }
+
+    // Ensure payingAmount is not negative
+    payingAmount = Math.max(0, payingAmount);
 
     // Create order
     const productOrderPayload = {
@@ -307,7 +537,8 @@ exports.createProductOrder = asyncHandler(async (req, res) => {
       items: orderItems,
       totalAmount,
       finalAmount,
-      payingAmount: payingAmount > 0 ? payingAmount : 0,
+      payingAmount: payingAmount,
+      walletUsed: walletUsed, // 👈 Store how much wallet was used
       isCoupon: !!coupon,
       coupon: coupon ? coupon._id : null,
       amount: {
@@ -319,7 +550,7 @@ exports.createProductOrder = asyncHandler(async (req, res) => {
       paymentMethod,
       paymentDetails: paymentDetails || {},
       orderStatus: 'PENDING',
-      paymentStatus: paymentMethod === 'COD' ? 'PENDING' : 'PAID',
+      paymentStatus: paymentMethod === 'COD' ? 'PENDING' : payingAmount === 0 ? 'PAID' : 'PENDING', // 👈 If payingAmount is 0, mark as PAID
     };
 
     if (couponId && mongoose.Types.ObjectId.isValid(couponId)) {
@@ -330,29 +561,35 @@ exports.createProductOrder = asyncHandler(async (req, res) => {
     const savedOrder = await productOrder.save({ session });
 
     // Create transaction entry
-    const transaction = new Transaction({
+    const transactionPayload = {
       from: 'product',
       productOrderId: savedOrder._id,
       type: paymentMethod,
-      status: paymentMethod === 'COD' ? 'unpaid' : 'paid',
-      amount: paymentMethod === 'COD' ? 0 : payingAmount,
-      pendingAmount: paymentMethod === 'COD' ? payingAmount : 0,
+      status: payingAmount === 0 ? 'paid' : (paymentMethod === 'COD' ? 'unpaid' : 'paid'), // 👈 If payingAmount is 0, mark as paid
+      amount: payingAmount === 0 ? amountAfterCoupon : (paymentMethod === 'COD' ? 0 : payingAmount),
+      pendingAmount: payingAmount === 0 ? 0 : (paymentMethod === 'COD' ? payingAmount : 0),
       payingAmount: payingAmount,
+      walletUsed: walletUsed, // 👈 Store wallet usage in transaction
       isCoupon: !!coupon,
       paymentId: paymentDetails?.transactionId || `PROD-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
       userId,
-      paymentDetails: paymentDetails || {},
-    });
+      paymentDetails: {
+        ...paymentDetails,
+        walletUsed: walletUsed,
+        originalAmount: amountAfterCoupon
+      },
+    };
 
+    const transaction = new Transaction(transactionPayload);
     await transaction.save({ session });
 
-    // ✅ Process referral reward for non-COD payments (immediate payment)
+    // ✅ Process referral reward for non-COD payments OR if fully paid with wallet
     let referralResult = null;
-    if (paymentMethod !== 'COD' && paymentMethod !== 'CASH') {
-      // For online payments, process referral reward immediately
+    if ((paymentMethod !== 'COD' && paymentMethod !== 'CASH') || payingAmount === 0) {
+      // For online payments OR fully paid with wallet, process referral reward immediately
       referralResult = await processReferralReward(userId, session);
       
-      // If referral was processed successfully and payment is online, update order status
+      // If referral was processed successfully, update order status
       if (referralResult.success) {
         savedOrder.paymentStatus = 'PAID';
         savedOrder.orderStatus = 'CONFIRMED';
@@ -376,7 +613,12 @@ exports.createProductOrder = asyncHandler(async (req, res) => {
       data: {
         order: savedOrder,
         transaction,
-        referralReward: referralResult // 👈 Include referral result in response
+        walletUsage: {
+          used: walletUsed,
+          remainingBalance: walletBalance - walletUsed,
+          payingAmount: payingAmount
+        },
+        referralReward: referralResult
       },
     });
   } catch (error) {
