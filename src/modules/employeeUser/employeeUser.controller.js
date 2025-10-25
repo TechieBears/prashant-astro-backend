@@ -104,7 +104,7 @@ exports.createEmployeeUser = asyncHandler(async (req, res, next) => {
 
     // 8. Email
     const message = `
-        <h2>Welcome to SoulPlan</h2>
+        <h2>Welcome to AstroGuid</h2>
         <p>Hello ${employeeProfile.fullName},</p>
         <p>Your employee account has been created by the Admin.</p>
         <p><strong>Temporary Credentials</strong></p>
@@ -118,7 +118,7 @@ exports.createEmployeeUser = asyncHandler(async (req, res, next) => {
     `;
 
     try {
-        await sendEmail({ email: user.email, subject: "Your SoulPlan Employee Account", message });
+        await sendEmail({ email: user.email, subject: "Your AstroGuid Employee Account", message });
     } catch (error) {
         user.resetPasswordToken = undefined;
         user.resetPasswordExpire = undefined;
@@ -161,18 +161,18 @@ exports.forgotPassword = asyncHandler(async (req, res, next) => {
     const message = `
         <h2>Password Reset Request</h2>
         <p>Hello ${employee.firstName} ${employee.lastName},</p>
-        <p>You requested a password reset for your SoulPlan employee account.</p>
+        <p>You requested a password reset for your AstroGuid employee account.</p>
         <p>Click the link below to reset your password:</p>
         <a href="${resetPasswordUrl}" style="display: inline-block; padding: 12px 24px; background-color: #007bff; color: white; text-decoration: none; border-radius: 4px;">Reset Password</a>
         <p>This link will expire in 10 minutes.</p>
         <p>If you didn't request this password reset, please ignore this email.</p>
-        <p>Best regards,<br>The SoulPlan Team</p>
+        <p>Best regards,<br>The AstroGuid Team</p>
     `;
 
     try {
         await sendEmail({
             email: employee.email,
-            subject: "SoulPlan - Password Reset Request",
+            subject: "AstroGuid - Password Reset Request",
             message: message
         });
 

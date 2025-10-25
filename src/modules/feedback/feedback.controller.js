@@ -137,7 +137,7 @@ exports.respondToFeedback = asyncHandler(async (req, res) => {
     <div style="font-family: Arial, Helvetica, sans-serif; line-height:1.6">
       <p>${greeting || 'Hello'}${fb.fullName ? ` ${fb.fullName}` : ''},</p>
       <p>${String(message).replace(/\n/g, '<br/>')}</p>
-      <p>${signature || 'Regards,<br/>SoulPlan Team'}</p>
+      <p>${signature || 'Regards,<br/>AstroGuid Team'}</p>
       <hr/>
       <p style="color:#888;font-size:12px">In response to your message: <em>${fb.subject}</em></p>
     </div>

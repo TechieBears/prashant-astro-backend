@@ -731,19 +731,19 @@ exports.forgotPassword = asyncHandler(async (req, res, next) => {
     const message = `
         <h2>Password Reset Request</h2>
         <p>Hello ${customer.profile.firstName} ${customer.profile.lastName},</p>
-        <p>You requested a password reset for your SoulPlan account.</p>
+        <p>You requested a password reset for your AstroGuid account.</p>
         <p>Click the link below to reset your password:</p>
         <a href="${resetPasswordUrl}" style="display: inline-block; padding: 12px 24px; background-color: #007bff; color: white; text-decoration: none; border-radius: 4px;">Reset Password</a>
         <p>This link will expire in 10 minutes.</p>
         <p>If you didn't request this password reset, please ignore this email.</p>
-        <p>Best regards,<br>The SoulPlan Team</p>
+        <p>Best regards,<br>The AstroGuid Team</p>
     `;
 
     try {
         // 7. Send email
         await sendEmail({
             email: customer.email,
-            subject: "SoulPlan - Password Reset Request",
+            subject: "AstroGuid - Password Reset Request",
             message: message
         });
 
