@@ -89,8 +89,7 @@ exports.getAllTestimonials = asyncHandler(async (req, res) => {
   if (req.query.name && req.query.name.trim() !== '') {
     const s = req.query.name.trim();
     query.$or = [
-      { "customer.firstName": { $regex: s, $options: 'i' } },
-      { "customer.lastName": { $regex: s, $options: 'i' } },
+      { "name": { $regex: s, $options: 'i' } },
       { message: { $regex: s, $options: 'i' } },
     ];
   }
@@ -100,6 +99,7 @@ exports.getAllTestimonials = asyncHandler(async (req, res) => {
     { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } },
     { $lookup: { from: 'customers', localField: 'user.profile', foreignField: '_id', as: 'customer' } },
     { $unwind: { path: '$customer', preserveNullAndEmptyArrays: true } },
+    { $addFields: { name: { $concat: ['$customer.firstName', ' ', '$customer.lastName'] } } },
     { $match: query },
     { $lookup: { from: 'services', localField: 'service_id', foreignField: '_id', as: 'service' } },
     { $unwind: { path: '$service', preserveNullAndEmptyArrays: true } },

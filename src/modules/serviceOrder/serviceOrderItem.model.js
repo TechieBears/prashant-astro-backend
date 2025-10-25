@@ -18,7 +18,10 @@ const serviceItemSchema = new mongoose.Schema({
         },
         phone: {
             type: String,
-        }
+        },
+        addressData: {
+            type: String,
+        },
     },
     orderId: {
         type: String
@@ -80,6 +83,7 @@ const serviceItemSchema = new mongoose.Schema({
     address: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'customerAddress',
+        default: null
     },
     zoomLink: {
         type: String

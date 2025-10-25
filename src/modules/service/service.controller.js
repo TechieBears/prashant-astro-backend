@@ -141,7 +141,7 @@ exports.updateServiceAdmin = asyncHandler(async (req, res, next) => {
     if (!id) {
         return next(new Errorhander("Please provide service id", 400));
     }
-    const { name, title, subTitle, description, htmlContent, category, image, videoUrl, price, durationInMinutes, isActive, gstNumber, hsnCode } = req.body;
+    const { name, title, subTitle, description, serviceType, htmlContent, category, image, videoUrl, price, durationInMinutes, isActive, gstNumber, hsnCode } = req.body;
 
     const service = await Service.findOne({ _id: id, isDeleted: false });
     if (!service) {
@@ -170,6 +170,7 @@ exports.updateServiceAdmin = asyncHandler(async (req, res, next) => {
     if (price !== undefined) service.price = price;
     if (gstNumber) service.gstNumber = gstNumber;
     if (hsnCode) service.hsnCode = hsnCode;
+    if (serviceType) service.serviceType = serviceType;
     if (durationInMinutes) service.durationInMinutes = durationInMinutes;
     if (isActive !== undefined) service.isActive = isActive;
 
@@ -211,18 +212,18 @@ exports.getAllServicesPublicPaginated = asyncHandler(async (req, res, next) => {
             { subTitle: { $regex: req.query.search, $options: 'i' } }
         ];
     }
-    if(req.query.minPrice || req.query.maxPrice) {
+    if (req.query.minPrice || req.query.maxPrice) {
         filters.price = {};
         if (req.query.minPrice) filters.price.$gte = parseFloat(req.query.minPrice);
         if (req.query.maxPrice) filters.price.$lte = parseFloat(req.query.maxPrice);
     }
-    if(req.query.durationInMinutes) {
+    if (req.query.durationInMinutes) {
         filters.durationInMinutes = req.query.durationInMinutes;
     }
-    if(req.query.serviceType) {
+    if (req.query.serviceType) {
         filters.serviceType = req.query.serviceType;
     }
-    if(req.query.isActive) {
+    if (req.query.isActive) {
         filters.isActive = req.query.isActive === 'true';
     }
 
@@ -316,35 +317,35 @@ exports.getFilterData = asyncHandler(async (req, res, next) => {
 });
 
 exports.getAllServicesPublicAstroGuidPaginated = asyncHandler(async (req, res, next) => {
-//   const { page = 1, limit = 10 } = req.query;
-//   const skip = (page - 1) * limit;
+    //   const { page = 1, limit = 10 } = req.query;
+    //   const skip = (page - 1) * limit;
 
-  // Aggregate categories with their services
-  const categories = await ServiceCategory.aggregate([
-    { $match: { isActive: true, isDeleted: false } },
-    {
-      $lookup: {
-        from: "services",
-        localField: "_id",
-        foreignField: "category",
-        as: "services",
-        pipeline: [
-          { $match: { isActive: true, isDeleted: false } },
-          { $project: { _id: 1, name: 1, title: 1, subTitle: 1, price: 1, serviceType: 1, image: 1 } },
-        //   { $skip: skip },
-        //   { $limit: parseInt(limit) }
-        ]
-      }
-    },
-    {
-      $project: {
-        _id: 1,
-        name: 1,
-        description: 1,
-        services: 1
-      }
-    }
-  ]);
+    // Aggregate categories with their services
+    const categories = await ServiceCategory.aggregate([
+        { $match: { isActive: true, isDeleted: false } },
+        {
+            $lookup: {
+                from: "services",
+                localField: "_id",
+                foreignField: "category",
+                as: "services",
+                pipeline: [
+                    { $match: { isActive: true, isDeleted: false } },
+                    { $project: { _id: 1, name: 1, title: 1, subTitle: 1, price: 1, serviceType: 1, image: 1 } },
+                    //   { $skip: skip },
+                    //   { $limit: parseInt(limit) }
+                ]
+            }
+        },
+        {
+            $project: {
+                _id: 1,
+                name: 1,
+                description: 1,
+                services: 1
+            }
+        }
+    ]);
 
-  res.ok(categories, "Categories with services fetched successfully");
+    res.ok(categories, "Categories with services fetched successfully");
 });
