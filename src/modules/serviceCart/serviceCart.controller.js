@@ -26,6 +26,8 @@ exports.addToCart = asyncHandler(async (req, res) => {
     lastName,
     email,
     phone,
+    address,
+    addressData
   } = req.body;
 
   // 🔹 Validate service
@@ -67,7 +69,9 @@ exports.addToCart = asyncHandler(async (req, res) => {
           lastName,
           email,
           phone,
+          addressData
         },
+        address
       }],
       grandtotal: quantity * (service.price || 0),
     });
@@ -95,12 +99,14 @@ exports.addToCart = asyncHandler(async (req, res) => {
         endTime,
         date,
         quantity,
+        address,
         totalPrice: quantity * (service.price || 0),
         cust: {
           firstName,
           lastName,
           email,
           phone,
+          addressData
         },
       });
     }
@@ -253,7 +259,9 @@ exports.updateCart = asyncHandler(async (req, res) => {
     startTime,
     endTime,
     date,
-    quantity
+    quantity,
+    address,
+    addressData
   } = req.body;
 
   const cart = await ServiceCart.findOne({ user: req.user._id }).populate([
@@ -276,6 +284,8 @@ exports.updateCart = asyncHandler(async (req, res) => {
   if (startTime) cartItem.startTime = startTime;
   if (endTime) cartItem.endTime = endTime;
   if (date) cartItem.date = date;
+  if (address) cartItem.address = address;
+  if (addressData) cartItem.cust.addressData = addressData;
 
   // ✅ Handle quantity & price update
   if (quantity) {
@@ -309,10 +319,10 @@ exports.updateCart = asyncHandler(async (req, res) => {
     serviceMode: item.serviceMode,
     astrologer: item.astrologer
       ? {
-          _id: item.astrologer._id,
-          fullName: `${item.astrologer.profile?.firstName || ''} ${item.astrologer.profile?.lastName || ''}`.trim(),
-          employeeType: item.astrologer.profile?.employeeType,
-        }
+        _id: item.astrologer._id,
+        fullName: `${item.astrologer.profile?.firstName || ''} ${item.astrologer.profile?.lastName || ''}`.trim(),
+        employeeType: item.astrologer.profile?.employeeType,
+      }
       : null,
     startTime: item.startTime,
     endTime: item.endTime,
@@ -354,7 +364,7 @@ exports.removeItem = asyncHandler(async (req, res) => {
   // otherwise recalculate and save
   calculateGrandTotal(cart);
   await cart.save();
-  
+
   res.ok({ grandtotal: cart.grandtotal, items: cart.items }, 'Item removed from cart');
 });
 
@@ -365,5 +375,5 @@ exports.removeAllFromCart = asyncHandler(async (req, res) => {
   const cart = await ServiceCart.findOneAndDelete({ user: req.user._id });
   if (!cart) return res.ok({ grandtotal: 0, items: [] }, 'Cart already empty');
 
-   return res.ok({ grandtotal: 0, items: [] }, 'Cart deleted successfully');
+  return res.ok({ grandtotal: 0, items: [] }, 'Cart deleted successfully');
 });

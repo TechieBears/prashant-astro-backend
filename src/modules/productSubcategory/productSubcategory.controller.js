@@ -42,7 +42,7 @@ exports.createProductSubcategory = asyncHandler(async (req, res) => {
     }
   } else if (req.body.image) {
     imageData = req.body.image;
-  } 
+  }
   // else {
   //   res.status(400);
   //   throw new Error('Image is required');
@@ -104,7 +104,7 @@ exports.getProductSubcategory = asyncHandler(async (req, res) => {
 
 // GET /api/product-subcategories/dropdown
 exports.getAllProductSubcategoriesDropdown = asyncHandler(async (req, res) => {
-  const subcategories = await ProductSubcategory.find({isActive: true, isDeleted: false}).select('name').sort({ createdAt: 1 });
+  const subcategories = await ProductSubcategory.find({ isActive: true, isDeleted: false }).select('name').sort({ createdAt: 1 });
   res.ok(subcategories);
 });
 
@@ -116,7 +116,7 @@ exports.updateProductSubcategory = asyncHandler(async (req, res) => {
     throw new Error('Subcategory not found');
   }
 
-  const { name, categoryId } = req.body;
+  const { name, categoryId, isActive } = req.body;
 
   if (categoryId && categoryId !== subcategory.categoryId.toString()) {
     const category = await ProductCategory.findById(categoryId);
@@ -141,6 +141,7 @@ exports.updateProductSubcategory = asyncHandler(async (req, res) => {
 
   if (name) subcategory.name = name;
   if (categoryId) subcategory.categoryId = categoryId;
+  if (isActive != undefined || isActive != null) subcategory.isActive = isActive;
 
   if (req.file) {
     try {
@@ -201,7 +202,7 @@ exports.deleteProductSubcategory = asyncHandler(async (req, res) => {
   }
 
   if (subcategory.image?.imageId) {
-    try { await deleteImageFromCloudinary(subcategory.image.imageId); } catch (e) {}
+    try { await deleteImageFromCloudinary(subcategory.image.imageId); } catch (e) { }
   }
 
   subcategory.isActive = false;

@@ -22,7 +22,10 @@ const serviceItemSchema = new mongoose.Schema({
     },
     phone: {
       type: String,
-    }
+    },
+    addressData: {
+      type: String,
+    },
   },
   astrologer: {
     type: mongoose.Schema.Types.ObjectId,
@@ -45,7 +48,12 @@ const serviceItemSchema = new mongoose.Schema({
   totalPrice: {
     type: Number,
     default: 0
-  }
+  },
+  address: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'customerAddress',
+    default: null
+  },
 });
 
 const serviceCartSchema = new mongoose.Schema({
