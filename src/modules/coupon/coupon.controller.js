@@ -83,18 +83,92 @@ exports.getCouponsAdmin = asyncHandler(async (req, res, next) => {
 // @desc    Get All active coupons
 // @route   GET /api/coupons/public/get-all
 // @access  Public
+// exports.getAllActiveCoupons = asyncHandler(async (req, res, next) => {
+//     const { couponType } = req.query;
+//     const filter = { isDeleted: false, isActive: true };
+//     // if coupon is service then services and both are valid else if coupon is product then products and both are valid else both are valid
+//     if (couponType) {
+//         if (couponType === 'services') filter.couponType = { $in: ['services', 'both'] };
+//         else if (couponType === 'products') filter.couponType = { $in: ['products', 'both'] };
+//         else filter.couponType = couponType;
+//     }
+//     const coupons = await Coupon.find(filter).select("couponName couponCode discountIn discount activationDate expiryDate");
+//     if (!coupons) return res.ok([], 'No active coupons found');
+//     res.ok(coupons, 'Coupons fetched successfully');
+// });
+
 exports.getAllActiveCoupons = asyncHandler(async (req, res, next) => {
-    const { couponType } = req.query;
-    const filter = { isDeleted: false, isActive: true };
-    // if coupon is service then services and both are valid else if coupon is product then products and both are valid else both are valid
-    if (couponType) {
-        if (couponType === 'services') filter.couponType = { $in: ['services', 'both'] };
-        else if (couponType === 'products') filter.couponType = { $in: ['products', 'both'] };
-        else filter.couponType = couponType;
-    }
-    const coupons = await Coupon.find(filter).select("couponName couponCode discountIn discount activationDate expiryDate");
-    if (!coupons) return res.ok([], 'No active coupons found');
-    res.ok(coupons, 'Coupons fetched successfully');
+  const { couponType, search } = req.query;
+  const filter = { isDeleted: false, isActive: true };
+
+  // Handle coupon type filtering
+  if (couponType) {
+    if (couponType === 'services') filter.couponType = { $in: ['services', 'both'] };
+    else if (couponType === 'products') filter.couponType = { $in: ['products', 'both'] };
+    else filter.couponType = couponType;
+  }
+
+  let coupons;
+
+  if (search) {
+    const regex = new RegExp(search, 'i'); // for partial matches
+
+    coupons = await Coupon.aggregate([
+      { $match: filter },
+      {
+        $addFields: {
+          relevance: {
+            $switch: {
+              branches: [
+                {
+                  case: { $eq: [{ $toUpper: "$couponCode" }, search.toUpperCase()] },
+                  then: 3, // exact match
+                },
+                {
+                  case: {
+                    $regexMatch: {
+                      input: "$couponCode",
+                      regex: new RegExp(`^${search}`, "i"),
+                    },
+                  },
+                  then: 2, // starts with
+                },
+                {
+                  case: {
+                    $regexMatch: {
+                      input: "$couponCode",
+                      regex,
+                    },
+                  },
+                  then: 1, // contains
+                },
+              ],
+              default: 0, // no match
+            },
+          },
+        },
+      },
+      { $sort: { relevance: -1, createdAt: -1 } },
+      {
+        $project: {
+          couponName: 1,
+          couponCode: 1,
+          discountIn: 1,
+          discount: 1,
+          relevance: 1,
+        },
+      },
+    ]);
+  } else {
+    coupons = await Coupon.find(filter)
+      .select("couponName couponCode discountIn discount")
+      .sort({ createdAt: -1 });
+  }
+
+  if (!coupons || coupons.length === 0)
+    return res.ok([], "No active coupons found");
+
+  res.ok(coupons, "Coupons fetched successfully");
 });
 
 // @desc    Update coupon
