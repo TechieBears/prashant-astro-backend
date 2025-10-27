@@ -290,13 +290,28 @@ exports.superAdminSlots = asyncHandler(async (req, res, next) => {
 
         // Helpers for slot handling
         const toMoment = (hhmm) => moment(hhmm, "HH:mm");
-        const addMinutes = (hhmm, mins) =>
-            toMoment(hhmm).add(mins, "minutes").format("HH:mm");
+        const addMinutes = (hhmm, mins) => toMoment(hhmm).add(mins, "minutes").format("HH:mm");
 
         // Block slots outside working hours
         astrologers.forEach((astro) => {
             let dayStart = minStartTime;
             let dayEnd = addMinutes(maxEndTime, -30);
+            let astroavailable = astro.days.includes(moment(date).format("dddd"));
+
+            if (astroavailable == false) {
+                dayEnd = addMinutes(maxEndTime, 30);
+                while (toMoment(dayStart).isBefore(toMoment(dayEnd))) {
+                    bookings.push({
+                        bookingId: "BK_BLOCK",
+                        astrologer: astro.astrologer_id,
+                        astrologerName: astro.name,
+                        startTime: dayStart,
+                        blocked: true
+                    });
+                    dayStart = addMinutes(dayStart, 30);
+                }
+                return;
+            }
 
             // Before working hours
             while (toMoment(dayStart).isBefore(toMoment(astro.startTime ? astro.startTime : minStartTime))) {
