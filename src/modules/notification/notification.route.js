@@ -7,6 +7,8 @@ router.use(protect);
 router.post('/send', authorize('admin', "employee", "customer"), notificationController.sendNotification);
 router.post('/create', authorize('admin', "employee", "customer"), notificationController.createNotification);
 router.get('/get-all', authorize('admin', "employee", "customer"), notificationController.getAllNotificationsAdmin);
-router.get('/dropdown', authorize('admin', "employee", "customer"), notificationController.getNotificationsDropdown);
+router.get('/dropdown-customer', authorize('admin', "employee", "customer"), notificationController.getNotificationsDropdownCustomer);
+router.get('/dropdown-dashboard', authorize('admin', "employee", "customer"), notificationController.getNotificationsDropdownAdminAndEmployee);
+router.delete('/remove-all', authorize("customer"), notificationController.removeAllNotificationsCustomer);
 
 module.exports = router;

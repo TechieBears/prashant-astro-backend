@@ -107,35 +107,30 @@ exports.getAllNotificationsAdmin = asyncHandler(async (req, res) => {
 });
 
 // Get notifications dropdown for customers
-exports.getNotificationsDropdown = asyncHandler(async (req, res) => {
-  const { page = 1, limit = 10 } = req.query;
+exports.getNotificationsDropdownCustomer = asyncHandler(async (req, res) => {
   const userId = req.user._id;
+  const pipeline = [
+    { $match: { $in: [userId] } },
+    {
+      $project: {
+        title: 1,
+        description: 1,
+        sentAt: "$createdAt"
+      }
+    }
+  ];
+  const notifications = await Notification.aggregate(pipeline);
+  res.ok(notifications, "Notifications fetched successfully");
+});
 
-  const notifications = await Notification.find({
-    $or: [
-      { userType: 'all-customers' },
-      { userType: 'specific-customer', userIds: userId }
-    ],
-    status: 'active',
-    $or: [
-      { expiryDate: { $exists: false } },
-      { expiryDate: { $gte: new Date().toISOString().split('T')[0] } }
-    ]
-  })
-  .select('title description image redirectionUrl redirectId createdAt')
-  .sort({ createdAt: -1 })
-  .limit(limit * 1)
-  .skip((page - 1) * limit);
+// Get notifications dropdown for admin and employee
+exports.getNotificationsDropdownAdminAndEmployee = asyncHandler(async (req, res) => {
 
-  const total = await Notification.countDocuments({
-    $or: [
-      { userType: 'all-customers' },
-      { userType: 'specific-customer', userIds: userId }
-    ],
-    status: 'active'
-  });
+  const notifications = await Notification.find({})
+    .select('title description createdAt')
+    .sort({ createdAt: -1 });
 
-  res.paginated(notifications, { page, limit, total, totalPages: Math.ceil(total / limit) }, "Notifications fetched successfully",);
+  res.ok(notifications, "Notifications fetched successfully");
 });
 
 // Helper function to send bulk notifications
@@ -316,4 +311,15 @@ exports.sendImmediateNotification = asyncHandler(async (req, res) => {
     message: 'Notification sent successfully',
     data: savedNotification
   });
+});
+
+// remove all notifications for customer
+exports.removeAllNotificationsCustomer = asyncHandler(async (req, res) => {
+  const userId = req.user._id;
+  await Notification.updateMany(
+    { userType: 'specific-customer', userIds: userId },
+    { $pull: { userIds: userId } }
+  );
+
+  res.ok(null, "notifications cleared");
 });
