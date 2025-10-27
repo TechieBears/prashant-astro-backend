@@ -18,6 +18,7 @@ router.post('/reset-password', CustomerController.resetPassword);
 router.get('/all', protect, authorize("admin", "employee"), CustomerController.getAllCustomerUsers);
 router.put('/admin-update', protect, authorize("admin", "employee"), CustomerController.adminUpdateCustomerUser);
 router.get('/get-all', protect, authorize("admin", "employee"), CustomerController.getAllCustomerUsersWithPagination);
+router.get('/dropdown', protect, authorize("admin"), CustomerController.getAllCustomersDropdown);
 router.get('/get-single', protect, authorize("admin", "employee"), CustomerController.getSingleCustomerUser);
 
 module.exports = router;
