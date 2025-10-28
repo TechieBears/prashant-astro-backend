@@ -1588,7 +1588,8 @@ exports.getServiceOrderItemById = asyncHandler(async (req, res, next) => {
   // Find the service order item
   const item = await ServiceOrderItem.findById(id)
     .populate('service', 'name durationInMinutes price')
-    .populate('astrologer', 'firstName lastName');
+    .populate('astrologer', 'firstName lastName')
+    .populate('address');
 
   const itemData = await ServiceOrderItem.aggregate([
     {
@@ -1721,7 +1722,7 @@ exports.getServiceOrderItemById = asyncHandler(async (req, res, next) => {
   const parentOrder = item.orderId
     ? await ServiceOrder.findById(item.orderId)
       .populate('user', 'email mobileNo')
-      .populate('address')
+      // .populate('address')
       .populate('transaction')
     : null;
 
@@ -1745,6 +1746,7 @@ exports.getServiceOrderItemById = asyncHandler(async (req, res, next) => {
     bookingStatus: item.status,
     paymentStatus: item.paymentStatus,
     zoomLink: item.zoomLink || null,
+    address: item.address || null,
 
     // Parent order details
     parent: parentOrder
@@ -1754,7 +1756,9 @@ exports.getServiceOrderItemById = asyncHandler(async (req, res, next) => {
         finalAmount: parentOrder.finalAmount || null,
         paymentId: parentOrder.transaction?.paymentId || null,
         paymentDetails: parentOrder.transaction?.paymentDetails || null,
-        address: parentOrder.address || null,
+        // address: parentOrder.address || null,
+        isCoupon: parentOrder.isCoupon || false,
+        coupon: parentOrder.coupon || null,
         createdAt: parentOrder.createdAt || item.createdAt,
       }
       : null,
