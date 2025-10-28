@@ -21,6 +21,7 @@
     "dotenv": "^17.2.1",
     "express": "^5.1.0",
     "express-async-handler": "^1.2.0",
+    "googleapis": "^164.1.0",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
     "module-alias": "^2.2.3",
