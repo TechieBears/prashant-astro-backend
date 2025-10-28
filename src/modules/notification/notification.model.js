@@ -1,9 +1,21 @@
 const mongoose = require('mongoose');
 
 const notificationSchema = new mongoose.Schema({
-    token: {
+    from:{
         type: String,
+        enum: ['admin', 'web', 'app'],
+        default: 'web'
     },
+     userIds: [
+        {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User',
+            required: function () {
+                // ✅ only required when notification is for specific customers
+                return this.userType === 'specific-customer';
+            }
+        }
+    ],
     title: {
         type: String,
         required: true,
@@ -18,29 +30,38 @@ const notificationSchema = new mongoose.Schema({
     },
     notificationType: {
         type: String,
-        enum: ['in-app', 'push'],
+        enum: ['in-app', 'web', 'email', 'all'],
         required: true
     },
-    notificationFor: {
+    redirectionUrl: {
         type: String,
-        enum: ['services', 'products'],
-        required: true
+    },
+    redirectId:{
+        type: String
     },
     userType: {
         type: String,
         enum: ['all-customers', 'specific-customer'],
         required: true
     },
-    userIds: [
-        {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: 'User',
-            required: function () {
-                // ✅ only required when notification is for specific customers
-                return this.userType === 'specific-customer';
-            }
-        }
-    ]
+    status:{
+        type: String,
+        enum: ['active', 'inactive'],
+    },
+    scheduledAt:{
+        type: Date
+    },
+    stats:{
+        success: Number,
+        failed: Number
+    },
+    expiryDate:{
+        type: String
+    },
+    isDeleted:{
+        type: Boolean,
+        default: false
+    }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Notification', notificationSchema);
