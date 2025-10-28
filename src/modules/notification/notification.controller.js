@@ -2,6 +2,7 @@ const asyncHandler = require('express-async-handler');
 const Notification = require('./notification.model');
 const User = require('../auth/user.Model');
 const { sendFirebaseNotification } = require('../../utils/firebaseNotification');
+const mongoose = require('mongoose');
 
 // Send immediate notification to single device
 exports.sendNotification = asyncHandler(async (req, res) => {
@@ -89,7 +90,7 @@ exports.createNotification = asyncHandler(async (req, res) => {
 // Get all notifications for admin
 exports.getAllNotificationsAdmin = asyncHandler(async (req, res) => {
   const { page = 1, limit = 10, status, userType, from } = req.query;
-  
+
   const filter = {};
   if (status) filter.status = status;
   if (userType) filter.userType = userType;
@@ -110,7 +111,7 @@ exports.getAllNotificationsAdmin = asyncHandler(async (req, res) => {
 exports.getNotificationsDropdownCustomer = asyncHandler(async (req, res) => {
   const userId = req.user._id;
   const pipeline = [
-    { $match: { $in: [userId] } },
+    { $match: { $in: [userId], isDeleted: false } },
     {
       $project: {
         title: 1,
@@ -125,8 +126,8 @@ exports.getNotificationsDropdownCustomer = asyncHandler(async (req, res) => {
 
 // Get notifications dropdown for admin and employee
 exports.getNotificationsDropdownAdminAndEmployee = asyncHandler(async (req, res) => {
-
-  const notifications = await Notification.find({})
+  const userId = req.user._id;
+  const notifications = await Notification.find({ userIds: userId, })
     .select('title description createdAt')
     .sort({ createdAt: -1 });
 
@@ -139,9 +140,9 @@ async function sendBulkNotifications(notification) {
     let users = [];
 
     if (notification.userType === 'all-customers') {
-      users = await User.find({ 
-        role: 'customer', 
-        isActive: true, 
+      users = await User.find({
+        role: 'customer',
+        isActive: true,
         isDeleted: false,
         fcmToken: { $ne: null }
       }).select('fcmToken');
@@ -314,12 +315,28 @@ exports.sendImmediateNotification = asyncHandler(async (req, res) => {
 });
 
 // remove all notifications for customer
-exports.removeAllNotificationsCustomer = asyncHandler(async (req, res) => {
-  const userId = req.user._id;
-  await Notification.updateMany(
-    { userType: 'specific-customer', userIds: userId },
-    { $pull: { userIds: userId } }
+exports.expireAllNotificationsCustomer = asyncHandler(async (req, res) => {
+  const userId = new mongoose.Types.ObjectId(req.user._id);
+
+  const result = await Notification.updateMany(
+    {
+      userIds: userId,  // will match ObjectId in array
+      isDeleted: false
+    },
+    {
+      $set: {
+        isDeleted: true,
+        expiryDate: new Date().toISOString()
+      }
+    }
   );
 
-  res.ok(null, "notifications cleared");
+  if (result.modifiedCount === 0) {
+    return res.status(404).json({
+      success: false,
+      message: 'No notifications found for the user'
+    });
+  }
+
+  res.ok(null, 'All notifications cleared');
 });
