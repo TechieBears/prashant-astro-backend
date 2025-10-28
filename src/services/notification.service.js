@@ -1,7 +1,7 @@
 // services/notificationService.js
-const Notification = require('../models/Notification');
-const { sendFirebaseNotification } = require('./firebaseNotificationService');
-const User = require('../models/User');
+const Notification = require('../modules/notification/models/Notification');
+const { sendFirebaseNotification } = require('../utils/firebaseNotification');
+const User = require('../modules/user/models/User');
 
 /**
  * Common function to trigger notifications
