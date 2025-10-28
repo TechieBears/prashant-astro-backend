@@ -368,6 +368,7 @@ exports.createCustomerUser = asyncHandler(async (req, res, next) => {
 
   // ---------------- NORMAL REGISTRATION FLOW ----------------
   if (registerType === "normal") {
+    if(!password) return next(new ErrorHander("Password is required", 400));
     if (existingUser) {
       if (existingUser.isActive === true || existingUser.isDeleted === false) {
         return next(new ErrorHander("User with this email already exists", 400));
