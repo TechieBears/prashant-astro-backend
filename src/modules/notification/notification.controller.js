@@ -127,7 +127,7 @@ exports.getNotificationsDropdownCustomer = asyncHandler(async (req, res) => {
 // Get notifications dropdown for admin and employee
 exports.getNotificationsDropdownAdminAndEmployee = asyncHandler(async (req, res) => {
   const userId = req.user._id;
-  const notifications = await Notification.find({ userIds: userId, })
+  const notifications = await Notification.find({ userIds: userId, isDeleted: false })
     .select('title description createdAt')
     .sort({ createdAt: -1 });
 
@@ -179,7 +179,7 @@ async function sendBulkNotifications(notification) {
     });
 
     const results = await Promise.all(sendPromises);
-    
+
     // Update notification stats
     const successCount = results.filter(result => result.success).length;
     const failedCount = results.filter(result => !result.success).length;
