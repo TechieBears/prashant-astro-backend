@@ -52,6 +52,7 @@ router.use('/service-order', require('../modules/serviceOrder/serviceOrder.route
 router.use('/reviews', reviewsRoutes);
 router.use('/testimonials', testimonialsRoutes);
 router.use('/config', configRoutes);
+router.use('/dashboard', require('../modules/Dashboard/dashboard.route'));
 
 // 404 handler for undefined routes (commented out temporarily to debug)
 // router.all('*', (req, res) => {
