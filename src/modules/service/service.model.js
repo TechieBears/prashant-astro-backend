@@ -59,10 +59,10 @@ const serviceSchema = new mongoose.Schema({
         enum: ['30', '60']
     },
     serviceType: {
-        type: String,
+        type: [String],
         required: [true, "Please provide service type"],
         enum: ['online', 'pandit_center', 'pooja_at_home'],
-        default: 'online'
+        default: ['online']
     },
     isActive: {
         type: Boolean,

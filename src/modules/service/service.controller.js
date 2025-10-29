@@ -42,7 +42,7 @@ exports.createServiceAdmin = asyncHandler(async (req, res, next) => {
         gstNumber,
         hsnCode,
         durationInMinutes,
-        serviceType: serviceType || 'online',
+        serviceType: serviceType || ['online'],
         createdBy: req.user._id
     });
     await service.save();
