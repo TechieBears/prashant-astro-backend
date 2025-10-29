@@ -64,7 +64,7 @@ exports.getAllCustomerAddresses = asyncHandler(async (req, res, next) => {
     const addresses = await CustomerAddress.find({ userId, isDeleted: false }).sort({ createdAt: -1 }).select("-__v");
 
     if (addresses.length === 0) {
-        return next(new ErrorHandler("No addresses found", 404));
+        res.ok([], "No addresses found");
     }
 
     res.ok(addresses, "Addresses retrieved successfully");
