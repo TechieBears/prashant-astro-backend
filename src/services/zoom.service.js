@@ -46,14 +46,39 @@ async function createMeetingForUser({
             duration,
             timezone,
             agenda,
+            // settings: {
+            //     host_video: settings.host_video ?? true,
+            //     participant_video: settings.participant_video ?? true,
+            //     join_before_host: settings.join_before_host ?? false,
+            //     mute_upon_entry: settings.mute_upon_entry ?? true,
+            //     approval_type: settings.approval_type ?? 0,
+            //     waiting_room: settings.waiting_room ?? true,
+            //     ...settings  // allow extra overrides
+            // }
+            // settings: {
+            //     host_video: settings.host_video ?? true,
+            //     participant_video: settings.participant_video ?? true,
+            //     join_before_host: settings.join_before_host ?? true, // ✅ allow joining directly
+            //     mute_upon_entry: settings.mute_upon_entry ?? true,
+            //     approval_type: 2, // ❌ remove registration
+            //     waiting_room: settings.waiting_room ?? false, // ✅ disable waiting room
+            //     meeting_authentication: false, // ✅ disable login
+            //     enforce_login: false, // ✅ disable Zoom sign-in requirement
+            //     enforce_login_domains: "",
+            //     auto_recording: "none",
+            //     allow_multiple_devices: true,
+            //     audio: "both",
+            //     show_share_button: true,
+            //     ...settings
+            // }
             settings: {
-                host_video: settings.host_video ?? true,
-                participant_video: settings.participant_video ?? true,
-                join_before_host: settings.join_before_host ?? false,
-                mute_upon_entry: settings.mute_upon_entry ?? true,
-                approval_type: settings.approval_type ?? 0,
-                waiting_room: settings.waiting_room ?? true,
-                ...settings  // allow extra overrides
+                host_video: true,
+                participant_video: true,
+                join_before_host: true,
+                waiting_room: false,
+                meeting_authentication: false,
+                enforce_login: false,
+                approval_type: 2,
             }
         };
 

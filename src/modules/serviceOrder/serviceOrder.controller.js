@@ -799,32 +799,24 @@ exports.createServiceOrder = asyncHandler(async (req, res, next) => {
       }
 
       // ✅ Create Zoom Meeting for online services
-      let zoomLink = null;
-      if (service.serviceType === 'online') {
-        try {
-          const zoomMeeting = await createMeetingForUser({
-            topic: `${service.name} - ${firstName} ${lastName}`,
-            start_time: bookingStart.toISOString(),
-            duration: serviceDuration,
-            timezone: 'Asia/Kolkata',
-            agenda: `Astrology consultation with ${astrologer.name} for ${firstName} ${lastName}`,
-            settings: {
-              host_video: true,
-              participant_video: true,
-              join_before_host: false,
-              mute_upon_entry: true,
-              approval_type: 0, // Automatically approve
-              waiting_room: false,
-            }
-          });
+      // let zoomLink = null;
+      // if (service.serviceType === 'online') {
+      //   try {
+      //     const zoomMeeting = await createMeetingForUser({
+      //       topic: `${service.name} - ${firstName} ${lastName}`,
+      //       start_time: bookingStart.toISOString(),
+      //       duration: serviceDuration,
+      //       timezone: 'Asia/Kolkata',
+      //       agenda: `Astrology consultation with ${astrologer.name} for ${firstName} ${lastName}`,
+      //     });
 
-          zoomLink = zoomMeeting.join_url;
-        } catch (zoomError) {
-          console.error('Failed to create Zoom meeting:', zoomError);
-          // Don't fail the entire order if Zoom fails, just log and continue
-          // You might want to handle this differently based on your requirements
-        }
-      }
+      //     zoomLink = zoomMeeting.join_url;
+      //   } catch (zoomError) {
+      //     console.error('Failed to create Zoom meeting:', zoomError);
+      //     // Don't fail the entire order if Zoom fails, just log and continue
+      //     // You might want to handle this differently based on your requirements
+      //   }
+      // }
 
       // ✅ Create Order Item
       const orderItem = await ServiceOrderItem.create([{
@@ -839,7 +831,7 @@ exports.createServiceOrder = asyncHandler(async (req, res, next) => {
         serviceType: service.serviceType,
         total: service.price,
         address: address || null,
-        zoomLink: zoomLink, // Add Zoom link to the order item
+        zoomLink: null, // Add Zoom link to the order item
       }], { session });
 
       // ✅ Create Transaction for this item
@@ -1451,10 +1443,31 @@ exports.updateServiceOrderAstrologer = asyncHandler(async (req, res, next) => {
   serviceItem.astrologerStatus = astrologerStatus;
   serviceItem.rejectReason = astrologerStatus === "rejected" ? rejectReason || "No reason provided" : null;
 
-  // 5. Save
+  // 5. if allowedStatuses is accepted then generate zoom link
+  let zoomLink = null;
+      if (allowedStatuses === "accepted" && serviceItem.serviceType === 'online') {
+        try {
+          const zoomMeeting = await createMeetingForUser({
+            topic: `${serviceItem.name} - ${firstName} ${lastName}`,
+            start_time: bookingStart.toISOString(),
+            duration: serviceDuration,
+            timezone: 'Asia/Kolkata',
+            agenda: `Astrology consultation with ${astrologer.name} for ${firstName} ${lastName}`,
+          });
+
+          zoomLink = zoomMeeting.join_url;
+        } catch (zoomError) {
+          console.error('Failed to create Zoom meeting:', zoomError);
+          // Don't fail the entire order if Zoom fails, just log and continue
+          // You might want to handle this differently based on your requirements
+        }
+      }
+  zoomLink = `${zoomLink}&uname=${serviceItem.cust.firstName}%20${serviceItem.cust.lastName}`;
+  serviceItem.zoomLink = zoomLink;
+  // 6. Save
   await serviceItem.save();
 
-  // 6. Respond
+  // 7. Respond
   res.ok(serviceItem, "Astrologer status updated successfully");
 });
 
