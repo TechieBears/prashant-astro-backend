@@ -99,7 +99,7 @@ exports.getCouponsAdmin = asyncHandler(async (req, res, next) => {
 
 exports.getAllActiveCoupons = asyncHandler(async (req, res, next) => {
   const { couponType, search } = req.query;
-  const filter = { isDeleted: false, isActive: true };
+  const filter = { isDeleted: false, isActive: true, expiryDate: { $gte: new Date() } };
 
   // Handle coupon type filtering
   if (couponType) {
