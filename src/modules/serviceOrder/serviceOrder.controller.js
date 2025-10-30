@@ -2000,6 +2000,7 @@ exports.rescheduleServiceOrderCustomer = asyncHandler(async (req, res, next) => 
           startTime: newStartTime,
           endTime: newEndTime,
           astrologer: astrologerId,
+          astrologerStatus: 'pending',
           extraInfo: {
             bookingDate: newBookingDate,
             startTime: newStartTime,
