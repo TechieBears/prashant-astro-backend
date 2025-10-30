@@ -709,6 +709,7 @@ exports.createServiceOrder = asyncHandler(async (req, res, next) => {
         serviceId,
         astrologerId,
         bookingDate,
+        serviceType,
         startTime,
         firstName,
         lastName,
@@ -740,7 +741,7 @@ exports.createServiceOrder = asyncHandler(async (req, res, next) => {
         return next(new ErrorHandler('Service not found', 404));
       }
 
-      if (service.serviceType === 'pooja_at_home' && !address) {
+      if (serviceType === 'pooja_at_home' && !address) {
         await session.abortTransaction();
         session.endSession();
         return next(new ErrorHandler('Address required for pooja_at_home', 400));
@@ -828,7 +829,7 @@ exports.createServiceOrder = asyncHandler(async (req, res, next) => {
         bookingDate,
         startTime: bookingStart.format('HH:mm'),
         endTime: bookingEnd.format('HH:mm'),
-        serviceType: service.serviceType,
+        serviceType: serviceType,
         total: service.price,
         address: address || null,
         zoomLink: null, // Add Zoom link to the order item
