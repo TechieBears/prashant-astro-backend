@@ -19,5 +19,6 @@ router.get('/order/get-single', protect, authorize('admin', 'employee', 'custome
 router.get('/astrologer/get-all', protect, authorize('admin', 'employee'), serviceOrderController.getAllServiceOrdersAstrologer);
 router.get('/astrologer/get-single', protect, authorize('admin', 'employee'), serviceOrderController.getServiceOrderAstrologer);
 router.post('/astrologer/update-order-status', protect, authorize('admin', 'employee'), serviceOrderController.updateServiceOrderAstrologer);
+router.post('/astrologer/reschedule-service', protect, authorize('admin', 'employee'), serviceOrderController.rescheduleServiceOrderAstrologer);
 
 module.exports = router;

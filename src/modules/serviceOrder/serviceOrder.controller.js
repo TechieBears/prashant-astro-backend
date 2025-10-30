@@ -2023,6 +2023,71 @@ exports.rescheduleServiceOrderCustomer = asyncHandler(async (req, res, next) => 
   }
 });
 
+exports.rescheduleServiceOrderAstrologer = asyncHandler(async (req, res, next) => {
+  const serviceOrderItemId = req.params.serviceItemId;
+  const { newBookingDate, newStartTime, newEndTime } = req.body;
+
+  // input validations
+  if (!serviceOrderItemId) return next(new ErrorHandler('serviceItemId is required', 400));
+  for (const field of ['newBookingDate', 'newStartTime', 'newEndTime']) {
+    if (!req.body[field]) {
+      return next(new ErrorHandler(`${field} is required`, 400));
+    }
+  }
+
+  try {
+
+    // find service order item
+    const serviceOrderItem = await ServiceOrderItem.findById(serviceOrderItemId);
+    if (!serviceOrderItem) return next(new ErrorHandler('Service Order Item not found', 404));
+
+    const astrologerId = req.user._id;
+
+    // check astrologer availability for the new slot
+    const isAvailable = await checkAstrologerAvailability(
+      astrologerId,
+      newBookingDate,
+      newStartTime,
+      newEndTime
+    );
+    if (!isAvailable) return next(new ErrorHandler('You are not available on the requested date and time', 400));
+
+    // check for offline bookings conflict (no offline bookings on that day)
+    const hasOfflineBooking = await checkOfflineBookings(astrologerId, newBookingDate);
+    if (hasOfflineBooking) return next(new ErrorHandler('You have offline bookings on the requested date', 400));
+
+    // Update the service order item with new timing and extraInfo
+    const updatedServiceOrderItem = await ServiceOrderItem.findByIdAndUpdate(
+      serviceOrderItemId,
+      {
+        $set: {
+          bookingDate: newBookingDate,
+          startTime: newStartTime,
+          endTime: newEndTime,
+          astrologerStatus: 'accepted',
+          extraInfo: {
+            bookingDate: newBookingDate,
+            startTime: newStartTime,
+            endTime: newEndTime,
+            rescheduledAt: new Date().toISOString(),
+            previousBookingDate: serviceOrderItem.bookingDate,
+            previousStartTime: serviceOrderItem.startTime,
+            previousEndTime: serviceOrderItem.endTime
+          }
+        }
+      },
+      { new: true, runValidators: true }
+    );
+
+    res.ok(null, 'Service order rescheduled successfully')
+
+  } catch (error) {
+    console.error('Astrologer Rescheduling error:', error);
+    return next(new ErrorHandler('Failed to reschedule service order. Please try again later.', 500));
+  }
+
+});
+
 // Helper function to check astrologer availability
 const checkAstrologerAvailability = async (astrologerId, bookingDate, startTime, endTime) => {
   try {
