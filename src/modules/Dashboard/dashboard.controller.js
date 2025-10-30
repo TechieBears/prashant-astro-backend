@@ -133,6 +133,9 @@ exports.getDashboardData = asyncHandler(async (req, res) => {
                     ],
                     deliveredProductsOrdersAmount: [
                         {
+                            $match: { orderStatus: "DELIVERED" }
+                        },
+                        {
                             $group: {
                                 _id: null,
                                 totalAmount: { $sum: "$payingAmount" }
