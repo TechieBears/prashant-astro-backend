@@ -87,7 +87,10 @@ const serviceItemSchema = new mongoose.Schema({
     },
     zoomLink: {
         type: String
-    }
+    },
+    extraInfo:{
+        type: Object  // default set to undefined
+    },
 }, { timestamps: true });
 
 module.exports = mongoose.model('ServiceOrderItem', serviceItemSchema);

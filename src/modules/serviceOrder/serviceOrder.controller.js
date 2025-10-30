@@ -494,7 +494,7 @@ const { createMeetingForUser } = require('../../services/zoom.service');
 //     };
 
 //     const serviceOrder = await ServiceOrder.create([serviceOrderPayload], { session });
-    
+
 //     // ✅ Update all items with parent orderId
 //     await ServiceOrderItem.updateMany(
 //       { _id: { $in: createdOrderItems } },
@@ -508,7 +508,7 @@ const { createMeetingForUser } = require('../../services/zoom.service');
 //     if (paymentType && paymentType !== 'COD' && paymentId) {
 //       // For non-COD payments, if payment is already successful
 //       referralResult = await processReferralReward(userId, session);
-      
+
 //       // Update payment status to paid if referral was processed successfully
 //       if (referralResult.success) {
 //         await ServiceOrder.updateOne(
@@ -516,14 +516,14 @@ const { createMeetingForUser } = require('../../services/zoom.service');
 //           { $set: { paymentStatus: 'paid' } },
 //           { session }
 //         );
-        
+
 //         // Update all service order items to paid
 //         await ServiceOrderItem.updateMany(
 //           { _id: { $in: createdOrderItems } },
 //           { $set: { paymentStatus: 'paid', status: 'paid' } },
 //           { session }
 //         );
-        
+
 //         // Update transactions to paid
 //         await Transaction.updateMany(
 //           { userId: userId, status: 'unpaid' },
@@ -871,7 +871,7 @@ exports.createServiceOrder = asyncHandler(async (req, res, next) => {
     };
 
     const serviceOrder = await ServiceOrder.create([serviceOrderPayload], { session });
-    
+
     // ✅ Update all items with parent orderId
     await ServiceOrderItem.updateMany(
       { _id: { $in: createdOrderItems } },
@@ -885,7 +885,7 @@ exports.createServiceOrder = asyncHandler(async (req, res, next) => {
     if (paymentType && paymentType !== 'COD' && paymentId) {
       // For non-COD payments, if payment is already successful
       referralResult = await processReferralReward(userId, session);
-      
+
       // Update payment status to paid if referral was processed successfully
       if (referralResult.success) {
         await ServiceOrder.updateOne(
@@ -893,23 +893,23 @@ exports.createServiceOrder = asyncHandler(async (req, res, next) => {
           { $set: { paymentStatus: 'paid' } },
           { session }
         );
-        
+
         // Update all service order items to paid
         await ServiceOrderItem.updateMany(
           { _id: { $in: createdOrderItems } },
           { $set: { paymentStatus: 'paid', status: 'paid' } },
           { session }
         );
-        
+
         // Update transactions to paid
         await Transaction.updateMany(
           { userId: userId, status: 'unpaid' },
-          { 
-            $set: { 
+          {
+            $set: {
               status: 'paid',
               amount: totalAmount,
               pendingAmount: 0
-            } 
+            }
           },
           { session }
         );
@@ -1446,23 +1446,23 @@ exports.updateServiceOrderAstrologer = asyncHandler(async (req, res, next) => {
 
   // 5. if allowedStatuses is accepted then generate zoom link
   let zoomLink = null;
-      if (allowedStatuses === "accepted" && serviceItem.serviceType === 'online') {
-        try {
-          const zoomMeeting = await createMeetingForUser({
-            topic: `${serviceItem.name} - ${firstName} ${lastName}`,
-            start_time: bookingStart.toISOString(),
-            duration: serviceDuration,
-            timezone: 'Asia/Kolkata',
-            agenda: `Astrology consultation with ${astrologer.name} for ${firstName} ${lastName}`,
-          });
+  if (allowedStatuses === "accepted" && serviceItem.serviceType === 'online') {
+    try {
+      const zoomMeeting = await createMeetingForUser({
+        topic: `${serviceItem.name} - ${firstName} ${lastName}`,
+        start_time: bookingStart.toISOString(),
+        duration: serviceDuration,
+        timezone: 'Asia/Kolkata',
+        agenda: `Astrology consultation with ${astrologer.name} for ${firstName} ${lastName}`,
+      });
 
-          zoomLink = zoomMeeting.join_url;
-        } catch (zoomError) {
-          console.error('Failed to create Zoom meeting:', zoomError);
-          // Don't fail the entire order if Zoom fails, just log and continue
-          // You might want to handle this differently based on your requirements
-        }
-      }
+      zoomLink = zoomMeeting.join_url;
+    } catch (zoomError) {
+      console.error('Failed to create Zoom meeting:', zoomError);
+      // Don't fail the entire order if Zoom fails, just log and continue
+      // You might want to handle this differently based on your requirements
+    }
+  }
   zoomLink = `${zoomLink}&uname=${serviceItem.cust.firstName}%20${serviceItem.cust.lastName}`;
   serviceItem.zoomLink = zoomLink;
   // 6. Save
@@ -1928,3 +1928,178 @@ exports.getSingleServiceOrder = asyncHandler(async (req, res, next) => {
     console.log("🚀 ~ err:", err);
   }
 })
+
+exports.rescheduleServiceOrderCustomer = asyncHandler(async (req, res, next) => {
+  const serviceOrderItemId = req.params.serviceItemId;
+  const { newBookingDate, newStartTime, newEndTime, astrologerId } = req.body;
+
+  // input validations
+  if (!serviceOrderItemId) return next(new ErrorHandler('serviceItemId is required', 400));
+  for (const field of ['newBookingDate', 'newStartTime', 'newEndTime']) {
+    if (!req.body[field]) {
+      return next(new ErrorHandler(`${field} is required`, 400));
+    }
+  }
+
+  try {
+    // find service order item
+    const serviceOrderItem = await ServiceOrderItem.findById(serviceOrderItemId)
+      .populate('astrologer', 'role')
+      .populate({
+        path: 'astrologer',
+        populate: {
+          path: 'profile',
+          model: 'employee'
+        }
+      });
+
+    if (!serviceOrderItem) return next(new ErrorHandler('Service Order Item not found', 404));
+
+    // Check if astrologer status is 'pending'
+    // if (serviceOrderItem.astrologerStatus !== 'pending') {
+    //     return res.status(400).json({
+    //         success: false,
+    //         message: 'Cannot reschedule - astrologer status is not pending'
+    //     });
+    // }
+
+    // Verify the astrologer exists and has correct role
+    const astrologerUser = await User.findById(astrologerId).populate('profile');
+    if (!astrologerUser || astrologerUser.role !== 'employee') {
+      return next(new ErrorHandler('Asrologer not found or Invalid astrologer ID', 400));
+    }
+    // Check if astrologer profile exists and is of type astrologer
+    const astrologerProfile = astrologerUser.profile;
+    if (!astrologerProfile || astrologerProfile.employeeType !== 'astrologer') {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid astrologer profile'
+      });
+    }
+
+    // check astrologer availability for the new slot
+    const isAvailable = await checkAstrologerAvailability(
+      astrologerId,
+      newBookingDate,
+      newStartTime,
+      newEndTime
+    );
+
+    if (!isAvailable) return next(new ErrorHandler('Astrologer is not available on the requested date and time', 400));
+
+    // check for offline bookings conflict (no offline bookings on that day)
+    const hasOfflineBooking = await checkOfflineBookings(astrologerId, newBookingDate);
+    if (hasOfflineBooking) return next(new ErrorHandler('Astrologer has offline bookings on the requested date', 400));
+
+    // Update the service order item with new timing and extraInfo
+    const updatedServiceOrderItem = await ServiceOrderItem.findByIdAndUpdate(
+      serviceOrderItemId,
+      {
+        $set: {
+          bookingDate: newBookingDate,
+          startTime: newStartTime,
+          endTime: newEndTime,
+          astrologer: astrologerId,
+          extraInfo: {
+            bookingDate: newBookingDate,
+            startTime: newStartTime,
+            endTime: newEndTime,
+            rescheduledAt: new Date().toISOString(),
+            previousBookingDate: serviceOrderItem.bookingDate,
+            previousStartTime: serviceOrderItem.startTime,
+            previousEndTime: serviceOrderItem.endTime
+          }
+        }
+      },
+      { new: true, runValidators: true }
+    );
+
+    res.ok(null, 'Service order rescheduled successfully')
+
+  } catch (error) {
+    console.error('Customer Rescheduling error:', error);
+    return next(new ErrorHandler('Failed to reschedule service order. Please try again later.', 500));
+  }
+});
+
+// Helper function to check astrologer availability
+const checkAstrologerAvailability = async (astrologerId, bookingDate, startTime, endTime) => {
+  try {
+    const astrologerUser = await User.findById(astrologerId).populate('profile');
+    if (!astrologerUser || !astrologerUser.profile) return false;
+
+    const astrologerProfile = astrologerUser.profile;
+
+    // Check if the day is in astrologer's working days
+    const bookingDay = new Date(bookingDate).toLocaleDateString('en-US', { weekday: 'long' });
+    if (!astrologerProfile.days.includes(bookingDay)) {
+      return false;
+    }
+
+    // Check working hours
+    const [startHour, startMinute] = startTime.split(':').map(Number);
+    const [endHour, endMinute] = endTime.split(':').map(Number);
+    const [profileStartHour, profileStartMinute] = astrologerProfile.startTime.split(':').map(Number);
+    const [profileEndHour, profileEndMinute] = astrologerProfile.endTime.split(':').map(Number);
+
+    const bookingStartMinutes = startHour * 60 + startMinute;
+    const bookingEndMinutes = endHour * 60 + endMinute;
+    const profileStartMinutes = profileStartHour * 60 + profileStartMinute;
+    const profileEndMinutes = profileEndHour * 60 + profileEndMinute;
+
+    if (bookingStartMinutes < profileStartMinutes || bookingEndMinutes > profileEndMinutes) {
+      return false;
+    }
+
+    // Check for existing bookings at the same time
+    const conflictingBookings = await ServiceOrderItem.find({
+      astrologer: astrologerId,
+      bookingDate: bookingDate,
+      astrologerStatus: { $in: ['pending', 'accepted'] },
+      $or: [
+        {
+          $and: [
+            { startTime: { $lte: startTime } },
+            { endTime: { $gt: startTime } }
+          ]
+        },
+        {
+          $and: [
+            { startTime: { $lt: endTime } },
+            { endTime: { $gte: endTime } }
+          ]
+        },
+        {
+          $and: [
+            { startTime: { $gte: startTime } },
+            { endTime: { $lte: endTime } }
+          ]
+        }
+      ]
+    });
+
+    return conflictingBookings.length === 0;
+
+  } catch (error) {
+    console.error('Availability check error:', error);
+    return false;
+  }
+};
+
+// Helper function to check for offline bookings
+const checkOfflineBookings = async (astrologerId, bookingDate) => {
+  try {
+    // Check if astrologer has any offline service bookings on that date
+    const offlineBookings = await ServiceOrderItem.find({
+      astrologer: astrologerId,
+      bookingDate: bookingDate,
+      serviceType: { $in: ['pandit_center', 'pooja_at_home'] },
+      status: { $in: ['pending', 'paid'] }
+    });
+
+    return offlineBookings.length > 0;
+  } catch (error) {
+    console.error('Offline bookings check error:', error);
+    return true; // Return true to be safe and prevent rescheduling
+  }
+};

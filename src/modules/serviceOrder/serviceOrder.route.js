@@ -7,6 +7,7 @@ router.post('/public/create', protect, authorize('customer'), serviceOrderContro
 router.get('/public/get-all', protect, authorize('customer'), serviceOrderController.getAllServiceOrders);
 router.get('/public/get-single', protect, authorize('customer'), serviceOrderController.getServiceOrder);
 router.get('/public/item/get-single', protect, authorize('customer'), serviceOrderController.getServiceOrderItemById);
+router.post('/public/reschedule-service', protect, authorize('customer'), serviceOrderController.rescheduleServiceOrderCustomer);
 
 // admin routes
 router.get('/get-all', protect, authorize('admin', "employee"), serviceOrderController.getAllServiceOrdersAdmin);
