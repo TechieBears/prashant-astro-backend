@@ -81,7 +81,7 @@ exports.getDashboardData = asyncHandler(async (req, res) => {
                         {
                             $group: {
                                 _id: null,
-                                totalAmount: { $sum: "$totalAmount" }
+                                totalAmount: { $sum: "$payingAmount" }
                             }
                         }
                     ],
@@ -100,7 +100,7 @@ exports.getDashboardData = asyncHandler(async (req, res) => {
                         {
                             $group: {
                                 _id: null,
-                                totalAmount: { $sum: "$totalAmount" }
+                                totalAmount: { $sum: "$payingAmount" }
                             }
                         }
                     ],
@@ -119,7 +119,7 @@ exports.getDashboardData = asyncHandler(async (req, res) => {
                         {
                             $group: {
                                 _id: null,
-                                totalAmount: { $sum: "$totalAmount" }
+                                totalAmount: { $sum: "$payingAmount" }
                             }
                         }
                     ],
@@ -133,9 +133,12 @@ exports.getDashboardData = asyncHandler(async (req, res) => {
                     ],
                     deliveredProductsOrdersAmount: [
                         {
+                            $match: { orderStatus: "DELIVERED" }
+                        },
+                        {
                             $group: {
                                 _id: null,
-                                totalAmount: { $sum: "$totalAmount" }
+                                totalAmount: { $sum: "$payingAmount" }
                             }
                         }
                     ]
@@ -309,25 +312,27 @@ exports.getDashboardData = asyncHandler(async (req, res) => {
         }
     ]);
 
+    const returnData = {
+        latestbookings: latestOrders || [],
+        products: productOrders ? productOrders[0]?.latestproducts || [] : [],
+        totalProductsOrders: productOrders ? productOrders[0]?.totalProductsOrders[0]?.totalProductsOrders || 0 : 0,
+        totalProductsOrdersAmount: productOrders ? productOrders[0]?.totalProductsOrdersAmount[0]?.totalAmount || 0 : 0,
+        pendingProductOrders: productOrders ? productOrders[0]?.pendingProductOrders[0]?.pendingProductOrders || 0 : 0,
+        pendingProductOrdersAmount: productOrders ? productOrders[0]?.pendingProductOrdersAmount[0]?.totalAmount || 0 : 0,
+        shippedProductsOrders: productOrders ? productOrders[0]?.shippedProductsOrders[0]?.shippedProductsOrders || 0 : 0,
+        shippedProductsOrdersAmount: productOrders ? productOrders[0]?.shippedProductsOrdersAmount[0]?.totalAmount || 0 : 0,
+        deliveredProductsOrders: productOrders ? productOrders[0]?.deliveredProductsOrders[0]?.deliveredProductsOrders || 0 : 0,
+        deliveredProductsOrdersAmount: productOrders ? productOrders[0]?.deliveredProductsOrdersAmount[0]?.totalAmount || 0 : 0,
+        // latestbookings: ServiceItems[0]?.latestBookings,
+        todaysBookings: ServiceItems ? ServiceItems[0]?.todaysBookings || [] : [],
+        totalBookings: ServiceItems ? ServiceItems[0]?.totalBookings[0]?.totalBookings || 0 : 0,
+        pendingConfirmatch: ServiceItems ? ServiceItems[0]?.pendingConfirmatch[0]?.pendingConfirmatch || 0 : 0,
+        scheduledBookings: ServiceItems ? ServiceItems[0]?.scheduledBookings[0]?.scheduledBookings || 0 : 0,
+        completedBookings: ServiceItems ? ServiceItems[0]?.completedBookings[0]?.completedBookings || 0 : 0
+    }
+
     res.status(200).json({
         success: true,
-        data: {
-            latestbookings: latestOrders || [],
-            products: productOrders ? productOrders[0]?.latestproducts || [] : [],
-            totalProductsOrders: productOrders ? productOrders[0]?.totalProductsOrders[0]?.totalProductsOrders || 0 : 0,
-            totalProductsOrdersAmount: productOrders ? productOrders[0]?.totalProductsOrdersAmount[0]?.totalAmount || 0 : 0,
-            pendingProductOrders: productOrders ? productOrders[0]?.pendingProductOrders[0]?.pendingProductOrders || 0 : 0,
-            pendingProductOrdersAmount: productOrders ? productOrders[0]?.pendingProductOrdersAmount[0]?.totalAmount || 0 : 0,
-            shippedProductsOrders: productOrders ? productOrders[0]?.shippedProductsOrders[0]?.shippedProductsOrders || 0 : 0,
-            shippedProductsOrdersAmount: productOrders ? productOrders[0]?.shippedProductsOrdersAmount[0]?.totalAmount || 0 : 0,
-            deliveredProductsOrders: productOrders ? productOrders[0]?.deliveredProductsOrders[0]?.deliveredProductsOrders || 0 : 0,
-            deliveredProductsOrdersAmount: productOrders ? productOrders[0]?.deliveredProductsOrdersAmount[0]?.totalAmount || 0 : 0,
-            // latestbookings: ServiceItems[0]?.latestBookings,
-            todaysBookings: ServiceItems ? ServiceItems[0]?.todaysBookings || [] : [],
-            totalBookings: ServiceItems ? ServiceItems[0]?.totalBookings[0]?.totalBookings || 0 : 0,
-            pendingConfirmatch: ServiceItems ? ServiceItems[0]?.pendingConfirmatch[0]?.pendingConfirmatch || 0 : 0,
-            scheduledBookings: ServiceItems ? ServiceItems[0]?.scheduledBookings[0]?.scheduledBookings || 0 : 0,
-            completedBookings: ServiceItems ? ServiceItems[0]?.completedBookings[0]?.completedBookings || 0 : 0
-        }
+        data: returnData
     });
 });
