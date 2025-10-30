@@ -267,7 +267,6 @@ exports.superAdminSlots = asyncHandler(async (req, res, next) => {
                 }
             },
             { $unwind: { path: "$custData", preserveNullAndEmptyArrays: true } },
-            { $addFields: { customer_id: "$customer.profile" } },
             {
                 $lookup: {
                     from: "employees",
@@ -288,7 +287,8 @@ exports.superAdminSlots = asyncHandler(async (req, res, next) => {
                     paymentStatus: 1,
                     status: 1,
                     customer: { $concat: ["$custData.firstName", " ", "$custData.lastName"] },
-                    astroRole: "$astroData.employeeType",
+                    astroName: { $concat: ["$astroData.firstName", " ", "$astroData.lastName"] },
+                    astroRole: { $ifNull: ["$astroData.employeeType", "admin"] },
                     slot_booked: true,
                     blocked: { $eq: ["$status", "blocked"] },
                     rejectReason: 1
@@ -422,6 +422,15 @@ exports.astrologerSlots = asyncHandler(async (req, res, next) => {
             },
             { $unwind: { path: "$custData", preserveNullAndEmptyArrays: true } },
             {
+                $lookup: {
+                    from: "employees",
+                    localField: "customer_id",
+                    foreignField: "_id",
+                    as: "astroData"
+                }
+            },
+            { $unwind: { path: "$astroData", preserveNullAndEmptyArrays: true } },
+            {
                 $project: {
                     _id: 1,
                     startTime: 1,
@@ -432,6 +441,8 @@ exports.astrologerSlots = asyncHandler(async (req, res, next) => {
                     paymentStatus: 1,
                     status: 1,
                     customer: { $concat: ["$custData.firstName", " ", "$custData.lastName"] },
+                    astroName: { $concat: ["$astroData.firstName", " ", "$astroData.lastName"] },
+                    astroRole: { $ifNull: ["$astroData.employeeType", "admin"] },
                     slot_booked: true,
                     blocked: { $eq: ["$status", "blocked"] },
                     rejectReason: 1
