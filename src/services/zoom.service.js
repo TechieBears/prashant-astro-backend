@@ -102,4 +102,73 @@ async function createMeetingForUser({
     }
 }
 
-module.exports = { createMeetingForUser };
+async function updateMeeting(meetingId, {
+    topic,
+    start_time,
+    duration,
+    timezone,
+    agenda,
+    settings = {}
+}) {
+    try {
+        const accessToken = await getZoomAccessToken();
+        if (!accessToken) throw new Error('Missing ZOOM_ACCESS_TOKEN in environment');
+
+        const url = `${ZOOM_API_BASE}/meetings/${encodeURIComponent(meetingId)}`;
+
+        const body = {
+            topic,
+            start_time,
+            duration,
+            timezone,
+            agenda,
+            settings: {
+                host_video: settings.host_video ?? true,
+                participant_video: settings.participant_video ?? true,
+                join_before_host: settings.join_before_host ?? true,
+                waiting_room: settings.waiting_room ?? false,
+                meeting_authentication: settings.meeting_authentication ?? false,
+                enforce_login: settings.enforce_login ?? false,
+                approval_type: settings.approval_type ?? 2,
+            }
+        };
+
+        // remove undefined fields
+        Object.fields(body).forEach(key => {
+            if (body[key] === undefined) delete body[key];
+        });
+
+        const response = await axios.patch(url, body, {
+            headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        return response.data;
+
+    } catch (err) {
+        if (err.response) {
+            console.error('Zoom API update error:', err.response.status, err.response.data);
+            throw new Error(`Zoom API update error: ${err.response.data.message || err.response.data}`);
+        }
+        console.error('Unexpected error in updateMeeting:', err.message);
+        throw err;
+    }
+};
+
+function extractMeetingFromZoomLink(zoomLink){
+    if(!zoomLink) return null;
+
+    /*Zoom link patterns
+        https://zoom.us/j/123456789
+        https://us05web.zoom.us/j/123456789?pwd=abc123
+        https://zoom.us/j/123456789?pwd=abc123
+    */
+
+    const meetingRegex = /zoom\.us\/j\/(\d+)/;
+    const match = zoomLink.match(meetingRegex);
+
+    return match ? match[1] : null;
+}
+
+module.exports = { createMeetingForUser, updateMeeting, extractMeetingFromZoomLink };
