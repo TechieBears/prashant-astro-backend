@@ -63,21 +63,28 @@ const userSchema = new mongoose.Schema({
 
 // 🔒 Pre-save hook to hash password
 userSchema.pre("save", async function (next) {
-    if (this.type === "google") {
-      this.password = undefined; // no password for google users
-    }
-    else {
-      if (typeof this.password !== "string") {
-        this.password = undefined; // prevent bcrypt from crashing
-      } else {
-        this.password = await bcrypt.hash(this.password, 10);
-      }
-    }
-  next();
+  // Skip if password field is not modified
+  if (!this.isModified("password")) return next();
+
+  // For Google users, ensure no password is saved
+  if (this.type === "google") {
+    this.password = undefined;
+    return next();
+  }
+
+  try {
+    // Hash password only for normal users
+    const hash = await bcrypt.hash(this.password, 10);
+    this.password = hash;
+    next();
+  } catch (err) {
+    next(err);
+  }
 });
 
 // 🔑 compare password
 userSchema.methods.comparePassword = async function (candidatePassword) {
+  if (!this.password) return false; // no password set
   return bcrypt.compare(candidatePassword, this.password);
 };
 
