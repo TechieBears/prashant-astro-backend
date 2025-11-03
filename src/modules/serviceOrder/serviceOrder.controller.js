@@ -219,7 +219,7 @@ exports.createServiceOrder = asyncHandler(async (req, res, next) => {
       // ✅ Create Order Item
       const orderItem = await ServiceOrderItem.create([{
         customerId: userId,
-        cust: { firstName, lastName, email, phone },
+        cust: { firstName, lastName, email, phone, addressData: addressData || undefined },
         service: service._id,
         astrologer: astrologerId,
         snapshot: { price: service.price, durationInMinutes: serviceDuration },
@@ -421,6 +421,14 @@ exports.getAllServiceOrders = asyncHandler(async (req, res, next) => {
     services: order.services.map((service) => ({
       serviceId: service.service._id,
       serviceName: service.service.name,
+      cust: {
+        firstName: service.cust.firstName || null,
+        lastName: service.cust.lastName || null,
+        email: service.cust.email || null,
+        phone: service.cust.phone || null,
+        addressData: service.cust.addressData || null
+      },
+      address: service.address || null,           // ✅ added
       astrologerName: service.astrologer?.name || null,
       servicePrice: service.snapshot.price,
       durationInMinutes: service.snapshot.durationInMinutes,
@@ -440,7 +448,6 @@ exports.getAllServiceOrders = asyncHandler(async (req, res, next) => {
     finalAmount: order.finalAmount,
     paymentId: order.transaction?.paymentId || null,
     paymentDetails: order.transaction?.paymentDetails || null,
-    address: order.address || null,           // ✅ added
     createdAt: order.createdAt
   }));
 
@@ -476,6 +483,14 @@ exports.getServiceOrder = asyncHandler(async (req, res, next) => {
       serviceId: service.service._id,
       serviceImage: service.service.image,
       serviceName: service.service.name,
+       cust: {
+        firstName: service.cust.firstName || null,
+        lastName: service.cust.lastName || null,
+        email: service.cust.email || null,
+        phone: service.cust.phone || null,
+        addressData: service.cust.addressData || null
+      },
+      address: service.address || null,
       astrologerName: service.astrologer?.name || null,
       servicePrice: service.snapshot.price,
       durationInMinutes: service.snapshot.durationInMinutes,
