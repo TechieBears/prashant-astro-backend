@@ -224,7 +224,8 @@ exports.getCart = asyncHandler(async (req, res) => {
             startTime: "$items.startTime",
             endTime: "$items.endTime",
             quantity: "$items.quantity",
-            totalPrice: "$items.totalPrice"
+            totalPrice: "$items.totalPrice",
+            address: "$items.address"
           }
         }
       }
