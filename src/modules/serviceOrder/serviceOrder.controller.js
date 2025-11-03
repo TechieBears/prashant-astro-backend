@@ -299,17 +299,17 @@ exports.createServiceOrder = asyncHandler(async (req, res, next) => {
         );
 
         // Update transactions to paid
-        await Transaction.updateMany(
-          { userId: userId, status: 'unpaid' },
-          {
-            $set: {
-              status: 'paid',
-              amount: totalAmount,
-              pendingAmount: 0
-            }
-          },
-          { session }
-        );
+        // await Transaction.updateMany(
+        //   { userId: userId, status: 'unpaid' },
+        //   {
+        //     $set: {
+        //       status: 'paid',
+        //       amount: totalAmount,
+        //       pendingAmount: 0
+        //     }
+        //   },
+        //   { session }
+        // );
       }
     }
 
