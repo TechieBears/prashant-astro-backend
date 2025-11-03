@@ -112,7 +112,8 @@ exports.createServiceOrder = asyncHandler(async (req, res, next) => {
         lastName,
         email,
         phone,
-        address,
+        addressData,
+        address
       } = item;
 
       if (!mongoose.Types.ObjectId.isValid(serviceId)) {
