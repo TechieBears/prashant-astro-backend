@@ -480,7 +480,7 @@ exports.createCustomerUser = asyncHandler(async (req, res, next) => {
 // @desc    Update customer user
 // @route   PUT /api/customer/:id
 // @access  Private/Customer
-exports.updateCustomerUser = asyncHandler(async (req, res) => {
+exports.updateCustomerUser = asyncHandler(async (req, res, next) => {
   console.log(req.body);
   const customerId = req.user.profile._id;
 
