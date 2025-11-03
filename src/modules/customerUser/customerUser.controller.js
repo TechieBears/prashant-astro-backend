@@ -503,7 +503,7 @@ exports.updateCustomerUser = asyncHandler(async (req, res, next) => {
   if(referralCode) {
     const referrer = await CustomerUser.findOne({ referralCode });
     if (!referrer) {
-      return next(new ErrorHander("Invalid referral code", 400));
+      return next(new ErrorHander("Invalid referral code", 200));
     }
     customer.referredBy = referrer._id;
   }
