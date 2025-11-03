@@ -494,12 +494,20 @@ exports.updateCustomerUser = asyncHandler(async (req, res) => {
   }
 
   // Update profile fields
-  const { firstName, lastName, title, profileImage, email, mobileNo, isActive, gender } = req.body;
+  const { firstName, lastName, title, profileImage, email, mobileNo, isActive, gender, referralCode } = req.body;
 
   if (firstName !== undefined) customer.firstName = firstName;
   if (lastName !== undefined) customer.lastName = lastName;
   if (title !== undefined) customer.title = title;
   if (gender !== undefined) customer.gender = gender;
+  if(referralCode) {
+    const referrer = await CustomerUser.findOne({ referralCode });
+    if (!referrer) {
+      return next(new ErrorHander("Invalid referral code", 400));
+    }
+    customer.referredBy = referrer._id;
+  }
+
   await customer.save();
 
   // Update linked user fields
