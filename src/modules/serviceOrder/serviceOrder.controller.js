@@ -1185,16 +1185,20 @@ exports.updateServiceOrderAstrologer = asyncHandler(async (req, res, next) => {
 
   // 5. if allowedStatuses is accepted then generate zoom link
   let zoomLink = null;
-  if (allowedStatuses === "accepted" && serviceItem.serviceType === 'online') {
+  if (astrologerStatus === "accepted") {
     try {
+      // firstName and lastName
+      const firstName = serviceItem.cust.firstName;
+      const lastName = serviceItem.cust.lastName;
+      const bookingStart = serviceItem.startTime;
+      const serviceDuration = serviceItem.durationInMinutes;
       const zoomMeeting = await createMeetingForUser({
         topic: `${serviceItem.name} - ${firstName} ${lastName}`,
-        start_time: bookingStart.toISOString(),
+        start_time: bookingStart,
         duration: serviceDuration,
         timezone: 'Asia/Kolkata',
-        agenda: `Astrology consultation with ${astrologer.name} for ${firstName} ${lastName}`,
+        agenda: `Astrology Consultation with ${firstName} ${lastName}`,
       });
-
       zoomLink = zoomMeeting.join_url;
     } catch (zoomError) {
       console.error('Failed to create Zoom meeting:', zoomError);
