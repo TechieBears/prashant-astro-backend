@@ -484,7 +484,7 @@ exports.getServiceOrder = asyncHandler(async (req, res, next) => {
       serviceId: service.service._id,
       serviceImage: service.service.image,
       serviceName: service.service.name,
-       cust: {
+      cust: {
         firstName: service.cust.firstName || null,
         lastName: service.cust.lastName || null,
         email: service.cust.email || null,
@@ -524,6 +524,311 @@ exports.getServiceOrder = asyncHandler(async (req, res, next) => {
 // @desc Get All Service Orders (Admin)
 // @route GET /api/service-order/get-all
 // @access Admin
+// exports.getAllServiceOrdersAdmin = asyncHandler(async (req, res, next) => {
+//   const page = parseInt(req.query.page) || 1;
+//   const limit = parseInt(req.query.limit) || 20;
+//   const skip = (page - 1) * limit;
+
+//   // Build match stage
+//   const matchStage = {};
+
+//   if (req.query.orderId) {
+//     matchStage._id = new mongoose.Types.ObjectId(req.query.orderId);
+//   }
+
+//   if (req.query.status) {
+//     matchStage.paymentStatus = req.query.status.toLowerCase();
+//   }
+
+//   if (req.query.date) {
+//     const startDate = new Date(req.query.date);
+//     const endDate = new Date(startDate);
+//     endDate.setHours(23, 59, 59, 999);
+
+//     matchStage.createdAt = {
+//       $gte: startDate,
+//       $lte: endDate
+//     };
+//   }
+
+//   // Handle astrologerId filtering with aggregation
+//   if (req.query.astrologerId) {
+//     matchStage['services.astrologer'] = new mongoose.Types.ObjectId(req.query.astrologerId);
+//   }
+
+//   const aggregationPipeline = [
+//     // Match orders based on filters
+//     ...(Object.keys(matchStage).length > 0 ? [{ $match: matchStage }] : []),
+
+//     // Lookup services with populated data
+//     {
+//       $lookup: {
+//         from: 'serviceorderitems',
+//         localField: 'services',
+//         foreignField: '_id',
+//         as: 'serviceItems',
+//         pipeline: [
+//           // Filter by astrologerId if provided
+//           ...(req.query.astrologerId ? [{
+//             $match: {
+//               astrologer: new mongoose.Types.ObjectId(req.query.astrologerId)
+//             }
+//           }] : []),
+
+//           // Lookup service details
+//           {
+//             $lookup: {
+//               from: 'services',
+//               localField: 'service',
+//               foreignField: '_id',
+//               as: 'serviceDetails'
+//             }
+//           },
+//           { $unwind: { path: '$serviceDetails', preserveNullAndEmptyArrays: true } },
+
+//           // Lookup astrologer details
+//           {
+//             $lookup: {
+//               from: 'users',
+//               localField: 'astrologer',
+//               foreignField: '_id',
+//               as: 'astrologerDetails',
+//               pipeline: [
+//                 { $project: { name: 1 } }
+//               ]
+//             }
+//           },
+//           { $unwind: { path: '$astrologerDetails', preserveNullAndEmptyArrays: true } },
+
+//           // Lookup address details for each service item
+//           {
+//             $lookup: {
+//               from: 'customeraddresses',
+//               localField: 'address',
+//               foreignField: '_id',
+//               as: 'addressDetails'
+//             }
+//           },
+//           { $unwind: { path: '$addressDetails', preserveNullAndEmptyArrays: true } }
+//         ]
+//       }
+//     },
+
+//     // Lookup user details
+//     {
+//       $lookup: {
+//         from: 'users',
+//         localField: 'user',
+//         foreignField: '_id',
+//         as: 'userDetails',
+//         pipeline: [
+//           {
+//             $project: {
+//               email: 1,
+//               mobileNo: 1,
+//               profile: 1,
+//               role: 1
+//             }
+//           }
+//         ]
+//       }
+//     },
+//     { $unwind: { path: '$userDetails', preserveNullAndEmptyArrays: true } },
+
+//     // Lookup customer profile details (where firstName and lastName are stored)
+//     {
+//       $lookup: {
+//         from: 'customers',
+//         localField: 'userDetails.profile',
+//         foreignField: '_id',
+//         as: 'customerProfile',
+//         pipeline: [
+//           {
+//             $project: {
+//               firstName: 1,
+//               lastName: 1,
+//               title: 1
+//             }
+//           }
+//         ]
+//       }
+//     },
+//     { $unwind: { path: '$customerProfile', preserveNullAndEmptyArrays: true } },
+
+//     // Lookup transaction details
+//     {
+//       $lookup: {
+//         from: 'transactions',
+//         localField: 'transaction',
+//         foreignField: '_id',
+//         as: 'transactionDetails'
+//       }
+//     },
+//     { $unwind: { path: '$transactionDetails', preserveNullAndEmptyArrays: true } },
+
+//     // Lookup coupon details
+//     {
+//       $lookup: {
+//         from: 'coupons',
+//         localField: 'coupon',
+//         foreignField: '_id',
+//         as: 'couponDetails',
+//         pipeline: [
+//           {
+//             $project: {
+//               couponName: 1,
+//               couponCode: 1,
+//               discountIn: 1,
+//               discount: 1
+//             }
+//           }
+//         ]
+//       }
+//     },
+//     { $unwind: { path: '$couponDetails', preserveNullAndEmptyArrays: true } },
+
+//     // Project the final structure
+//     {
+//       $project: {
+//         orderId: '$_id',
+//         customer: {
+//           email: '$userDetails.email',
+//           mobileNo: '$userDetails.mobileNo',
+//           firstName: '$customerProfile.firstName',
+//           lastName: '$customerProfile.lastName',
+//           name: {
+//             $cond: {
+//               if: {
+//                 $and: [
+//                   '$customerProfile.firstName',
+//                   '$customerProfile.lastName'
+//                 ]
+//               },
+//               then: {
+//                 $concat: [
+//                   { $ifNull: ['$customerProfile.firstName', ''] },
+//                   ' ',
+//                   { $ifNull: ['$customerProfile.lastName', ''] }
+//                 ]
+//               },
+//               else: null
+//             }
+//           }
+//         },
+//         services: {
+//           $map: {
+//             input: '$serviceItems',
+//             as: 'service',
+//             in: {
+//               serviceId: '$$service.serviceDetails._id',
+//               serviceName: '$$service.serviceDetails.name',
+//               astrologerName: '$$service.astrologerDetails.name',
+//               servicePrice: '$$service.snapshot.price',
+//               durationInMinutes: '$$service.snapshot.durationInMinutes',
+//               startTime: '$$service.startTime',
+//               endTime: '$$service.endTime',
+//               bookingDate: '$$service.bookingDate',
+//               serviceType: '$$service.serviceType',
+//               total: '$$service.total',
+//               astrologerStatus: '$$service.astrologerStatus',
+//               rejectReason: '$$service.rejectReason',
+//               bookingStatus: '$$service.status',
+//               paymentStatus: '$$service.paymentStatus',
+//               zoomLink: '$$service.zoomLink',
+//               address: {
+//                 $cond: {
+//                   if: { $eq: [{ $type: '$$service.addressDetails' }, 'missing'] },
+//                   then: null,
+//                   else: {
+//                     _id: '$$service.addressDetails._id',
+//                     firstName: '$$service.addressDetails.firstName',
+//                     lastName: '$$service.addressDetails.lastName',
+//                     phoneNumber: '$$service.addressDetails.phoneNumber',
+//                     addressType: '$$service.addressDetails.addressType',
+//                     address: '$$service.addressDetails.address',
+//                     country: '$$service.addressDetails.country',
+//                     state: '$$service.addressDetails.state',
+//                     city: '$$service.addressDetails.city',
+//                     postalCode: '$$service.addressDetails.postalCode',
+//                     isDefault: '$$service.addressDetails.isDefault'
+//                   }
+//                 }
+//               }
+//             }
+//           }
+//         },
+//         paymentStatus: 1,
+//         totalAmount: 1,
+//         finalAmount: 1,
+//         payingAmount: 1,
+//         isCoupon: 1,
+//         coupon: {
+//           $cond: {
+//             if: { $eq: [{ $type: '$couponDetails' }, 'missing'] },
+//             then: null,
+//             else: {
+//               couponName: '$couponDetails.couponName',
+//               couponCode: '$couponDetails.couponCode',
+//               discountIn: '$couponDetails.discountIn',
+//               discount: '$couponDetails.discount'
+//             }
+//           }
+//         },
+//         paymentId: '$transactionDetails.paymentId',
+//         paymentDetails: '$transactionDetails.paymentDetails',
+//         createdAt: 1
+//       }
+//     },
+
+//     // Sort by creation date (newest first)
+//     { $sort: { createdAt: -1 } },
+
+//     // Pagination
+//     { $skip: skip },
+//     { $limit: limit }
+//   ];
+
+//   // Get total count for pagination
+//   const countPipeline = [
+//     ...(Object.keys(matchStage).length > 0 ? [{ $match: matchStage }] : []),
+
+//     // Handle astrologer filtering in count
+//     ...(req.query.astrologerId ? [{
+//       $lookup: {
+//         from: 'serviceorderitems',
+//         localField: 'services',
+//         foreignField: '_id',
+//         as: 'serviceItems',
+//         pipeline: [{
+//           $match: {
+//             astrologer: new mongoose.Types.ObjectId(req.query.astrologerId)
+//           }
+//         }]
+//       }
+//     }, {
+//       $match: {
+//         'serviceItems.0': { $exists: true }
+//       }
+//     }] : []),
+
+//     { $count: 'total' }
+//   ];
+
+//   // Execute both pipelines in parallel
+//   const [ordersResult, countResult] = await Promise.all([
+//     ServiceOrder.aggregate(aggregationPipeline),
+//     ServiceOrder.aggregate(countPipeline)
+//   ]);
+
+//   const total = countResult.length > 0 ? countResult[0].total : 0;
+//   const pages = Math.ceil(total / limit);
+
+//   res.paginated(
+//     ordersResult,
+//     { page, limit, total, pages },
+//     "Orders fetched successfully"
+//   );
+// });
 exports.getAllServiceOrdersAdmin = asyncHandler(async (req, res, next) => {
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 20;
@@ -600,7 +905,7 @@ exports.getAllServiceOrdersAdmin = asyncHandler(async (req, res, next) => {
           },
           { $unwind: { path: '$astrologerDetails', preserveNullAndEmptyArrays: true } },
 
-          // Lookup address details for each service item
+          // Lookup address details for each service item - CORRECTED
           {
             $lookup: {
               from: 'customeraddresses',
@@ -687,7 +992,7 @@ exports.getAllServiceOrdersAdmin = asyncHandler(async (req, res, next) => {
     },
     { $unwind: { path: '$couponDetails', preserveNullAndEmptyArrays: true } },
 
-    // Project the final structure
+    // Project the final structure - CORRECTED
     {
       $project: {
         orderId: '$_id',
@@ -723,6 +1028,7 @@ exports.getAllServiceOrdersAdmin = asyncHandler(async (req, res, next) => {
               serviceId: '$$service.serviceDetails._id',
               serviceName: '$$service.serviceDetails.name',
               astrologerName: '$$service.astrologerDetails.name',
+              // CORRECTED: Get price and duration from snapshot
               servicePrice: '$$service.snapshot.price',
               durationInMinutes: '$$service.snapshot.durationInMinutes',
               startTime: '$$service.startTime',
@@ -735,11 +1041,24 @@ exports.getAllServiceOrdersAdmin = asyncHandler(async (req, res, next) => {
               bookingStatus: '$$service.status',
               paymentStatus: '$$service.paymentStatus',
               zoomLink: '$$service.zoomLink',
+              cust: {
+                firstName: '$$service.cust.firstName',
+                lastName: '$$service.cust.lastName',
+                email: '$$service.cust.email',
+                phone: '$$service.cust.phone',
+                addressData: '$$service.cust.addressData' || null
+              },
+              // CORRECTED: Proper address handling
               address: {
                 $cond: {
-                  if: { $eq: [{ $type: '$$service.addressDetails' }, 'missing'] },
-                  then: null,
-                  else: {
+                  if: {
+                    $and: [
+                      '$$service.address',
+                      { $ne: ['$$service.addressDetails', null] },
+                      { $ne: ['$$service.addressDetails', {}] }
+                    ]
+                  },
+                  then: {
                     _id: '$$service.addressDetails._id',
                     firstName: '$$service.addressDetails.firstName',
                     lastName: '$$service.addressDetails.lastName',
@@ -751,7 +1070,8 @@ exports.getAllServiceOrdersAdmin = asyncHandler(async (req, res, next) => {
                     city: '$$service.addressDetails.city',
                     postalCode: '$$service.addressDetails.postalCode',
                     isDefault: '$$service.addressDetails.isDefault'
-                  }
+                  },
+                  else: null
                 }
               }
             }
@@ -764,14 +1084,20 @@ exports.getAllServiceOrdersAdmin = asyncHandler(async (req, res, next) => {
         isCoupon: 1,
         coupon: {
           $cond: {
-            if: { $eq: [{ $type: '$couponDetails' }, 'missing'] },
-            then: null,
-            else: {
+            if: {
+              $and: [
+                '$coupon',
+                { $ne: ['$couponDetails', null] },
+                { $ne: ['$couponDetails', {}] }
+              ]
+            },
+            then: {
               couponName: '$couponDetails.couponName',
               couponCode: '$couponDetails.couponCode',
               discountIn: '$couponDetails.discountIn',
               discount: '$couponDetails.discount'
-            }
+            },
+            else: null
           }
         },
         paymentId: '$transactionDetails.paymentId',
@@ -1478,15 +1804,15 @@ exports.rescheduleServiceOrderAstrologer = asyncHandler(async (req, res, next) =
     if (serviceOrderItem.serviceType === 'online' && serviceOrderItem.zoomLink) {
       try {
         const meetingId = extractMeetingIdFromZoomLink(serviceOrderItem.zoomLink);
-        
+
         if (meetingId) {
           // Format start_time for Zoom API (ISO 8601 format)
           const zoomStartTime = bookingStart.toISOString();
-          
+
           // Get service details for meeting topic
           const service = await Service.findById(serviceOrderItem.service);
           const serviceName = service?.name || 'Astrology Consultation';
-          
+
           const meetingTopic = `${serviceName} - ${serviceOrderItem.cust.firstName} ${serviceOrderItem.cust.lastName} (Rescheduled)`;
           const meetingAgenda = `Rescheduled astrology consultation with ${req.user.name} for ${serviceOrderItem.cust.firstName} ${serviceOrderItem.cust.lastName}`;
 
