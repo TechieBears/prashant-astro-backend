@@ -572,31 +572,16 @@ exports.adminUpdateCustomerUser = asyncHandler(async (req, res, next) => {
 // @route   DELETE /api/customer/:id
 // @access  Private/Customer
 exports.deleteCustomerUser = asyncHandler(async (req, res, next) => {
-  const customerId = req.user.profile._id;
-  if (!customerId) return next(new ErrorHander("Please provide customer id", 400));
-
-  const customer = await CustomerUser.findById(customerId);
-  if (!customer) return next(new ErrorHander("Customer not found", 404));
-
-  const user = await User.findOne({ profile: customer._id, role: 'customer' });
-  if (!user) return next(new ErrorHander("Linked user not found", 404));
-
-  // Delete profile image from Cloudinary if exists
-  if (user.profileImage?.imageId) {
-    try {
-      await deleteImageFromCloudinary(user.profileImage.imageId);
-    } catch (err) {
-      // Log and continue
-      console.error('Failed to delete profile image from Cloudinary:', err.message);
-    }
-  }
+  const customerId = req.user._id;
+  const user = await User.findOne({ _id: customerId, role: 'customer' });
+  if (!user) return next(new ErrorHander("customer not found", 404));
 
   // Soft delete user account
   user.isActive = false;
   user.isDeleted = true;
   await user.save();
 
-  res.ok(null, "Customer deleted successfully");
+  res.ok(null, "Customer deleted");
 });
 
 // @desc    Get all customer users for excel download
