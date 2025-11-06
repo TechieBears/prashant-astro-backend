@@ -9,6 +9,9 @@ const Coupon = require('../coupon/coupon.model');
 const ServiceOrder = require('../serviceOrder/serviceOrder.model');
 const moment = require('moment');
 const { processReferralReward } = require('../../services/referral.service');
+const User = require('../auth/user.Model');
+const CustomerUser = require('../customerUser/customerUser.model');
+const sendEmail = require('../../services/email.service');
 
 // @desc    checkout a product order
 // @route   POST /api/product-order/checkout
@@ -495,7 +498,15 @@ exports.createProductOrder = asyncHandler(async (req, res) => {
     // GST & amounts (dummy logic, adjust as needed)
     const gst = totalAmount * 0.18; // 18%
     const finalAmount = totalAmount + gst;
-    const amountAfterCoupon = finalAmount - (coupon ? coupon.discount : 0);
+    let amountAfterCoupon = 0;
+    if(coupon){
+      if(coupon.discountIn === 'percent'){
+        amountAfterCoupon = finalAmount - ((finalAmount * coupon.discount) / 100);
+      }
+      else{
+        amountAfterCoupon = finalAmount - (coupon ? coupon.discount : 0);
+      }
+    }
 
     // --------------- ✅ WALLET CREDITS LOGIC ----------------
     let walletUsed = 0;
