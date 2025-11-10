@@ -422,6 +422,7 @@ exports.createCustomerUser = asyncHandler(async (req, res, next) => {
               firstName,
               lastName,
               title,
+              gender,
               referredBy: referrer ? referrer._id : null, // 👈 Store referrer info
             },
           ],
