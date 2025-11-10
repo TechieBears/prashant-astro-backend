@@ -12,6 +12,8 @@ const { processReferralReward } = require('../../services/referral.service');
 const User = require('../auth/user.Model');
 const CustomerUser = require('../customerUser/customerUser.model');
 const sendEmail = require('../../services/email.service');
+const { sendFirebaseNotification } = require('../../utils/firebaseNotification');
+const { sendOrderNotification } = require('../../utils/notificationsHelper');
 
 // @desc    checkout a product order
 // @route   POST /api/product-order/checkout
@@ -264,7 +266,7 @@ exports.checkoutProductOrder = asyncHandler(async (req, res) => { });
 
 //     for (const item of items) {
 //       const product = await Product.findById(item.product).populate('category', 'name').populate('subcategory', 'name').session(session);
-      
+
 //       if (!product || !product.isActive) {
 //         throw new Error(`Product not found: ${item.product}`);
 //       }
@@ -499,11 +501,11 @@ exports.createProductOrder = asyncHandler(async (req, res) => {
     const gst = totalAmount * 0.18; // 18%
     const finalAmount = totalAmount + gst;
     let amountAfterCoupon = 0;
-    if(coupon){
-      if(coupon.discountIn === 'percent'){
+    if (coupon) {
+      if (coupon.discountIn === 'percent') {
         amountAfterCoupon = finalAmount - ((finalAmount * coupon.discount) / 100);
       }
-      else{
+      else {
         amountAfterCoupon = finalAmount - (coupon ? coupon.discount : 0);
       }
     }
@@ -520,19 +522,19 @@ exports.createProductOrder = asyncHandler(async (req, res) => {
         const customer = await CustomerUser.findById(user.profile._id)
           .populate('wallet')
           .session(session);
-        
+
         if (customer && customer.wallet) {
           walletBalance = customer.wallet.balance;
-          
+
           // Calculate how much wallet balance to use
           if (walletBalance > 0) {
             walletUsed = Math.min(walletBalance, amountAfterCoupon);
             payingAmount = amountAfterCoupon - walletUsed;
-            
+
             // Deduct from wallet
             customer.wallet.balance -= walletUsed;
             await customer.wallet.save({ session });
-            
+
             console.log(`Wallet credits used: ${walletUsed}, Remaining balance: ${customer.wallet.balance}, Paying amount: ${payingAmount}`);
           }
         }
@@ -599,7 +601,7 @@ exports.createProductOrder = asyncHandler(async (req, res) => {
     if ((paymentMethod !== 'COD' && paymentMethod !== 'CASH') || payingAmount === 0) {
       // For online payments OR fully paid with wallet, process referral reward immediately
       referralResult = await processReferralReward(userId, session);
-      
+
       // If referral was processed successfully, update order status
       if (referralResult.success) {
         savedOrder.paymentStatus = 'PAID';
@@ -617,6 +619,16 @@ exports.createProductOrder = asyncHandler(async (req, res) => {
 
     await session.commitTransaction();
     session.endSession();
+
+    // ✅ Send Notification to customer after successful order creation
+    await sendOrderNotification(
+      {savedOrder, orderItems},
+      'ORDER PLACED SUCCESSFULLY!',
+      `Your order #${savedOrder._id} has been placed successfully. ${payingAmount === 0 ? 'Payment completed using wallet credits.' : `Amount to pay: ₹${payingAmount}`}`,
+      req.user,
+      walletUsed,
+      payingAmount
+    );
 
     res.status(201).json({
       success: true,
@@ -958,7 +970,7 @@ exports.handleCODPaymentSuccess = asyncHandler(async (req, res) => {
   try {
     // Find the product order
     const productOrder = await ProductOrder.findById(orderId);
-    
+
     if (!productOrder) {
       await session.abortTransaction();
       session.endSession();
