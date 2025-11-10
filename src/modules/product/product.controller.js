@@ -120,6 +120,31 @@ exports.getAllProducts = asyncHandler(async (req, res, next) => {
   res.paginated(products, { page, limit, total, pages: Math.ceil(total / limit) });
 });
 
+// @desc Get new arrivals
+// @route GET /api/products/new-arrivals
+// @access Public
+exports.getNewArrivals = asyncHandler(async (req, res, next) => {
+  const pipeline = [
+    {$match: {isActive: true, isDeleted: false}},
+    {$sort: {createdAt: -1}},
+    {$limit: 10},
+    {
+      $project: {
+        _id: 1,
+        name: 1,
+        description: 1,
+        sellingPrice: 1,
+        mrpPrice: 1,
+        images: 1,
+      }
+    },
+  ];
+
+  const products = await Product.aggregate(pipeline);
+
+  res.ok(products, "New Arrivals fetched successfully");
+});
+
 // @desc Get all products (admin)
 // @route GET /api/products/get-all
 // @access Private (admin only)

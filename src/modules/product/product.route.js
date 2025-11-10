@@ -7,6 +7,7 @@ const router = express.Router();
 
 // Public routes
 router.get('/public/active', ProductController.getAllProducts);
+router.get('/public/new-arrivals', ProductController.getNewArrivals);
 router.get('/public/filter', ProductController.getFilterData);
 router.get('/public/active-single', ProductController.getProductById);
 router.get('/public/our-products', ProductController.getOurProducts);
