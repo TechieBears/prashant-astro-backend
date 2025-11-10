@@ -20,6 +20,10 @@ const bannerSchema = new mongoose.Schema({
         type: String,
         enum: ['website', 'app']
     },
+    bannerFor:{
+        type: String,
+        enum: ['home', 'products', 'services']
+    },
     button:[
         {
             buttonText: {

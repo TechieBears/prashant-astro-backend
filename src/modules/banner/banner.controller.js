@@ -16,6 +16,7 @@ exports.createBanner = asyncHandler(async (req, res) => {
         title, 
         description, 
         type, 
+        bannerFor,
         position, 
         startDate, 
         endDate, 
@@ -45,6 +46,7 @@ exports.createBanner = asyncHandler(async (req, res) => {
         description,
         image: image || null,
         type,
+        bannerFor: bannerFor?.bannerFor || 'home',
         button: parsedButton,
         position: position || 0,
         startDate,
@@ -59,12 +61,13 @@ exports.createBanner = asyncHandler(async (req, res) => {
 // @route   GET /api/banners/active
 // @access  Public
 exports.getActiveBanners = asyncHandler(async (req, res) => {
-    const { type } = req.query;
+    const { type, bannerFor } = req.query;
     if(!type) return res.status(400).json({ message: "Type query parameter is required" });
     const banners = await Banner.find({ 
         type: type,
         isActive: true,
         isDeleted: false,
+        bannerFor: bannerFor? bannerFor : { $in: ['home', 'products', 'services'] },
         startDate: { $lte: new Date() },
         endDate: { $gte: new Date() }
     }).select("-__v");
@@ -106,12 +109,13 @@ exports.updateBanner = asyncHandler(async (req, res, next) => {
         throw new ErrorHander('Banner not found', 404);
     }
 
-    const { title, description, image, type, position, startDate, endDate, isActive, button } = req.body;
+    const { title, description, image, type, bannerFor, position, startDate, endDate, isActive, button } = req.body;
 
     if (title) banner.title = title;
     if (description) banner.description = description;
     if (image) banner.image = image;
     if (type) banner.type = type;
+    if (bannerFor) banner.bannerFor = bannerFor;
     if (position !== undefined) banner.position = position;
     if (startDate) banner.startDate = startDate;
     if (endDate) banner.endDate = endDate;
