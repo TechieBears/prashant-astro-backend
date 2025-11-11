@@ -131,10 +131,7 @@ exports.getNewArrivals = asyncHandler(async (req, res, next) => {
     .populate('category', 'name')
     .populate('subcategory', 'name')
     .sort({ createdAt: -1 })
-    .skip(skip)
-    .limit(limit);
-
-  const total = await Product.countDocuments(query);
+    .limit(10);
 
   res.ok(products, "New Arrivals fetched successfully");
 });
