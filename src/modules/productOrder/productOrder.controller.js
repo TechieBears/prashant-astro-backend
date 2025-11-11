@@ -13,7 +13,7 @@ const User = require('../auth/user.Model');
 const CustomerUser = require('../customerUser/customerUser.model');
 const sendEmail = require('../../services/email.service');
 const { sendFirebaseNotification } = require('../../utils/firebaseNotification');
-const { sendOrderNotification } = require('../../utils/notificationsHelper');
+const { sendOrderNotification, sendOrderUpdateNotification } = require('../../utils/notificationsHelper');
 
 // @desc    checkout a product order
 // @route   POST /api/product-order/checkout
@@ -940,6 +940,14 @@ exports.updateOrderStatusAdmin = asyncHandler(async (req, res, next) => {
     timestamp: Date.now(),
   });
   await order.save();
+
+  //send notification to user about order status update
+  await sendOrderUpdateNotification(
+    order,
+    'Order Status Updated',
+    `Your order #${order._id} has been ${order.orderStatus.toLowerCase()}`,
+    req.user,
+  );
 
   res.ok({}, 'Order status updated successfully');
 });

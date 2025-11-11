@@ -124,23 +124,17 @@ exports.getAllProducts = asyncHandler(async (req, res, next) => {
 // @route GET /api/products/new-arrivals
 // @access Public
 exports.getNewArrivals = asyncHandler(async (req, res, next) => {
-  const pipeline = [
-    {$match: {isActive: true, isDeleted: false}},
-    {$sort: {createdAt: -1}},
-    {$limit: 10},
-    {
-      $project: {
-        _id: 1,
-        name: 1,
-        description: 1,
-        sellingPrice: 1,
-        mrpPrice: 1,
-        images: 1,
-      }
-    },
-  ];
 
-  const products = await Product.aggregate(pipeline);
+  const query = { isActive: true, isDeleted: false };
+
+  const products = await Product.find(query)
+    .populate('category', 'name')
+    .populate('subcategory', 'name')
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(limit);
+
+  const total = await Product.countDocuments(query);
 
   res.ok(products, "New Arrivals fetched successfully");
 });
