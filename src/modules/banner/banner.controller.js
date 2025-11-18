@@ -62,15 +62,19 @@ exports.createBanner = asyncHandler(async (req, res) => {
 // @access  Public
 exports.getActiveBanners = asyncHandler(async (req, res) => {
     const { type, bannerFor } = req.query;
-    if(!type) return res.status(400).json({ message: "Type query parameter is required" });
-    const banners = await Banner.find({ 
-        type: type,
+
+    let filter = {
         isActive: true,
         isDeleted: false,
-        bannerFor: bannerFor? bannerFor : { $in: ['home', 'products', 'services'] },
         startDate: { $lte: new Date() },
         endDate: { $gte: new Date() }
-    }).select("-__v");
+    };
+
+    if(bannerFor) filter.bannerFor = bannerFor;
+    if(type) filter.type = type;
+
+    if(!type) return res.status(400).json({ message: "Type query parameter is required" });
+    const banners = await Banner.find(filter).select("-__v");
     res.ok(banners);
 });
 
