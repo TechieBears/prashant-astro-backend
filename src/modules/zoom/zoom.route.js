@@ -1,7 +1,7 @@
 const router = require('express').Router();
-const { createMeetingForUser } = require('../../services/zoom.service');
-const zoonController = require('./zoom.controller');
+const zoomController = require('./zoom.controller');
 
-router.post('/test', zoonController.createZoomMeeting);
+router.post('/test', zoomController.createZoomMeeting);
+router.get('/get-access-token', zoomController.getAccessToken);
 
 module.exports = router;

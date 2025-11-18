@@ -1,5 +1,5 @@
 const asyncHandler = require('express-async-handler');
-const { createMeetingForUser } = require('../../services/zoom.service');
+const { createMeetingForUser, getZoomAccessToken } = require('../../services/zoom.service');
 
 exports.createZoomMeeting = asyncHandler(async (req, res) => {
     try {
@@ -24,6 +24,21 @@ exports.createZoomMeeting = asyncHandler(async (req, res) => {
             meeting: meetingData
         });
 
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+});
+
+exports.getAccessToken = asyncHandler(async (req, res) => {
+    try {
+        const accessToken = await getZoomAccessToken();
+        return res.json({
+            success: true,
+            accessToken
+        });
     } catch (error) {
         return res.status(500).json({
             success: false,
