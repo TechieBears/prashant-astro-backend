@@ -23,6 +23,14 @@ const sendUser = (user, profile) => ({
   createdAt: user.createdAt,
 });
 
+function generateReferralCode(firstName = "") {
+    const prefix = firstName
+        ? firstName.trim().substring(0, 3).toUpperCase()
+        : "USR";
+    const hash = crypto.randomBytes(3).toString("hex").toUpperCase(); // 6 chars
+    return `${prefix}${hash}`;
+}
+
 // @desc    Create new customer user
 // @route   POST /api/customer/register
 // @access  Public
@@ -273,6 +281,8 @@ exports.createCustomerUser = asyncHandler(async (req, res, next) => {
     referralCode, // 👈 referral code entered by new user
   } = req.body;
 
+  let referralCodeGenerated = generateReferralCode(firstName);
+
   // Validate registerType
   if (!["google", "normal"].includes(registerType)) {
     return next(new ErrorHander("Invalid register type", 400));
@@ -316,6 +326,7 @@ exports.createCustomerUser = asyncHandler(async (req, res, next) => {
             title,
             gender: gender || null,
             referredBy: referrer ? referrer._id : null, // 👈 Store referrer info
+            referralCode: referralCodeGenerated,
           },
         ],
         { session }
@@ -424,6 +435,7 @@ exports.createCustomerUser = asyncHandler(async (req, res, next) => {
               title,
               gender,
               referredBy: referrer ? referrer._id : null, // 👈 Store referrer info
+              referralCode: referralCodeGenerated,
             },
           ],
           { session }

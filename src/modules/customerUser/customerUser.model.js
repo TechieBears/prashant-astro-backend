@@ -53,21 +53,21 @@ customerUserSchema.virtual('fullName').get(function () {
 });
 
 // helper function to generate referral code
-function generateReferralCode(firstName = "") {
-    const prefix = firstName
-        ? firstName.trim().substring(0, 3).toUpperCase()
-        : "USR";
-    const hash = crypto.randomBytes(3).toString("hex").toUpperCase(); // 6 chars
-    return `${prefix}${hash}`;
-}
+// function generateReferralCode(firstName = "") {
+//     const prefix = firstName
+//         ? firstName.trim().substring(0, 3).toUpperCase()
+//         : "USR";
+//     const hash = crypto.randomBytes(3).toString("hex").toUpperCase(); // 6 chars
+//     return `${prefix}${hash}`;
+// }
 
-// 🔹 Pre-save hook to generate referral code if not already set
-customerUserSchema.pre("save", async function (next) {
-    if (!this.referralCode) {
-        this.referralCode = generateReferralCode(this.firstName);
-    }
-    next();
-});
+// // 🔹 Pre-save hook to generate referral code if not already set
+// customerUserSchema.pre("save", async function (next) {
+//     if (!this.referralCode) {
+//         this.referralCode = generateReferralCode(this.firstName);
+//     }
+//     next();
+// });
 
 
 module.exports = mongoose.model("customer", customerUserSchema);
