@@ -14,6 +14,7 @@ const sendUser = (user, profile) => ({
   lastName: profile.lastName,
   email: user.email,
   phone: user.mobileNo,
+  referralCode: profile.referralCode || null,
   profileImage: user.profileImage,
   gender: profile.gender,
   mobileNo: user.mobileNo,
