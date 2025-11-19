@@ -23,7 +23,7 @@ exports.validateCoupon = async ({
   if (now > coupon.expiryDate) throw new Error("Coupon expired");
 
   // 🧠 Check coupon type applicability
-  if (coupon.couponType !== "both" && coupon.couponType !== `${type}s`)
+  if (coupon.couponType !== "both" && coupon.couponType !== type)
     throw new Error(`Coupon not applicable for ${type} orders`);
 
   // 🧮 Count redemption limits
