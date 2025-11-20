@@ -20,7 +20,7 @@ const employeeUserSchema = new mongoose.Schema({
         required: [true, "Last name is required"],
         maxlength: 50
     },
-    description:{
+    about:{
         type: String,
     },
     priceCharge:{

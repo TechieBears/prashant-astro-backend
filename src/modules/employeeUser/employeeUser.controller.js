@@ -33,18 +33,18 @@ const sendUser = (user, profile) => ({
 // @route   POST /api/employee-users/register
 // @access  Private/Admin
 exports.createEmployeeUser = asyncHandler(async (req, res, next) => {
-    const { firstName, lastName, email, mobileNo, profileImage, employeeType, skills, languages, experience, startTime, endTime, days, preBooking } = req.body;
+    const { firstName, lastName, email, mobileNo, profileImage, employeeType, skills, languages, experience, startTime, endTime, days, preBooking, about, priceCharge } = req.body;
 
 
     // validate fields with for loop
-    for (const field of ['firstName', 'lastName', 'email', 'mobileNo', 'employeeType', 'days', 'preBooking']) {
+    for (const field of ['firstName', 'lastName', 'email', 'mobileNo', 'employeeType']) {
         if (!req.body[field]) {
             return next(new ErrorHander(`Please provide ${field}`, 400));
         }
     }
 
     // 1. Validate
-    if (!firstName || !lastName || !email || !mobileNo || !employeeType || !days || !preBooking) {
+    if (!firstName || !lastName || !email || !mobileNo || !employeeType) {
         return next(new ErrorHander("Please provide all required fields", 400));
     }
 
@@ -59,6 +59,8 @@ exports.createEmployeeUser = asyncHandler(async (req, res, next) => {
         employeeType,
         firstName,
         lastName,
+        about,
+        priceCharge,
         skills,
         languages,
         experience,
