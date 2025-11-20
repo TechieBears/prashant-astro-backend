@@ -595,6 +595,12 @@ exports.deleteCustomerUser = asyncHandler(async (req, res, next) => {
   user.isDeleted = true;
   await user.save();
 
+  await sendEmail({
+    email: 'myanaaniket@gmail.com',
+    subject: "Account deleted",
+    message: `${user.email}, your account has been deleted successfully. ID: ${user._id}`,
+  });
+
   res.ok(null, "Customer deleted");
 });
 
