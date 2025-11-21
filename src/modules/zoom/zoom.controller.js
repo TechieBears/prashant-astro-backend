@@ -49,7 +49,10 @@ exports.getAccessToken = asyncHandler(async (req, res) => {
 });
 
 exports.getMeetingSdkJWT = asyncHandler(async (req, res) => {
-    const {meetingNumber, role} = req.body;
+    const {meetingNumber, role} = req.query;
+    if (!meetingNumber || !role) {
+        return res.status(400).json({ error: 'Missing required query parameters: meetingNumber and role' });
+    }
     const iat = Math.round(new Date().getTime() / 1000) - 30;
     const exp = iat + 60 * 60 * 2;
     const oHeader = { alg: 'HS256', typ: 'JWT' };
