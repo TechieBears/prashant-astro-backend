@@ -1,5 +1,6 @@
 const asyncHandler = require('express-async-handler');
 const { createMeetingForUser, getZoomAccessToken } = require('../../services/zoom.service');
+const KJUR = require('jsrsasign');
 
 exports.createZoomMeeting = asyncHandler(async (req, res) => {
     try {
@@ -45,4 +46,25 @@ exports.getAccessToken = asyncHandler(async (req, res) => {
             message: error.message
         });
     }
+});
+
+exports.getMeetingSdkJWT = asyncHandler(async (req, res) => {
+    const {meetingNumber, role} = req.body;
+    const iat = Math.round(new Date().getTime() / 1000) - 30;
+    const exp = iat + 60 * 60 * 2;
+    const oHeader = { alg: 'HS256', typ: 'JWT' };
+    const oPayload = {
+        sdkKey: process.env.ZOOM_CLIENT_ID,
+        mn: meetingNumber,
+        role: role,
+        iat: iat,
+        exp: exp,
+        tokenExp: exp
+    };
+    const sHeader = JSON.stringify(oHeader);
+    const sPayload = JSON.stringify(oPayload);
+    const sdkJWT = KJUR.jws.JWS.sign('HS256', sHeader, sPayload, process.env.ZOOM_SDK_SECRET);
+    return res.ok({
+        sdkJWT
+    }, "Zoom SDK JWT generated successfully");
 });
