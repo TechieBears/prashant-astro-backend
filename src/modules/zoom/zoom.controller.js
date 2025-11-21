@@ -68,6 +68,8 @@ exports.getMeetingSdkJWT = asyncHandler(async (req, res) => {
     const sPayload = JSON.stringify(oPayload);
     const sdkJWT = KJUR.jws.JWS.sign('HS256', sHeader, sPayload, process.env.ZOOM_SDK_SECRET);
     return res.ok({
-        sdkJWT
+        // clientID: process.env.ZOOM_CLIENT_ID
+        sdkKey: process.env.ZOOM_CLIENT_ID,
+        jwt: sdkJWT,
     }, "Zoom SDK JWT generated successfully");
 });
