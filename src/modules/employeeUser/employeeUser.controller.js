@@ -410,3 +410,24 @@ exports.getAllPublicEmployees = asyncHandler(async (req, res) => {
 
     res.ok(formattedAstrologers, "Public employee users fetched successfully");
 });
+
+exports.getAllcallAstrologerCustomer = asyncHandler(async (req, res) => {
+    const { page = 1, limit = 10 } = req.body;
+    const skip = (page - 1) * limit;
+    const employees = await User.find({
+        role: "employee",
+        isActive: true,
+        isDeleted: false,
+    })
+        .select("email mobileNo profileImage profile") // exclude sensitive fields
+        .populate({
+            path: "profile",
+            model: "employee",
+            match: { employeeType: "call_astrologer" },
+            select:
+                "firstName lastName fullName skills languages experience profile _id employeeType"
+        })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit);
+});

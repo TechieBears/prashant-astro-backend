@@ -5,6 +5,7 @@ const { protect, authorize } = require('../../middlewares/auth');
 const router = express.Router();
 
 router.post('/astroguid/public/get-all', EmployeeController.getAllPublicEmployees);
+router.get('/call-astrologer/public/get-all', EmployeeController.getAllcallAstrologerCustomer);
 
 // Admin-only onboarding
 router.post('/register', protect, authorize('admin', "employee"), EmployeeController.createEmployeeUser);
