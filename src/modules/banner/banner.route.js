@@ -2,6 +2,9 @@ const express = require('express');
 const BannerController = require('./banner.controller');
 const { protect, authorize } = require('../../middlewares/auth');
 
+const getUploader = require("../../middlewares/upload");
+const bannerParser = getUploader('banner');
+
 const router = express.Router();
 
 // Public
