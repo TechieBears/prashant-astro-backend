@@ -57,12 +57,13 @@ exports.getMeetingSdkJWT = asyncHandler(async (req, res) => {
     const exp = iat + 60 * 60 * 2;
     const oHeader = { alg: 'HS256', typ: 'JWT' };
     const oPayload = {
-        sdkKey: process.env.ZOOM_CLIENT_ID,
+        appKey: process.env.ZOOM_SDK_KEY,
         mn: meetingNumber,
         role: role,
         iat: iat,
         exp: exp,
-        tokenExp: exp
+        tokenExp: exp,
+        video_webrtc_mode: 0
     };
     const sHeader = JSON.stringify(oHeader);
     const sPayload = JSON.stringify(oPayload);
