@@ -6,11 +6,22 @@ const multer = require('multer');
 const createStorage = (folder) => {
   return multer.diskStorage({
     destination: (req, file, cb) => {
-      const uploadPath = path.join(process.env.MEDIA_FILE_PATH, folder);
+      // Use MEDIA_FILE_PATH as base, then add MEDIA_FILE and folder
+      const uploadPath = path.join(
+        process.env.MEDIA_FILE_PATH, 
+        process.env.MEDIA_FILE, 
+        folder
+      );
+      
+      console.log('Upload path:', uploadPath); // Debug log
       
       // Create directory if it doesn't exist
       fs.mkdir(uploadPath, { recursive: true }, (err) => {
-        if (err) return cb(err);
+        if (err) {
+          console.error('Error creating directory:', err);
+          return cb(err);
+        }
+        console.log('Directory created/verified:', uploadPath);
         cb(null, uploadPath);
       });
     },
@@ -26,4 +37,35 @@ const createStorage = (folder) => {
   });
 };
 
-module.exports = { createStorage };
+const deleteFile = (fileUrl) => {
+  try {
+    if (!fileUrl) return;
+    
+    // Remove BACKEND_URL and MEDIA_FILE from the URL
+    const mediaPrefix = `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/`;
+    console.log("mediaPrefix: ", mediaPrefix);
+
+    const relativeFilePath = fileUrl.replace(mediaPrefix, '');
+    console.log("relativeFilePath: ", relativeFilePath);
+    
+    // Construct full path: MEDIA_FILE_PATH + MEDIA_FILE + relativeFilePath
+    const fullPath = path.join(
+      process.env.MEDIA_FILE_PATH,
+      process.env.MEDIA_FILE,
+      relativeFilePath
+    );
+    
+    console.log("fullPath: ", fullPath);
+
+    if (fs.existsSync(fullPath)) {
+      fs.unlinkSync(fullPath);
+      console.log('Deleted old file:', fullPath);
+    } else {
+      console.log('File not found:', fullPath);
+    }
+  } catch (err) {
+    console.error('Error deleting file:', err.message);
+  }
+};
+
+module.exports = { createStorage, deleteFile };
