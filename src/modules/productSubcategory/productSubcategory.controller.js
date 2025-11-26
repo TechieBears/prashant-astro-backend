@@ -23,7 +23,7 @@ exports.createProductSubcategory = asyncHandler(async (req, res) => {
     res.status(400);
     throw new Error('Subcategory with this name already exists in the selected category');
   }
-  let imageName = generateImageName(req.file?.image?.[0].originalname);
+  let imageName = generateImageName(req.file?.image?.[0].filename);
 
   const imageData = req.file?.image?.[0] ? 
   `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/product_subcategories/${imageName}}`
@@ -120,7 +120,7 @@ exports.updateProductSubcategory = asyncHandler(async (req, res) => {
     }
   }
   if(req.files?.image?.[0]){
-    let imageName = generateImageName(req.files.image[0].originalname);
+    let imageName = generateImageName(req.files.image[0].filename);
     if(subcategory.image){
       deleteFile(subcategory.image)
     }

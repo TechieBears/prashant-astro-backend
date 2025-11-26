@@ -15,7 +15,7 @@ exports.createProductCategory = asyncHandler(async (req, res) => {
     res.status(400);
     throw new Error(`Category with name '${name}' already exists`);
   }
-  let imageName = generateImageName(req.file?.image?.[0].originalname);
+  let imageName = generateImageName(req.file?.image?.[0].filename);
 
   const image = req.file?.image?.[0] ? 
   `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/product_categories/${imageName}}`
@@ -102,7 +102,7 @@ exports.updateProductCategory = asyncHandler(async (req, res) => {
   }
 
   if(req.files?.image?.[0]){
-    let imageName = generateImageName(req.files.image[0].originalname);
+    let imageName = generateImageName(req.files.image[0].filename);
     if(category.image){
       deleteFile(category.image)
     }

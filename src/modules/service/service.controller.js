@@ -3,9 +3,11 @@ const Service = require('./service.model');
 const ServiceCategory = require('../serviceCategory/serviceCategory.model');
 const Errorhander = require('../../utils/errorHandler');
 const mongoose = require('mongoose');
+const { generateImageName } = require('../../utils/reusableFunctions');
+const { deleteFile } = require('../../utils/storage');
 
 exports.createServiceAdmin = asyncHandler(async (req, res, next) => {
-    const { name, title, subTitle, htmlContent, category, image, videoUrl, price, durationInMinutes, serviceType, gstNumber, hsnCode, isActive } = req.body;
+    const { name, title, subTitle, htmlContent, category, videoUrl, price, durationInMinutes, serviceType, gstNumber, hsnCode, isActive } = req.body;
 
     // use for each field validation
     for (const field of ['name', 'title', 'subTitle', 'htmlContent', 'category', 'image', 'videoUrl', 'price', 'durationInMinutes']) {
@@ -29,13 +31,18 @@ exports.createServiceAdmin = asyncHandler(async (req, res, next) => {
         return next(new Errorhander("Service with this name already exists", 400));
     }
 
+    let imageName = generateImageName(req.files?.image?.[0]?.originalname);
+
+    const imageFile = req.files?.image?.[0]
+    ? `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/services/${imageName}`: null;
+
     const service = new Service({
         name: name.trim(),
         title: title.trim(),
         subTitle: subTitle.trim(),
         htmlContent: htmlContent.trim(),
         category,
-        image,
+        image: imageFile,
         isActive: isActive !== undefined ? isActive : true,
         videoUrl,
         price,
@@ -156,6 +163,14 @@ exports.updateServiceAdmin = asyncHandler(async (req, res, next) => {
         service.name = name.trim();
     }
 
+    if(req.files?.image?.[0]){
+        let imageName = generateImageName(req.files.image[0].filename);
+        if(banner.image){
+            deleteFile(banner.image)
+        }
+        service.image = `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/services/${imageName}`
+    }
+
     if (title) service.title = title.trim();
     if (subTitle) service.subTitle = subTitle.trim();
     if (htmlContent) service.htmlContent = htmlContent.trim();
@@ -166,7 +181,7 @@ exports.updateServiceAdmin = asyncHandler(async (req, res, next) => {
         }
         service.category = category;
     }
-    if (image) service.image = image;
+    // if (image) service.image = image;
     if (price !== undefined) service.price = price;
     if (gstNumber) service.gstNumber = gstNumber;
     if (hsnCode) service.hsnCode = hsnCode;
