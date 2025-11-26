@@ -1,6 +1,8 @@
 const asyncHandler = require('express-async-handler');
 const ProductSubcategory = require('./productSubcategory.model');
 const ProductCategory = require('../productCategory/productCategory.model');
+const { generateImageName } = require('../../utils/reusableFunctions');
+const {deleteFile} = require('../../utils/storage');
 
 // POST /api/product-subcategories
 exports.createProductSubcategory = asyncHandler(async (req, res) => {
@@ -21,32 +23,11 @@ exports.createProductSubcategory = asyncHandler(async (req, res) => {
     res.status(400);
     throw new Error('Subcategory with this name already exists in the selected category');
   }
+  let imageName = generateImageName(req.file?.image?.[0].originalname);
 
-  let imageData = null;
-  if (req.file) {
-    try {
-      const uploadResult = await uploadImageToCloudinary(req.file, 'product-subcategories');
-      const thumbnailUrl = getThumbnailUrl(uploadResult.imageId);
-      imageData = {
-        imageId: uploadResult.imageId,
-        imageUrl: uploadResult.imageUrl,
-        thumbnailUrl: thumbnailUrl,
-        width: uploadResult.width,
-        height: uploadResult.height,
-        format: uploadResult.format,
-        size: uploadResult.size
-      };
-    } catch (error) {
-      res.status(400);
-      throw new Error(`Image upload failed: ${error.message}`);
-    }
-  } else if (req.body.image) {
-    imageData = req.body.image;
-  }
-  // else {
-  //   res.status(400);
-  //   throw new Error('Image is required');
-  // }
+  const imageData = req.file?.image?.[0] ? 
+  `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/product_subcategories/${imageName}}`
+  : null;
 
   const subcategory = await ProductSubcategory.create({
     name,
@@ -137,6 +118,13 @@ exports.updateProductSubcategory = asyncHandler(async (req, res) => {
       res.status(400);
       throw new Error('Subcategory with this name already exists in the selected category');
     }
+  }
+  if(req.files?.image?.[0]){
+    let imageName = generateImageName(req.files.image[0].originalname);
+    if(subcategory.image){
+      deleteFile(subcategory.image)
+    }
+    subcategory.image = `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/product_subcategories/${imageName}`
   }
 
   if (name) subcategory.name = name;

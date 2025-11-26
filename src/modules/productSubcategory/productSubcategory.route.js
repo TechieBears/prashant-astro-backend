@@ -2,6 +2,9 @@ const express = require('express');
 const ProductSubcategoryController = require('./productSubcategory.controller');
 const { protect, authorize } = require('../../middlewares/auth');
 
+const getUploader = require("../../middlewares/upload");
+const productSubcategoryParser = getUploader('product_subcategories');
+
 const router = express.Router();
 
 // Public
@@ -10,14 +13,14 @@ router.get('/get-by-category', ProductSubcategoryController.getProductSubcategor
 
 // Authenticated admin routes
 router.use(protect);
-router.post('/create', authorize('admin', 'employee'), ProductSubcategoryController.createProductSubcategory);
+router.post('/create', authorize('admin', 'employee'), productSubcategoryParser.fields([{ name: 'image', maxCount: 1 }]), ProductSubcategoryController.createProductSubcategory);
 
 router.get('/get-all', authorize('admin', 'employee'), ProductSubcategoryController.getAllProductSubcategories);
 router.get('/get-single', authorize('admin', 'employee'), ProductSubcategoryController.getProductSubcategory);
 router.get('/get-dropdown', authorize('admin', 'employee'), ProductSubcategoryController.getAllProductSubcategoriesDropdown);
 // router.get('/stats', authorize('admin', 'employee'), ProductSubcategoryController.getProductSubcategoryStats);
 
-router.put('/update', authorize('admin', 'employee'), ProductSubcategoryController.updateProductSubcategory);
+router.put('/update', authorize('admin', 'employee'), productSubcategoryParser.fields([{ name: 'image', maxCount: 1 }]), ProductSubcategoryController.updateProductSubcategory);
 
 // router.delete('/:id', authorize('admin', 'employee'), ProductSubcategoryController.deleteProductSubcategory);
 
