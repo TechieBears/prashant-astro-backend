@@ -1,17 +1,25 @@
 const asyncHandler = require('express-async-handler');
 const ProductCategory = require('./productCategory.model');
+const Errorhander = require('../../utils/errorHandler');
+const { generateImageName } = require('../../utils/reusableFunctions');
+const {deleteFile} = require('../../utils/storage');
 
 // @desc Create a product category
 // @route POST /api/product-categories
 // @access private (admin, super-admin)
 exports.createProductCategory = asyncHandler(async (req, res) => {
-  const { name, image } = req.body;
+  const { name } = req.body;
 
   const existing = await ProductCategory.findByName(name);
   if (existing) {
     res.status(400);
     throw new Error(`Category with name '${name}' already exists`);
   }
+  let imageName = generateImageName(req.file?.image?.[0].originalname);
+
+  const image = req.file?.image?.[0] ? 
+  `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/product_categories/${imageName}}`
+  : null;
 
   const category = await ProductCategory.create({
     name,
@@ -84,7 +92,7 @@ exports.updateProductCategory = asyncHandler(async (req, res) => {
     throw new Error('Category not found');
   }
 
-  const { name, image, isActive } = req.body;
+  const { name, isActive } = req.body;
   if (name && name !== category.name) {
     const existing = await ProductCategory.findByName(name);
     if (existing && existing._id.toString() !== req.query.id) {
@@ -93,8 +101,16 @@ exports.updateProductCategory = asyncHandler(async (req, res) => {
     }
   }
 
+  if(req.files?.image?.[0]){
+    let imageName = generateImageName(req.files.image[0].originalname);
+    if(category.image){
+      deleteFile(category.image)
+    }
+    category.image = `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/product_categories/${imageName}`
+  }
+
   if (name) category.name = name;
-  if (image) category.image = image;
+  // if (image) category.image = image;
   if (isActive !== undefined && isActive !== null) category.isActive = isActive;
   category.updatedBy = req.user._id;
   await category.save();
