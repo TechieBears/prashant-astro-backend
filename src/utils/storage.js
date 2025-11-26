@@ -39,7 +39,10 @@ const createStorage = (folder) => {
 
 const deleteFile = (fileUrl) => {
   try {
-    if (!fileUrl) return;
+    if (!fileUrl) {
+      console.log('No file URL provided for deletion');
+      return;
+    }
     
     // Remove BACKEND_URL and MEDIA_FILE from the URL
     const mediaPrefix = `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/`;
@@ -59,12 +62,13 @@ const deleteFile = (fileUrl) => {
 
     if (fs.existsSync(fullPath)) {
       fs.unlinkSync(fullPath);
-      console.log('Deleted old file:', fullPath);
+      console.log('✅ Successfully deleted file:', fullPath);
     } else {
-      console.log('File not found:', fullPath);
+      console.log('⚠️ File not found, skipping deletion:', fullPath);
     }
   } catch (err) {
-    console.error('Error deleting file:', err.message);
+    console.error('❌ Error deleting file:', err.message);
+    // Don't throw error, just log it so product update continues
   }
 };
 
