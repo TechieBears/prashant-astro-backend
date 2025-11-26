@@ -6,6 +6,8 @@ const sendEmail = require('../../services/email.service');
 const crypto = require('crypto');
 const mongoose = require('mongoose');
 const Wallet = require('../wallet/wallet.model');
+const { generateImageName } = require('../../utils/reusableFunctions');
+const { deleteFile } = require("../../utils/storage");
 
 const sendUser = (user, profile) => ({
   _id: user._id,
@@ -25,11 +27,11 @@ const sendUser = (user, profile) => ({
 });
 
 function generateReferralCode(firstName = "") {
-    const prefix = firstName
-        ? firstName.trim().substring(0, 3).toUpperCase()
-        : "USR";
-    const hash = crypto.randomBytes(3).toString("hex").toUpperCase(); // 6 chars
-    return `${prefix}${hash}`;
+  const prefix = firstName
+    ? firstName.trim().substring(0, 3).toUpperCase()
+    : "USR";
+  const hash = crypto.randomBytes(3).toString("hex").toUpperCase(); // 6 chars
+  return `${prefix}${hash}`;
 }
 
 // @desc    Create new customer user
@@ -273,7 +275,7 @@ exports.createCustomerUser = asyncHandler(async (req, res, next) => {
     email,
     password,
     mobileNo,
-    profileImage,
+    // profileImage,
     firstName,
     lastName,
     title,
@@ -288,6 +290,12 @@ exports.createCustomerUser = asyncHandler(async (req, res, next) => {
   if (!["google", "normal"].includes(registerType)) {
     return next(new ErrorHander("Invalid register type", 400));
   }
+
+  let imageName = generateImageName(req.files?.image?.[0]?.originalname);
+
+  const profileImage = req.files?.image?.[0]
+    ? `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/profile/${imageName}`
+    : "https://cdn-icons-png.flaticon.com/512/149/149071.png";
 
   // Check existing user
   const existingUser = await User.findOne({ email }).populate("profile");
@@ -354,7 +362,7 @@ exports.createCustomerUser = asyncHandler(async (req, res, next) => {
             email,
             mobileNo: mobileNo || null,
             role: "customer",
-            profileImage: profileImage || "https://cdn-icons-png.flaticon.com/512/149/149071.png",
+            profileImage: profileImage,
             profile: customerUser[0]._id,
             type: "google",
           },
@@ -380,7 +388,7 @@ exports.createCustomerUser = asyncHandler(async (req, res, next) => {
 
   // ---------------- NORMAL REGISTRATION FLOW ----------------
   if (registerType === "normal") {
-    if(!password) return next(new ErrorHander("Password is required", 400));
+    if (!password) return next(new ErrorHander("Password is required", 400));
     if (existingUser) {
       if (existingUser.isActive === true || existingUser.isDeleted === false) {
         return next(new ErrorHander("User with this email already exists", 400));
@@ -450,7 +458,7 @@ exports.createCustomerUser = asyncHandler(async (req, res, next) => {
               password,
               mobileNo,
               role: "customer",
-              profileImage: "https://cdn-icons-png.flaticon.com/512/149/149071.png",
+              profileImage: profileImage,
               profile: customerUser[0]._id,
               type: "normal",
             },
@@ -514,7 +522,7 @@ exports.updateCustomerUser = asyncHandler(async (req, res, next) => {
   if (lastName !== undefined) customer.lastName = lastName;
   if (title !== undefined) customer.title = title;
   if (gender !== undefined) customer.gender = gender;
-  if(referralCode) {
+  if (referralCode) {
     const referrer = await CustomerUser.findOne({ referralCode });
     if (!referrer) {
       return next(new ErrorHander("Invalid referral code", 200));
@@ -541,7 +549,13 @@ exports.updateCustomerUser = asyncHandler(async (req, res, next) => {
   }
   if (mobileNo !== undefined) user.mobileNo = mobileNo;
   if (isActive !== undefined) user.isActive = isActive;
-  if (profileImage !== undefined) user.profileImage = profileImage;
+  if (req.files?.image?.[0]) {
+    let imageName = generateImageName(req.files?.image?.[0]?.originalname);
+    if (banner.image) {
+      deleteFile(banner.image)
+    }
+    user.profileImage = `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/profile/${imageName}`;
+  }
   await user.save();
   return res.ok({ user: sendUser(user, customer) }, "Customer updated successfully");
 });

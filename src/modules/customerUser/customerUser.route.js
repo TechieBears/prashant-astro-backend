@@ -2,11 +2,14 @@ const express = require('express');
 const CustomerController = require('./customerUser.controller');
 const { protect, authorize } = require('../../middlewares/auth');
 
+const getUploader = require("../../middlewares/upload");
+const profileParser = getUploader('profile');
+
 const router = express.Router();
 
 // customer routes
-router.post('/register', CustomerController.createCustomerUser);
-router.put('/update', protect, authorize("customer"), CustomerController.updateCustomerUser);
+router.post('/register', profileParser.fields([{ name: 'image', maxCount: 1 }]), CustomerController.createCustomerUser);
+router.put('/update', protect, authorize("customer"), profileParser.fields([{ name: 'image', maxCount: 1 }]), CustomerController.updateCustomerUser);
 router.delete('/delete', protect, authorize("customer"), CustomerController.deleteCustomerUser);
 router.get('/get-wallet-balance', protect, authorize("customer"), CustomerController.getWalletBalance);
 
