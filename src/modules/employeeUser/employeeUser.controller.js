@@ -4,6 +4,8 @@ const EmployeeUser = require('./employeeUser.model');
 const ErrorHander = require('../../utils/errorHandler');
 const sendEmail = require('../../services/email.service');
 const crypto = require('crypto');
+const { generateImageName } = require('../../utils/reusableFunctions');
+const { deleteFile } = require("../../utils/storage");
 
 const sendUser = (user, profile) => ({
     _id: user._id,
@@ -33,7 +35,7 @@ const sendUser = (user, profile) => ({
 // @route   POST /api/employee-users/register
 // @access  Private/Admin
 exports.createEmployeeUser = asyncHandler(async (req, res, next) => {
-    const { firstName, lastName, email, mobileNo, profileImage, employeeType, skills, languages, experience, startTime, endTime, days, preBooking, about, priceCharge } = req.body;
+    const { firstName, lastName, email, mobileNo, employeeType, skills, languages, experience, startTime, endTime, days, preBooking, about, priceCharge } = req.body;
 
 
     // validate fields with for loop
@@ -53,6 +55,10 @@ exports.createEmployeeUser = asyncHandler(async (req, res, next) => {
     if (existingUser) {
         return next(new ErrorHander("User with this email already exists", 400));
     }
+
+    const profileImage = req.files?.image?.[0]
+        ? `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/profile/${generateImageName(req.files?.image?.[0]?.originalname)}`
+        : "https://cdn-icons-png.flaticon.com/512/149/149071.png";
 
     // 3. Create employee profile
     const employeeProfile = await EmployeeUser.create({
