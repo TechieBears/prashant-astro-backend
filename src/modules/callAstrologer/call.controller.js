@@ -2,16 +2,17 @@ const asyncHandler = require("express-async-handler");
 const CallAstrologer = require("./call.model");
 
 exports.createCall = asyncHandler(async (req, res) => {
-    const { userId, astrologerId, date, time, duration } = req.body;
-    if(!userId || !astrologerId || !date || !time || !duration) {
+    const userId = req.user._id;
+    const { callAstrologerId, date, time, duration } = req.body;
+    if(!userId || !callAstrologerId || !date || !time || !duration) {
         return res.status(400).json({ success: false, message: 'Missing required fields' });
     }
-    const call = await CallAstrologer.create({ userId, astrologerId, date, time, duration });
+    const call = await CallAstrologer.create({ userId, astrologerId: callAstrologerId, date, time, duration });
     res.created(call, 'Call created successfully');
 });
 
 exports.getAllCallsCustomer = asyncHandler(async (req, res) => {
-    const {page = 1, limit = 10} = req.body;
+    const {page = 1, limit = 10} = req.query;
     const skip = (page - 1) * limit;
     const total = await CallAstrologer.countDocuments({ userId: req.user._id });
     const calls = await CallAstrologer.find({ userId: req.user._id })
