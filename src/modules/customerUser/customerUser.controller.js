@@ -551,8 +551,8 @@ exports.updateCustomerUser = asyncHandler(async (req, res, next) => {
   if (isActive !== undefined) user.isActive = isActive;
   if (req.files?.image?.[0]) {
     let imageName = generateImageName(req.files?.image?.[0]?.originalname);
-    if (banner.image) {
-      deleteFile(banner.image)
+    if (user.image) {
+      deleteFile(user.image)
     }
     user.profileImage = `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/profile/${imageName}`;
   }
