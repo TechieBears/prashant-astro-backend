@@ -3,7 +3,7 @@ const Product = require('./product.model');
 const Category = require('../productCategory/productCategory.model');
 const Subcategory = require('../productSubcategory/productSubcategory.model');
 const Errorhander = require('../../utils/errorHandler');
-const { generateImageName } = require('../../utils/reusableFunctions');
+// const { generateImageName } = require('../../utils/reusableFunctions');
 const { deleteFile } = require("../../utils/storage");
 
 // @desc Create a product
@@ -19,8 +19,8 @@ exports.createProduct = asyncHandler(async (req, res, next) => {
     }
 
     const images = req.files.images.map(file => {
-      let imageName = generateImageName(file.originalname);
-      return `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/product/${imageName}`
+      // let imageName = generateImageName(file.originalname);
+      return `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/product/${file.filename}`
     }
   );
 

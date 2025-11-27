@@ -1,7 +1,7 @@
 const asyncHandler = require('express-async-handler');
 const ProductSubcategory = require('./productSubcategory.model');
 const ProductCategory = require('../productCategory/productCategory.model');
-const { generateImageName } = require('../../utils/reusableFunctions');
+// const { generateImageName } = require('../../utils/reusableFunctions');
 const {deleteFile} = require('../../utils/storage');
 
 // POST /api/product-subcategories
@@ -23,10 +23,10 @@ exports.createProductSubcategory = asyncHandler(async (req, res) => {
     res.status(400);
     throw new Error('Subcategory with this name already exists in the selected category');
   }
-  let imageName = generateImageName(req.file?.image?.[0].filename);
+  // let imageName = generateImageName(req.file?.image?.[0].filename);
 
   const imageData = req.file?.image?.[0] ? 
-  `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/product_subcategories/${imageName}}`
+  `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/product_subcategories/${req.file?.image?.[0].filename}`
   : null;
 
   const subcategory = await ProductSubcategory.create({
@@ -120,11 +120,11 @@ exports.updateProductSubcategory = asyncHandler(async (req, res) => {
     }
   }
   if(req.files?.image?.[0]){
-    let imageName = generateImageName(req.files.image[0].filename);
+    // let imageName = generateImageName(req.files.image[0].filename);
     if(subcategory.image){
       deleteFile(subcategory.image)
     }
-    subcategory.image = `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/product_subcategories/${imageName}`
+    subcategory.image = `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/product_subcategories/${req.files.image[0].filename}`
   }
 
   if (name) subcategory.name = name;

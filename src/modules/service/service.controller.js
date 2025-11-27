@@ -3,7 +3,7 @@ const Service = require('./service.model');
 const ServiceCategory = require('../serviceCategory/serviceCategory.model');
 const Errorhander = require('../../utils/errorHandler');
 const mongoose = require('mongoose');
-const { generateImageName } = require('../../utils/reusableFunctions');
+// const { generateImageName } = require('../../utils/reusableFunctions');
 const { deleteFile } = require('../../utils/storage');
 
 exports.createServiceAdmin = asyncHandler(async (req, res, next) => {
@@ -31,10 +31,10 @@ exports.createServiceAdmin = asyncHandler(async (req, res, next) => {
         return next(new Errorhander("Service with this name already exists", 400));
     }
 
-    let imageName = generateImageName(req.files?.image?.[0]?.originalname);
+    // let imageName = generateImageName(req.files?.image?.[0]?.originalname);
 
     const imageFile = req.files?.image?.[0]
-    ? `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/services/${imageName}`: null;
+    ? `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/services/${req.files.image[0].filename}`: null;
 
     const service = new Service({
         name: name.trim(),
@@ -164,11 +164,11 @@ exports.updateServiceAdmin = asyncHandler(async (req, res, next) => {
     }
 
     if(req.files?.image?.[0]){
-        let imageName = generateImageName(req.files.image[0].filename);
+        // let imageName = generateImageName(req.files.image[0].filename);
         if(banner.image){
             deleteFile(banner.image)
         }
-        service.image = `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/services/${imageName}`
+        service.image = `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/services/${req.files.image[0].filename}`
     }
 
     if (title) service.title = title.trim();

@@ -4,7 +4,7 @@ const EmployeeUser = require('./employeeUser.model');
 const ErrorHander = require('../../utils/errorHandler');
 const sendEmail = require('../../services/email.service');
 const crypto = require('crypto');
-const { generateImageName } = require('../../utils/reusableFunctions');
+// const { generateImageName } = require('../../utils/reusableFunctions');
 const { deleteFile } = require("../../utils/storage");
 
 const sendUser = (user, profile) => ({
@@ -57,7 +57,7 @@ exports.createEmployeeUser = asyncHandler(async (req, res, next) => {
     }
 
     const profileImage = req.files?.image?.[0]
-        ? `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/profile/${generateImageName(req.files?.image?.[0]?.originalname)}`
+        ? `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/profile/${req.files?.image?.[0]?.filename}`
         : "https://cdn-icons-png.flaticon.com/512/149/149071.png";
 
     // 3. Create employee profile

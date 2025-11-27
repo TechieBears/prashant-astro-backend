@@ -2,7 +2,7 @@ const asyncHandler = require('express-async-handler');
 const ServiceCategory = require('./serviceCategory.model');
 const Service = require('../service/service.model');
 
-const { generateImageName } = require('../../utils/reusableFunctions');
+// const { generateImageName } = require('../../utils/reusableFunctions');
 const { deleteFile } = require('../../utils/storage');
 
 // GET /api/service-categories
@@ -87,10 +87,10 @@ exports.createServiceCategory = asyncHandler(async (req, res) => {
     throw new Error(`Category with name '${name}' already exists`);
   }
 
-  let imageName = generateImageName(req.file?.image?.[0].filename);
+  // let imageName = generateImageName(req.file?.image?.[0].filename);
 
   const image = req.file?.image?.[0] ? 
-  `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/service_categories/${imageName}}`
+  `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/service_categories/${req.file?.image?.[0].filename}`
   : null;
 
   const category = await ServiceCategory.create({
@@ -124,11 +124,11 @@ exports.updateServiceCategory = asyncHandler(async (req, res) => {
   }
 
   if(req.files?.image?.[0]){
-    let imageName = generateImageName(req.files.image[0].filename);
+    // let imageName = generateImageName(req.files.image[0].filename);
     if(category.image){
       deleteFile(category.image)
     }
-    category.image = `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/service_categories/${imageName}`
+    category.image = `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/service_categories/${req.files.image[0].filename}`
   }
 
   if (name) category.name = name;

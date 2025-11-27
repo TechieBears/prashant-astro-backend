@@ -1,7 +1,7 @@
 const asyncHandler = require('express-async-handler');
 const ProductCategory = require('./productCategory.model');
 const Errorhander = require('../../utils/errorHandler');
-const { generateImageName } = require('../../utils/reusableFunctions');
+// const { generateImageName } = require('../../utils/reusableFunctions');
 const {deleteFile} = require('../../utils/storage');
 
 // @desc Create a product category
@@ -102,11 +102,11 @@ exports.updateProductCategory = asyncHandler(async (req, res) => {
   }
 
   if(req.files?.image?.[0]){
-    let imageName = generateImageName(req.files.image[0].filename);
+    // let imageName = generateImageName(req.files.image[0].filename);
     if(category.image){
       deleteFile(category.image)
     }
-    category.image = `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/product_categories/${imageName}`
+    category.image = `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/product_categories/${req.files.image[0].filename}`
   }
 
   if (name) category.name = name;

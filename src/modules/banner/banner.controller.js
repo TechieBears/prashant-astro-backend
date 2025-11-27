@@ -7,7 +7,7 @@ const {
   updateImageInCloudinary,
   getThumbnailUrl 
 } = require('../../services/cloudinary.service');
-const { generateImageName } = require('../../utils/reusableFunctions');
+// const { generateImageName } = require('../../utils/reusableFunctions');
 const { deleteFile } = require("../../utils/storage");
 
 // @desc    Create a new banner
@@ -42,10 +42,10 @@ exports.createBanner = asyncHandler(async (req, res) => {
         throw new ErrorHander(`Banner with title '${title}' already exists`, 400);
     }
 
-    let imageName = generateImageName(req.files?.image?.[0].filename);
+    // let imageName = generateImageName(req.files?.image?.[0].filename);
 
     const imageFile = req.files?.image?.[0]
-    ? `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/banners/${imageName}`: null;
+    ? `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/banners/${req.files.image[0].filename}`: null;
 
     // Create banner
     const banner = await Banner.create({
@@ -128,11 +128,11 @@ exports.updateBanner = asyncHandler(async (req, res, next) => {
     const { title, description, type, bannerFor, position, startDate, endDate, isActive, button } = req.body;
 
     if(req.files?.image?.[0]){
-        let imageName = generateImageName(req.files.image[0].filename);
+        // let imageName = generateImageName(req.files.image[0].filename);
         if(banner.image){
             deleteFile(banner.image)
         }
-        banner.image = `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/banners/${imageName}`
+        banner.image = `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/banners/${req.files.image[0].filename}`;
     }
 
     if (title) banner.title = title;
