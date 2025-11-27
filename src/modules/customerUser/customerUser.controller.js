@@ -291,7 +291,7 @@ exports.createCustomerUser = asyncHandler(async (req, res, next) => {
     return next(new ErrorHander("Invalid register type", 400));
   }
 
-  let imageName = generateImageName(req.files?.image?.[0]?.originalname);
+  let imageName = generateImageName(req.files?.image?.[0]?.originalname || "https://cdn-icons-png.flaticon.com/512/149/149071.png");
 
   const profileImage = req.files?.image?.[0]
     ? `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/profile/${imageName}`
