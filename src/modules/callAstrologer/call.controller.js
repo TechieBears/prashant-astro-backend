@@ -3,11 +3,11 @@ const CallAstrologer = require("./call.model");
 
 exports.createCall = asyncHandler(async (req, res) => {
     const userId = req.user._id;
-    const { astrologerId, date, time, duration } = req.body;
-    if(!userId || !astrologerId || !date || !time || !duration) {
+    const { callAstrologerId, date, time, duration } = req.body;
+    if(!userId || !callAstrologerId || !date || !time || !duration) {
         return res.status(400).json({ success: false, message: 'Missing required fields' });
     }
-    const call = await CallAstrologer.create({ userId, astrologerId, date, time, duration });
+    const call = await CallAstrologer.create({ userId, astrologerId: callAstrologerId, date, time, duration });
     res.created(call, 'Call created successfully');
 });
 
