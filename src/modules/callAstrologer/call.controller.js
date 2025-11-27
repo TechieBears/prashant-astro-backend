@@ -2,7 +2,8 @@ const asyncHandler = require("express-async-handler");
 const CallAstrologer = require("./call.model");
 
 exports.createCall = asyncHandler(async (req, res) => {
-    const { userId, astrologerId, date, time, duration } = req.body;
+    const userId = req.user._id;
+    const { astrologerId, date, time, duration } = req.body;
     if(!userId || !astrologerId || !date || !time || !duration) {
         return res.status(400).json({ success: false, message: 'Missing required fields' });
     }
