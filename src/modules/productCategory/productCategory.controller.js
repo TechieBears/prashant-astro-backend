@@ -18,7 +18,7 @@ exports.createProductCategory = asyncHandler(async (req, res) => {
   let imageName = generateImageName(req.file?.image?.[0].filename);
 
   const image = req.file?.image?.[0] ? 
-  `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/product_categories/${imageName}}`
+  `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/product_categories/${req.file?.image?.[0].filename}}`
   : null;
 
   const category = await ProductCategory.create({
