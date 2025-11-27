@@ -20,7 +20,7 @@ exports.createProduct = asyncHandler(async (req, res, next) => {
 
     const images = req.files.images.map(file => {
       // let imageName = generateImageName(file.originalname);
-      return `${process.env.BACKEND_URL}/public/${process.env.MEDIA_FILE}/product/${file.filename}`
+      return `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/product/${file.filename}`
     }
   );
 
@@ -431,7 +431,7 @@ exports.updateProduct = asyncHandler(async (req, res, next) => {
   // Handle new uploaded images
   if (req.files?.images && req.files.images.length > 0) {
     const newImages = req.files.images.map(file => 
-      `${process.env.BACKEND_URL}/public/${process.env.MEDIA_FILE}/product/${file.filename}`
+      `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/product/${file.filename}`
     );
     // Add new images to existing ones
     images = [...images, ...newImages];

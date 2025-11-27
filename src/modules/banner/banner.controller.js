@@ -45,7 +45,7 @@ exports.createBanner = asyncHandler(async (req, res) => {
     // let imageName = generateImageName(req.files?.image?.[0].filename);
 
     const imageFile = req.files?.image?.[0]
-    ? `${process.env.BACKEND_URL}/public/${process.env.MEDIA_FILE}/banners/${req.files.image[0].filename}`: null;
+    ? `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/banners/${req.files.image[0].filename}`: null;
 
     // Create banner
     const banner = await Banner.create({
@@ -132,7 +132,7 @@ exports.updateBanner = asyncHandler(async (req, res, next) => {
         if(banner.image){
             deleteFile(banner.image)
         }
-        banner.image = `${process.env.BACKEND_URL}/public/${process.env.MEDIA_FILE}/banners/${req.files.image[0].filename}`;
+        banner.image = `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/banners/${req.files.image[0].filename}`;
     }
 
     if (title) banner.title = title;

@@ -18,7 +18,7 @@ exports.createProductCategory = asyncHandler(async (req, res) => {
   // let imageName = generateImageName(req.files?.image?.[0].filename);
 
   const image = req.files?.image?.[0] ? 
-  `${process.env.BACKEND_URL}/public/${process.env.MEDIA_FILE}/product_categories/${req.files?.image?.[0].filename}`
+  `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/product_categories/${req.files?.image?.[0].filename}`
   : null;
 
   const category = await ProductCategory.create({
@@ -106,7 +106,7 @@ exports.updateProductCategory = asyncHandler(async (req, res) => {
     if(category.image){
       deleteFile(category.image)
     }
-    category.image = `${process.env.BACKEND_URL}/public/${process.env.MEDIA_FILE}/product_categories/${req.files.image[0].filename}`
+    category.image = `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/product_categories/${req.files.image[0].filename}`
   }
 
   if (name) category.name = name;

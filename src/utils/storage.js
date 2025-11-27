@@ -45,7 +45,7 @@ const deleteFile = (fileUrl) => {
     }
     
     // Remove BACKEND_URL and MEDIA_FILE from the URL
-    const mediaPrefix = `${process.env.BACKEND_URL}/public/${process.env.MEDIA_FILE}/`;
+    const mediaPrefix = `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/`;
     console.log("mediaPrefix: ", mediaPrefix);
 
     const relativeFilePath = fileUrl.replace(mediaPrefix, '');

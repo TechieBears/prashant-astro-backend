@@ -294,7 +294,7 @@ exports.createCustomerUser = asyncHandler(async (req, res, next) => {
   let imageName = generateImageName(req.files?.image?.[0]?.originalname || "https://cdn-icons-png.flaticon.com/512/149/149071.png");
 
   const profileImage = req.files?.image?.[0]
-    ? `${process.env.BACKEND_URL}/public/${process.env.MEDIA_FILE}/profile/${imageName}`
+    ? `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/profile/${imageName}`
     : "https://cdn-icons-png.flaticon.com/512/149/149071.png";
 
   // Check existing user
@@ -554,7 +554,7 @@ exports.updateCustomerUser = asyncHandler(async (req, res, next) => {
     if (user.image) {
       deleteFile(user.image)
     }
-    user.profileImage = `${process.env.BACKEND_URL}/public/${process.env.MEDIA_FILE}/profile/${imageName}`;
+    user.profileImage = `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/profile/${imageName}`;
   }
   await user.save();
   return res.ok({ user: sendUser(user, customer) }, "Customer updated successfully");

@@ -26,7 +26,7 @@ exports.createProductSubcategory = asyncHandler(async (req, res) => {
   // let imageName = generateImageName(req.files?.image?.[0].filename);
 
   const imageData = req.files?.image?.[0] ? 
-  `${process.env.BACKEND_URL}/public/${process.env.MEDIA_FILE}/product_subcategories/${req.files?.image?.[0].filename}`
+  `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/product_subcategories/${req.files?.image?.[0].filename}`
   : null;
 
   const subcategory = await ProductSubcategory.create({
@@ -124,7 +124,7 @@ exports.updateProductSubcategory = asyncHandler(async (req, res) => {
     if(subcategory.image){
       deleteFile(subcategory.image)
     }
-    subcategory.image = `${process.env.BACKEND_URL}/public/${process.env.MEDIA_FILE}/product_subcategories/${req.files.image[0].filename}`
+    subcategory.image = `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/product_subcategories/${req.files.image[0].filename}`
   }
 
   if (name) subcategory.name = name;
