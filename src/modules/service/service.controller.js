@@ -34,7 +34,7 @@ exports.createServiceAdmin = asyncHandler(async (req, res, next) => {
     // let imageName = generateImageName(req.files?.image?.[0]?.originalname);
 
     const imageFile = req.files?.image?.[0]
-    ? `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/services/${req.files.image[0].filename}`: null;
+    ? `${process.env.BACKEND_URL}/public/${process.env.MEDIA_FILE}/services/${req.files.image[0].filename}`: null;
 
     const service = new Service({
         name: name.trim(),
@@ -168,7 +168,7 @@ exports.updateServiceAdmin = asyncHandler(async (req, res, next) => {
         if(banner.image){
             deleteFile(banner.image)
         }
-        service.image = `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/services/${req.files.image[0].filename}`
+        service.image = `${process.env.BACKEND_URL}/public/${process.env.MEDIA_FILE}/services/${req.files.image[0].filename}`
     }
 
     if (title) service.title = title.trim();

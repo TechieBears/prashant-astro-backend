@@ -87,10 +87,10 @@ exports.createServiceCategory = asyncHandler(async (req, res) => {
     throw new Error(`Category with name '${name}' already exists`);
   }
 
-  // let imageName = generateImageName(req.file?.image?.[0].filename);
+  // let imageName = generateImageName(req.files?.image?.[0].filename);
 
-  const image = req.file?.image?.[0] ? 
-  `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/service_categories/${req.file?.image?.[0].filename}`
+  const image = req.files?.image?.[0] ? 
+  `${process.env.BACKEND_URL}/public/${process.env.MEDIA_FILE}/service_categories/${req.files?.image?.[0].filename}`
   : null;
 
   const category = await ServiceCategory.create({
@@ -128,7 +128,7 @@ exports.updateServiceCategory = asyncHandler(async (req, res) => {
     if(category.image){
       deleteFile(category.image)
     }
-    category.image = `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/service_categories/${req.files.image[0].filename}`
+    category.image = `${process.env.BACKEND_URL}/public/${process.env.MEDIA_FILE}/service_categories/${req.files.image[0].filename}`
   }
 
   if (name) category.name = name;
