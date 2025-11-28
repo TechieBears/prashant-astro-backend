@@ -22,8 +22,22 @@ exports.createServiceAdmin = asyncHandler(async (req, res, next) => {
 
     // serviceType validation
     const validServiceTypes = ['online', 'pandit_center', 'pooja_at_home'];
-    if (serviceType && !validServiceTypes.includes(serviceType)) {
-        return next(new Errorhander(`Invalid service type. Valid types are: ${validServiceTypes.join(', ')}`, 400));
+
+    if (serviceType) {
+        if (!Array.isArray(serviceType)) {
+            return next(new Errorhander("serviceType must be an array", 400));
+        }
+
+        for (const type of serviceType) {
+            if (!validServiceTypes.includes(type)) {
+                return next(
+                    new Errorhander(
+                        `Invalid service type: ${type}. Valid types are: ${validServiceTypes.join(", ")}`,
+                        400
+                    )
+                );
+            }
+        }
     }
 
     const serviceExists = await Service.findOne({ name: name.trim() });
@@ -34,7 +48,7 @@ exports.createServiceAdmin = asyncHandler(async (req, res, next) => {
     // let imageName = generateImageName(req.files?.image?.[0]?.originalname);
 
     const imageFile = req.files?.image?.[0]
-    ? `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/services/${req.files.image[0].filename}`: null;
+        ? `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/services/${req.files.image[0].filename}` : null;
 
     const service = new Service({
         name: name.trim(),
@@ -163,9 +177,9 @@ exports.updateServiceAdmin = asyncHandler(async (req, res, next) => {
         service.name = name.trim();
     }
 
-    if(req.files?.image?.[0]){
+    if (req.files?.image?.[0]) {
         // let imageName = generateImageName(req.files.image[0].filename);
-        if(banner.image){
+        if (banner.image) {
             deleteFile(banner.image)
         }
         service.image = `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/services/${req.files.image[0].filename}`
