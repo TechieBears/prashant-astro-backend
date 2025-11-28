@@ -6,22 +6,56 @@ const Errorhander = require('../../utils/errorHandler');
 // const { generateImageName } = require('../../utils/reusableFunctions');
 const { deleteFile } = require("../../utils/storage");
 
+function parseField(value) {
+  if (value === undefined || value === null) return value;
+
+  // If it is already an object or array => return as-is
+  if (typeof value === "object") return value;
+
+  // Try JSON parsing
+  try {
+    return JSON.parse(value);
+  } catch (e) {
+    // Return original string if not JSON
+    return value;
+  }
+}
+
 // @desc Create a product
 // @route POST /api/products/create
 // @access Private (admin only)
 exports.createProduct = asyncHandler(async (req, res, next) => {
-  const { name, description, additionalInfo, specification, highlights, category, subcategory, mrpPrice, sellingPrice, stock, gstNumber, hsnCode, isActive } = req.body;
+  const parsedBody = {};
+  for (const key in req.body) {
+    parsedBody[key] = parseField(req.body[key]);
+  }
+  const {
+    name,
+    description,
+    additionalInfo,
+    specification,
+    highlights,
+    category,
+    subcategory,
+    mrpPrice,
+    sellingPrice,
+    stock,
+    gstNumber,
+    hsnCode,
+    isActive
+  } = parsedBody;
+  // const { name, description, additionalInfo, specification, highlights, category, subcategory, mrpPrice, sellingPrice, stock, gstNumber, hsnCode, isActive } = req.body;
 
   if (!req.files?.images || req.files.images.length === 0) {
-      await session.abortTransaction();
-      session.endSession();
-      return next(new Errorhander("At least one product image is required", 400));
-    }
+    await session.abortTransaction();
+    session.endSession();
+    return next(new Errorhander("At least one product image is required", 400));
+  }
 
-    const images = req.files.images.map(file => {
-      // let imageName = generateImageName(file.originalname);
-      return `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/product/${file.filename}`
-    }
+  const images = req.files.images.map(file => {
+    // let imageName = generateImageName(file.originalname);
+    return `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/product/${file.filename}`
+  }
   );
 
   // Validate required fields
@@ -397,15 +431,15 @@ exports.updateProduct = asyncHandler(async (req, res, next) => {
   }
 
   // Validate prices if provided
-  const finalMrpPrice = mrpPrice || product.mrpPrice;
-  const finalSellingPrice = sellingPrice || product.sellingPrice;
+  const finalMrpPrice = Number(mrpPrice ?? product.mrpPrice);
+  const finalSellingPrice = Number(sellingPrice ?? product.sellingPrice);
   if (finalSellingPrice > finalMrpPrice) {
     res.status(400);
     throw new Error('Selling price cannot be greater than MRP price');
   }
 
   let images = [...product.images]; // Create a copy of current images
-  
+
   // Handle deleted images
   if (deletedImages && deletedImages.length > 0) {
     // Parse deletedImages if it's a string (from form-data)
@@ -418,19 +452,19 @@ exports.updateProduct = asyncHandler(async (req, res, next) => {
         deletedImagesArray = [deletedImages]; // Fallback to single image
       }
     }
-    
+
     // Delete files from server
     deletedImagesArray.forEach(imageUrl => {
       deleteFile(imageUrl);
     });
-    
+
     // Remove deleted images from the images array
     images = images.filter(image => !deletedImagesArray.includes(image));
   }
 
   // Handle new uploaded images
   if (req.files?.images && req.files.images.length > 0) {
-    const newImages = req.files.images.map(file => 
+    const newImages = req.files.images.map(file =>
       `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/product/${file.filename}`
     );
     // Add new images to existing ones
