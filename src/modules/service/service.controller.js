@@ -7,8 +7,10 @@ const mongoose = require('mongoose');
 const { deleteFile } = require('../../utils/storage');
 
 exports.createServiceAdmin = asyncHandler(async (req, res, next) => {
-    const { name, title, subTitle, htmlContent, category, videoUrl, price, durationInMinutes, serviceType, gstNumber, hsnCode, isActive } = req.body;
-
+    const { name, title, subTitle, htmlContent, category, price, durationInMinutes, gstNumber, hsnCode, isActive } = req.body;
+    let serviceType = req.body.serviceType;
+    let videoUrl = req.body.videoUrl;
+    videoUrl = JSON.parse(videoUrl);
     // use for each field validation
     for (const field of ['name', 'title', 'subTitle', 'htmlContent', 'category', 'videoUrl', 'price', 'durationInMinutes']) {
         if (!req.body[field]) {
@@ -22,8 +24,9 @@ exports.createServiceAdmin = asyncHandler(async (req, res, next) => {
 
     // serviceType validation
     const validServiceTypes = ['online', 'pandit_center', 'pooja_at_home'];
-
+    console.log(serviceType);
     if (serviceType) {
+        serviceType = JSON.parse(serviceType);
         if (!Array.isArray(serviceType)) {
             return next(new Errorhander("serviceType must be an array", 400));
         }
