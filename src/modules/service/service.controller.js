@@ -60,7 +60,7 @@ exports.createServiceAdmin = asyncHandler(async (req, res, next) => {
         htmlContent: htmlContent.trim(),
         category,
         image: imageFile,
-        isActive: isActive !== undefined ? isActive : true,
+        isActive: isActive || false,
         videoUrl,
         price,
         gstNumber,
