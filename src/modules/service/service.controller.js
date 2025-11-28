@@ -8,9 +8,16 @@ const { deleteFile } = require('../../utils/storage');
 
 exports.createServiceAdmin = asyncHandler(async (req, res, next) => {
     const { name, title, subTitle, htmlContent, category, price, durationInMinutes, gstNumber, hsnCode, isActive } = req.body;
-    let serviceType = req.body.serviceType;
     let videoUrl = req.body.videoUrl;
-    videoUrl = JSON.parse(videoUrl) || [];
+    if (videoUrl) {
+        try {
+            videoUrl = JSON.parse(videoUrl);
+        } catch (err) {
+            return next(new Errorhander("Invalid videoUrl JSON", 400));
+        }
+    } else {
+        videoUrl = [];
+    }
     // use for each field validation
     for (const field of ['name', 'title', 'subTitle', 'htmlContent', 'category', 'videoUrl', 'price', 'durationInMinutes']) {
         if (!req.body[field]) {
@@ -22,11 +29,17 @@ exports.createServiceAdmin = asyncHandler(async (req, res, next) => {
         return next(new Errorhander("Please provide valid category id", 400));
     }
 
-    // serviceType validation
+    // Parse serviceType safely
+    let serviceType = req.body.serviceType;
     const validServiceTypes = ['online', 'pandit_center', 'pooja_at_home'];
-    console.log(serviceType);
+
     if (serviceType) {
-        serviceType = JSON.parse(serviceType);
+        try {
+            serviceType = JSON.parse(serviceType);
+        } catch (err) {
+            return next(new Errorhander("Invalid serviceType JSON", 400));
+        }
+
         if (!Array.isArray(serviceType)) {
             return next(new Errorhander("serviceType must be an array", 400));
         }
@@ -41,6 +54,8 @@ exports.createServiceAdmin = asyncHandler(async (req, res, next) => {
                 );
             }
         }
+    } else {
+        serviceType = ['online']; // default
     }
 
     const serviceExists = await Service.findOne({ name: name.trim() });
