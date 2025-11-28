@@ -10,7 +10,7 @@ exports.createServiceAdmin = asyncHandler(async (req, res, next) => {
     const { name, title, subTitle, htmlContent, category, videoUrl, price, durationInMinutes, serviceType, gstNumber, hsnCode, isActive } = req.body;
 
     // use for each field validation
-    for (const field of ['name', 'title', 'subTitle', 'htmlContent', 'category', 'image', 'videoUrl', 'price', 'durationInMinutes']) {
+    for (const field of ['name', 'title', 'subTitle', 'htmlContent', 'category', 'videoUrl', 'price', 'durationInMinutes']) {
         if (!req.body[field]) {
             return next(new Errorhander(`Please provide ${field}`, 400));
         }
