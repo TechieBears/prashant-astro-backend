@@ -80,6 +80,119 @@ exports.getCouponsAdmin = asyncHandler(async (req, res, next) => {
     res.paginated(coupons, { page: Number(page), limit: Number(limit), total, totalPages: Math.ceil(total / limit) }, 'Coupons fetched successfully');
 });
 
+// @desc    Get coupon by ID (admin)
+// @route   GET /api/coupons/get-single
+// @access  Private/Admin
+exports.getCouponById = asyncHandler(async (req, res, next) => {
+  const { id } = req.query;
+
+  // Validate ObjectId
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return next(new ErrorResponse('Invalid coupon ID format', 400));
+  }
+
+  const coupon = await Coupon.findById(id)
+    .populate([
+      // Populate applicable services
+      {
+        path: 'applicableServices',
+        match: { isActive: true, isDeleted: false },
+        select: 'name title price durationInMinutes serviceType'
+      },
+      // Populate applicable service categories
+      {
+        path: 'applicableServiceCategories',
+        match: { isActive: true, isDeleted: false },
+        select: 'name description image'
+      },
+      // Populate applicable products
+      {
+        path: 'applicableProducts',
+        match: { isActive: true, isDeleted: false },
+        select: 'name description mrpPrice sellingPrice stock images'
+      },
+      // Populate applicable product categories
+      {
+        path: 'applicableProductCategories',
+        match: { isActive: true, isDeleted: false },
+        select: 'name image'
+      },
+      // Populate applicable product subcategories
+      {
+        path: 'applicableProductSubcategories',
+        match: { isActive: true, isDeleted: false },
+        select: 'name image categoryId',
+        populate: {
+          path: 'categoryId',
+          select: 'name'
+        }
+      },
+      // Populate user who created the coupon
+      {
+        path: 'userId',
+        select: 'name email mobileNo'
+      }
+    ])
+    .lean();
+
+  if (!coupon) {
+    return next(new ErrorResponse('Coupon not found', 404));
+  }
+
+  if (coupon.isDeleted) {
+    return next(new ErrorResponse('Coupon has been deleted', 410));
+  }
+
+  // Format the response with additional computed fields
+  const formattedCoupon = {
+    _id: coupon._id,
+    couponName: coupon.couponName,
+    couponCode: coupon.couponCode,
+    couponType: coupon.couponType,
+    discountIn: coupon.discountIn,
+    discount: coupon.discount,
+    activationDate: coupon.activationDate,
+    expiryDate: coupon.expiryDate,
+    redemptionPerUser: coupon.redemptionPerUser,
+    totalRedemptions: coupon.totalRedemptions,
+    isActive: coupon.isActive,
+    isExpired: new Date() > new Date(coupon.expiryDate),
+    isUpcoming: new Date() < new Date(coupon.activationDate),
+    isValid: coupon.isActive && 
+             new Date() >= new Date(coupon.activationDate) && 
+             new Date() <= new Date(coupon.expiryDate),
+    
+    // Applicability scopes
+    applicability: {
+      services: {
+        applyAllServices: coupon.applyAllServices,
+        applicableServices: coupon.applicableServices || [],
+        applicableServiceCategories: coupon.applicableServiceCategories || []
+      },
+      products: {
+        applyAllProducts: coupon.applyAllProducts,
+        applicableProducts: coupon.applicableProducts || [],
+        applicableProductCategories: coupon.applicableProductCategories || [],
+        applicableProductSubcategories: coupon.applicableProductSubcategories || []
+      }
+    },
+
+    // Creator information
+    createdBy: coupon.userId ? {
+      _id: coupon.userId._id,
+      name: coupon.userId.name,
+      email: coupon.userId.email,
+      mobileNo: coupon.userId.mobileNo
+    } : null,
+
+    // Timestamps
+    createdAt: coupon.createdAt,
+    updatedAt: coupon.updatedAt
+  };
+
+  res.ok(formattedCoupon,"Coupon fetched successfully");
+});
+
 // @desc    Get All active coupons
 // @route   GET /api/coupons/public/get-all
 // @access  Public
