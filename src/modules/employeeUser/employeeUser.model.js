@@ -46,7 +46,7 @@ const employeeUserSchema = new mongoose.Schema({
         enum: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
     },
     preBooking:{
-        type: Number,
+        type: Boolean,
     }
 }, { timestamps: true });
 
