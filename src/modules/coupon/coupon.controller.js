@@ -196,23 +196,17 @@ exports.getCouponById = asyncHandler(async (req, res, next) => {
 // @desc    Get All active coupons
 // @route   GET /api/coupons/public/get-all
 // @access  Public
-// exports.getAllActiveCoupons = asyncHandler(async (req, res, next) => {
-//     const { couponType } = req.query;
-//     const filter = { isDeleted: false, isActive: true };
-//     // if coupon is service then services and both are valid else if coupon is product then products and both are valid else both are valid
-//     if (couponType) {
-//         if (couponType === 'services') filter.couponType = { $in: ['services', 'both'] };
-//         else if (couponType === 'products') filter.couponType = { $in: ['products', 'both'] };
-//         else filter.couponType = couponType;
-//     }
-//     const coupons = await Coupon.find(filter).select("couponName couponCode discountIn discount activationDate expiryDate");
-//     if (!coupons) return res.ok([], 'No active coupons found');
-//     res.ok(coupons, 'Coupons fetched successfully');
-// });
-
 exports.getAllActiveCoupons = asyncHandler(async (req, res, next) => {
   const { couponType, search } = req.query;
-  const filter = { isDeleted: false, isActive: true, expiryDate: { $gte: new Date() } };
+  const currentDate = new Date();
+  
+  // CORRECTED: Check both activation and expiry dates
+  const filter = { 
+    isDeleted: false, 
+    isActive: true, 
+    activationDate: { $lte: currentDate }, // Current date should be after activation
+    expiryDate: { $gte: currentDate } // Current date should be before expiry
+  };
 
   // Handle coupon type filtering
   if (couponType) {
