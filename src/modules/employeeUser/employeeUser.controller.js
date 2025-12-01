@@ -7,6 +7,21 @@ const crypto = require('crypto');
 // const { generateImageName } = require('../../utils/reusableFunctions');
 const { deleteFile } = require("../../utils/storage");
 
+function parseField(value) {
+    if (value === undefined || value === null) return value;
+
+    // If it is already an object or array => return as-is
+    if (typeof value === "object") return value;
+
+    // Try JSON parsing
+    try {
+        return JSON.parse(value);
+    } catch (e) {
+        // Return original string if not JSON
+        return value;
+    }
+}
+
 const sendUser = (user, profile) => ({
     _id: user._id,
     email: user.email,
@@ -35,7 +50,11 @@ const sendUser = (user, profile) => ({
 // @route   POST /api/employee-users/register
 // @access  Private/Admin
 exports.createEmployeeUser = asyncHandler(async (req, res, next) => {
-    const { firstName, lastName, email, mobileNo, employeeType, skills, languages, experience, startTime, endTime, days, preBooking, about, priceCharge } = req.body;
+    const parsedBody = {};
+    for (const key in req.body) {
+        parsedBody[key] = parseField(req.body[key]);
+    }
+    const { firstName, lastName, email, mobileNo, employeeType, skills, languages, experience, startTime, endTime, days, preBooking, about, priceCharge } = parsedBody;
 
 
     // validate fields with for loop
