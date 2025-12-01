@@ -6,6 +6,21 @@ const mongoose = require('mongoose');
 // const { generateImageName } = require('../../utils/reusableFunctions');
 const { deleteFile } = require('../../utils/storage');
 
+function parseField(value) {
+    if (value === undefined || value === null) return value;
+
+    // If it is already an object or array => return as-is
+    if (typeof value === "object") return value;
+
+    // Try JSON parsing
+    try {
+        return JSON.parse(value);
+    } catch (e) {
+        // Return original string if not JSON
+        return value;
+    }
+}
+
 exports.createServiceAdmin = asyncHandler(async (req, res, next) => {
     const { name, title, subTitle, htmlContent, category, price, durationInMinutes, gstNumber, hsnCode, isActive } = req.body;
     let videoUrl = req.body.videoUrl;
@@ -177,10 +192,14 @@ exports.getAllServicesForAdmin = asyncHandler(async (req, res, next) => {
 
 exports.updateServiceAdmin = asyncHandler(async (req, res, next) => {
     const { id } = req.query;
+    const parsedBody = {};
     if (!id) {
         return next(new Errorhander("Please provide service id", 400));
     }
-    const { name, title, subTitle, description, serviceType, htmlContent, category, image, videoUrl, price, durationInMinutes, isActive, gstNumber, hsnCode } = req.body;
+    for (const key in req.body) {
+        parsedBody[key] = parseField(req.body[key]);
+    }
+    const { name, title, subTitle, description, serviceType, htmlContent, category, image, videoUrl, price, durationInMinutes, isActive, gstNumber, hsnCode } = parsedBody;
 
     const service = await Service.findOne({ _id: id, isDeleted: false });
     if (!service) {
