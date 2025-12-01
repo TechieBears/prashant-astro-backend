@@ -1,6 +1,10 @@
 const asyncHandler = require("express-async-handler");
 const CallAstrologer = require("./call.model");
 const User = require("../auth/user.Model");
+const Employee = require("../employeeUser/employeeUser.model");
+
+// Cache filter results for 1 hour (optional)
+const filterCache = new Map();
 
 exports.createCall = asyncHandler(async (req, res) => {
     const userId = req.user._id;
@@ -263,3 +267,65 @@ exports.getAllCallsHistoryCustomer = asyncHandler(async (req, res) => {
     res.paginated(calls, { page, limit, total, totalPages: Math.ceil(total / limit) }); 
 });
 
+exports.getFilters = asyncHandler(async (req, res) => {
+    try {
+        // Using single aggregation for efficiency
+        const [filters] = await Employee.aggregate([
+            {
+                $match: {
+                    employeeType: 'call_astrologer'
+                }
+            },
+            {
+                $facet: {
+                    experiences: [
+                        { $match: { experience: { $ne: null } } },
+                        { $group: { _id: '$experience' } },
+                        { $sort: { _id: 1 } }
+                    ],
+                    languages: [
+                        { $match: { languages: { $exists: true, $ne: [] } } },
+                        { $unwind: '$languages' },
+                        { $group: { _id: '$languages' } },
+                        { $sort: { _id: 1 } }
+                    ],
+                    skills: [
+                        { $match: { skills: { $exists: true, $ne: [] } } },
+                        { $unwind: '$skills' },
+                        { $group: { _id: '$skills' } },
+                        { $sort: { _id: 1 } }
+                    ],
+                    priceRange: [
+                        { $match: { priceCharge: { $ne: null } } },
+                        { $group: { _id: null, min: { $min: '$priceCharge' }, max: { $max: '$priceCharge' } } }
+                    ]
+                }
+            }
+        ]);
+
+        // Extract and format the results
+        const formattedData = {
+            experiences: filters.experiences.map(e => e._id),
+            languages: filters.languages.map(l => l._id),
+            skills: filters.skills.map(s => s._id),
+            priceRange: filters.priceRange[0] || { min: 0, max: 0 }
+        };
+
+        // Remove the _id field from priceRange if present
+        if (formattedData.priceRange._id !== undefined) {
+            delete formattedData.priceRange._id;
+        }
+
+        res.status(200).json({
+            success: true,
+            data: formattedData
+        });
+
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch filter data'
+        });
+    }
+});
