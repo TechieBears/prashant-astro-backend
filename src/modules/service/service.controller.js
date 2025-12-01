@@ -197,8 +197,8 @@ exports.updateServiceAdmin = asyncHandler(async (req, res, next) => {
 
     if (req.files?.image?.[0]) {
         // let imageName = generateImageName(req.files.image[0].filename);
-        if (banner.image) {
-            deleteFile(banner.image)
+        if (service.image) {
+            deleteFile(service.image)
         }
         service.image = `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/services/${req.files.image[0].filename}`
     }
