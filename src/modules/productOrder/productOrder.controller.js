@@ -14,6 +14,11 @@ const CustomerUser = require('../customerUser/customerUser.model');
 const sendEmail = require('../../services/email.service');
 const { sendFirebaseNotification } = require('../../utils/firebaseNotification');
 const { sendOrderNotification, sendOrderUpdateNotification } = require('../../utils/notificationsHelper');
+const { commonNotification } = require('../../utils/notificationsHelper');
+
+exports.commonNotification = asyncHandler(async (req, res) => {
+  await commonNotification('PRODUCT_BOOKING', "service", "6916dd476e7c0db5bac9f43c");
+});
 
 // @desc    checkout a product order
 // @route   POST /api/product-order/checkout
@@ -356,7 +361,7 @@ exports.checkoutProductOrder = asyncHandler(async (req, res) => { });
 //     if (paymentMethod !== 'COD' && paymentMethod !== 'CASH') {
 //       // For online payments, process referral reward immediately
 //       referralResult = await processReferralReward(userId, session);
-      
+
 //       // If referral was processed successfully and payment is online, update order status
 //       if (referralResult.success) {
 //         savedOrder.paymentStatus = 'PAID';
@@ -462,7 +467,7 @@ exports.createProductOrder = asyncHandler(async (req, res) => {
 
     for (const item of items) {
       const product = await Product.findById(item.product).populate('category', 'name').populate('subcategory', 'name').session(session);
-      
+
       if (!product || !product.isActive) {
         throw new Error(`Product not found: ${item.product}`);
       }
@@ -621,8 +626,9 @@ exports.createProductOrder = asyncHandler(async (req, res) => {
     session.endSession();
 
     // ✅ Send Notification to customer after successful order creation
+    await commonNotification('PRODUCT_BOOKING', "product", savedOrder._id.toString());
     await sendOrderNotification(
-      {savedOrder, orderItems},
+      { savedOrder, orderItems},
       'ORDER PLACED SUCCESSFULLY!',
       `Your order #${savedOrder._id} has been placed successfully. ${payingAmount === 0 ? 'Payment completed using wallet credits.' : `Amount to pay: ₹${payingAmount}`}`,
       req.user,

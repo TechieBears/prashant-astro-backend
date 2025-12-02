@@ -18,7 +18,7 @@ const reviewsRoutes = require('../modules/reviews/reviews.route');
 const couponRoutes = require('../modules/coupon/coupon.route');
 const configRoutes = require('../modules/config/config.route');
 const testimonialsRoutes = require('../modules/testimonials/testimonials.route');
-
+const templates = require('../utils/templates');
 const router = express.Router();
 
 // Health check route
@@ -31,6 +31,7 @@ router.get('/health', (req, res) => {
 });
 
 // API routes
+router.get('/templates/:notificationFor', templates.templates);
 router.use('/admin-users', adminUserRoutes);
 router.use('/auth', authRoutes);
 router.use('/customer-users', customerUserRoutes);

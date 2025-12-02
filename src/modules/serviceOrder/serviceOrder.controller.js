@@ -139,7 +139,7 @@ exports.createServiceOrder = asyncHandler(async (req, res, next) => {
         return next(new ErrorHandler('Service not found', 404));
       }
 
-      if (serviceType === 'pooja_at_home' && !address) {
+      if (serviceType === 'pooja_at_home' && (!address && !addressData)) {
         await session.abortTransaction();
         session.endSession();
         return next(new ErrorHandler('Address required for pooja_at_home', 400));
