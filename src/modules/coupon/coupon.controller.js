@@ -50,7 +50,7 @@ exports.createCoupon = asyncHandler(async (req, res, next) => {
         applyAllProducts: !!applyAllProducts,
         applicableProducts,
         applicableProductCategories,
-        applicableProductSubcategories,
+        // applicableProductSubcategories,
         userId: req.user._id
     });
 
@@ -118,15 +118,15 @@ exports.getCouponById = asyncHandler(async (req, res, next) => {
         select: 'name image'
       },
       // Populate applicable product subcategories
-      {
-        path: 'applicableProductSubcategories',
-        match: { isActive: true, isDeleted: false },
-        select: 'name image categoryId',
-        populate: {
-          path: 'categoryId',
-          select: 'name'
-        }
-      },
+      // {
+      //   path: 'applicableProductSubcategories',
+      //   match: { isActive: true, isDeleted: false },
+      //   select: 'name image categoryId',
+      //   populate: {
+      //     path: 'categoryId',
+      //     select: 'name'
+      //   }
+      // },
       // Populate user who created the coupon
       {
         path: 'userId',
@@ -173,7 +173,7 @@ exports.getCouponById = asyncHandler(async (req, res, next) => {
         applyAllProducts: coupon.applyAllProducts,
         applicableProducts: coupon.applicableProducts || [],
         applicableProductCategories: coupon.applicableProductCategories || [],
-        applicableProductSubcategories: coupon.applicableProductSubcategories || []
+        // applicableProductSubcategories: coupon.applicableProductSubcategories || []
       }
     },
 
@@ -294,7 +294,7 @@ exports.updateCoupon = asyncHandler(async (req, res, next) => {
         'activationDate', 'expiryDate', 'redemptionPerUser', 'totalRedemptions', 'isActive',
         // scopes
         'applyAllServices', 'applicableServices', 'applicableServiceCategories',
-        'applyAllProducts', 'applicableProducts', 'applicableProductCategories', 'applicableProductSubcategories'
+        'applyAllProducts', 'applicableProducts', 'applicableProductCategories'
     ];
 
     for (const field of updatableFields) {
@@ -747,7 +747,7 @@ exports.applyProductCoupon = asyncHandler(async (req, res, next) => {
       _id: { $in: productApplicability.applicableProductIds },
       isActive: true,
       isDeleted: false
-    }).select('_id name sellingPrice mrpPrice category subcategory');
+    }).select('_id name sellingPrice mrpPrice category');
 
     // Calculate total amount from requested products (considering quantities)
     let totalAmount = 0;
@@ -829,7 +829,7 @@ async function validateProductApplicability(coupon, requestedProducts) {
     _id: { $in: requestedProductIds },
     isActive: true,
     isDeleted: false
-  }).select('_id category subcategory');
+  }).select('_id category');
 
   if (validProducts.length === 0) {
     return {
@@ -841,7 +841,7 @@ async function validateProductApplicability(coupon, requestedProducts) {
 
   const validProductIds = validProducts.map(product => product._id.toString());
   const validProductCategories = validProducts.map(product => product.category.toString());
-  const validProductSubcategories = validProducts.map(product => product.subcategory.toString());
+  // const validProductSubcategories = validProducts.map(product => product.subcategory.toString());
 
   let applicableProductIds = [];
 
@@ -866,15 +866,15 @@ async function validateProductApplicability(coupon, requestedProducts) {
   }
 
   // Check product subcategories
-  if (coupon.applicableProductSubcategories && coupon.applicableProductSubcategories.length > 0) {
-    const couponSubcategoryIds = coupon.applicableProductSubcategories.map(id => id.toString());
+  // if (coupon.applicableProductSubcategories && coupon.applicableProductSubcategories.length > 0) {
+  //   const couponSubcategoryIds = coupon.applicableProductSubcategories.map(id => id.toString());
     
-    const subcategoryMatchingProducts = validProducts
-      .filter(product => couponSubcategoryIds.includes(product.subcategory.toString()))
-      .map(product => product._id.toString());
+  //   const subcategoryMatchingProducts = validProducts
+  //     .filter(product => couponSubcategoryIds.includes(product.subcategory.toString()))
+  //     .map(product => product._id.toString());
     
-    applicableProductIds = [...applicableProductIds, ...subcategoryMatchingProducts];
-  }
+  //   applicableProductIds = [...applicableProductIds, ...subcategoryMatchingProducts];
+  // }
 
   // Remove duplicates
   applicableProductIds = [...new Set(applicableProductIds)];

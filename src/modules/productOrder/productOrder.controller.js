@@ -461,7 +461,7 @@ exports.createProductOrder = asyncHandler(async (req, res) => {
     const orderItems = [];
 
     for (const item of items) {
-      const product = await Product.findById(item.product).populate('category', 'name').populate('subcategory', 'name').session(session);
+      const product = await Product.findById(item.product).populate('category', 'name').populate('name').session(session);
       
       if (!product || !product.isActive) {
         throw new Error(`Product not found: ${item.product}`);
@@ -478,7 +478,7 @@ exports.createProductOrder = asyncHandler(async (req, res) => {
       const snapshot = {
         name: product.name,
         categoryName: product.category?.name || '',
-        subCategoryName: product.subcategory?.name || '',
+        // subCategoryName: product.subcategory?.name || '',
         mrpPrice: product.mrpPrice,
         sellingPrice: product.sellingPrice,
         stock: product.stock,
@@ -669,10 +669,10 @@ exports.getProductOrders = asyncHandler(async (req, res) => {
     .populate('address')
     .populate({
       path: 'items.product',
-      select: 'name category subcategory stock images isActive', // select only needed fields
+      select: 'name category stock images isActive', // select only needed fields
       populate: [
         { path: 'category', select: 'name' },
-        { path: 'subcategory', select: 'name' },
+        // { path: 'subcategory', select: 'name' },
       ],
     });
 
@@ -687,7 +687,7 @@ exports.getProductOrders = asyncHandler(async (req, res) => {
           _id: item.product._id,
           name: item.product.name,
           category: item.product.category?.name || null,
-          subcategory: item.product.subcategory?.name || null,
+          // subcategory: item.product.subcategory?.name || null,
           images: item.product.images,
           // ✅ Only prices from snapshot
           mrpPrice: item.snapshot?.mrpPrice,
