@@ -27,11 +27,11 @@ const productSchema = new mongoose.Schema({
         ref: 'ProductCategory',
         required: [true, 'Category is required']
     },
-    subcategory: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'ProductSubcategory',
-        required: [true, 'Subcategory is required']
-    },
+    // subcategory: {
+    //     type: mongoose.Schema.Types.ObjectId,
+    //     ref: 'ProductSubcategory',
+    //     required: [true, 'Subcategory is required']
+    // },
     mrpPrice: {
         type: Number,
         required: [true, 'MRP price is required'],
