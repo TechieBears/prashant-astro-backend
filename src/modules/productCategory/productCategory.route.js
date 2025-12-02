@@ -18,7 +18,7 @@ router.post('/create', authorize('admin', 'employee'), productCategoryParser.fie
 
 router.get('/get-all', authorize('admin', 'employee'), ProductCategoryController.getAllProductCategories);
 router.get('/get-single', authorize('admin', 'employee'), ProductCategoryController.getProductCategory);
-router.get('/stats', authorize('admin', 'employee'), ProductCategoryController.getProductCategoryStats);
+// router.get('/stats', authorize('admin', 'employee'), ProductCategoryController.getProductCategoryStats);
 router.get('/dropdown', authorize('admin', 'employee'), ProductCategoryController.getAllProductCategoriesDropdown);
 
 router.put('/update', authorize('admin', 'employee'), productCategoryParser.fields([{ name: 'image', maxCount: 1 }]), ProductCategoryController.updateProductCategory);
