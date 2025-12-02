@@ -16,7 +16,7 @@ router.get('/public/our-products', ProductController.getOurProducts);
 router.get('/public/our-products/v2', ProductController.getOurProductshome);
 router.get('/public/featured', ProductController.getFeaturedProducts);
 router.get('/public/category/:categoryId', ProductController.getProductsByCategory);
-router.get('/public/subcategory/:subcategoryId', ProductController.getProductsBySubcategory);
+// router.get('/public/subcategory/:subcategoryId', ProductController.getProductsBySubcategory);
 
 // Protected routes (admin only)
 router.use(protect);
