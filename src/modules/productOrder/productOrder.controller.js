@@ -514,6 +514,9 @@ exports.createProductOrder = asyncHandler(async (req, res) => {
     // --------------- ✅ WALLET CREDITS LOGIC ----------------
     let walletUsed = 0;
     let payingAmount = amountAfterCoupon;
+    if(amountAfterCoupon === 0) {
+      payingAmount = finalAmount;
+    }
     let walletBalance = 0;
 
     if (useCredits) {
