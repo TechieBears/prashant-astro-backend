@@ -498,7 +498,8 @@ exports.createProductOrder = asyncHandler(async (req, res) => {
     }
 
     // GST & amounts (dummy logic, adjust as needed)
-    const gst = totalAmount * 0.18; // 18%
+    // const gst = totalAmount * 0.18; // 18%
+    const gst = totalAmount * 0;
     const finalAmount = totalAmount + gst;
     let amountAfterCoupon = 0;
     if (coupon) {
