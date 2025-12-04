@@ -256,14 +256,26 @@ exports.createServiceOrder = asyncHandler(async (req, res, next) => {
       totalAmount += service.price;
     }
 
+    let gst = totalAmount * 0;
+    let finalAmount = totalAmount + gst;
+    let amountAfterCoupon = 0;
+    if(coupon){
+      if (coupon.discountIn === 'percent') {
+        amountAfterCoupon = finalAmount - ((finalAmount * coupon.discount) / 100);
+      }
+      else {
+        amountAfterCoupon = finalAmount - (coupon ? coupon.discount : 0);
+      }
+    }
+
     // ✅ Create a Single ServiceOrder (parent record)
     const serviceOrderPayload = {
       user: userId,
       services: createdOrderItems,
       paymentStatus: 'pending',
       totalAmount,
-      finalAmount: totalAmount,
-      payingAmount: totalAmount,
+      finalAmount,
+      payingAmount: amountAfterCoupon,
       isCoupon: !!coupon,
       coupon: coupon?._id || null,
     };
