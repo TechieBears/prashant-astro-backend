@@ -12,6 +12,7 @@ const Coupon = require('../coupon/coupon.model');
 const ProductOrder = require('../productOrder/productOrder.model');
 const { processReferralReward } = require('../../services/referral.service');
 const { updateMeeting, createMeetingForUser } = require('../../services/zoom.service');
+const { commonNotification } = require('../../utils/notificationsHelper');
 
 // @desc Create Service Order (Buy Now - Multiple Services)
 // @route POST /api/service-order/create
@@ -381,6 +382,9 @@ exports.createServiceOrder = asyncHandler(async (req, res, next) => {
       createdAt: populatedOrder.createdAt,
       updatedAt: populatedOrder.updatedAt
     };
+
+    // send notification to customer and admin
+    await commonNotification("SERVICE_BOOKING", "service", populatedOrder.services[0]._id)
 
     res.status(201).json({
       success: true,
@@ -1210,6 +1214,8 @@ exports.updateServiceOrderAstrologer = asyncHandler(async (req, res, next) => {
   serviceItem.zoomLink = zoomLink;
   // 6. Save
   await serviceItem.save();
+
+  await commonNotification("SERVICE_STATUS_CHANGE", "service", serviceItem._id);
 
   // 7. Respond
   res.ok(serviceItem, "Astrologer status updated successfully");

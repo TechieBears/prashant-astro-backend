@@ -182,14 +182,14 @@ async function commonNotification(notificationFor, type, id) {
               const { userBody, adminBody } = await generateTemplates('PRODUCT_BOOKING', productData[0]);
               const mailData = {
                 // email: [productData[0].userData.email],       //User Email
-                email: ['ronildussa@gmail.com'],
+                email: 'rohitmiryala2@gmail.com',
                 subject: 'Product Booking',
                 message: userBody,
                 template: 'productBooking',
               }
               await sendEmail(mailData);
               const mailDataAdmin = {
-                email: ["ronildussa@gmail.com"],           // Admin Email
+                email: "rohitmiryala2@gmail.com",           // Admin Email
                 // email: [productData[0].userData.email],
                 subject: `${productData[0]?.customerData?.firstName} has product booked successfully`,
                 message: adminBody,
@@ -243,14 +243,14 @@ async function commonNotification(notificationFor, type, id) {
               //Email
               const { userBody, adminBody } = await generateTemplates('PRODUCT_STATUS_UPDATE', productData[0]);
               const mailData = {
-                email: ['ronildussa@gmail.com'],
+                email: ['rohitmiryala2@gmail.com'],
                 subject: `Your Order Status is now ${productData[0].orderStatus}`,
                 message: userBody,
                 template: 'productStatusUpdate',
               };
               await sendEmail(mailData);
               const AdminmailData = {
-                email: ['ronildussa@gmail.com'],
+                email: ['rohitmiryala2@gmail.com'],
                 subject: `${productData[0]?.customerData?.firstName} Order Status is now ${productData[0].orderStatus}`,
                 message: adminBody,
                 template: 'productStatusUpdate',
