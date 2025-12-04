@@ -5,6 +5,7 @@ const { protect, authorize } = require('../../middlewares/auth');
 const router = express.Router();
 
 router.get('/public/get-all-call-astrologers', CallController.getAllCallAstrologersCustomer);
+router.get('/public/get-single-call-astrologer', CallController.getSingleCallAstrologerCustomer);
 router.get('/public/get-filters', CallController.getFilters);
 
 router.post('/create-call', protect, authorize("customer"), CallController.createCall);

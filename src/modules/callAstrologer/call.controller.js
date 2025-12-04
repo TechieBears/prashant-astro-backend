@@ -2,6 +2,7 @@ const asyncHandler = require("express-async-handler");
 const CallAstrologer = require("./call.model");
 const User = require("../auth/user.Model");
 const Employee = require("../employeeUser/employeeUser.model");
+const mongoose = require("mongoose");
 
 // Cache filter results for 1 hour (optional)
 const filterCache = new Map();
@@ -9,7 +10,7 @@ const filterCache = new Map();
 exports.createCall = asyncHandler(async (req, res) => {
     const userId = req.user._id;
     const { callAstrologerId, date, time, duration } = req.body;
-    if(!userId || !callAstrologerId || !date || !time || !duration) {
+    if (!userId || !callAstrologerId || !date || !time || !duration) {
         return res.status(400).json({ success: false, message: 'Missing required fields' });
     }
     const call = await CallAstrologer.create({ userId, astrologerId: callAstrologerId, date, time, duration });
@@ -18,20 +19,20 @@ exports.createCall = asyncHandler(async (req, res) => {
 
 // exports.getAllCallAstrologersCustomer = asyncHandler(async (req, res) => {
 //     const { page = 1, limit = 10 } = req.query;
-    
+
 //     // Validate query parameters
 //     const pageNum = parseInt(page);
 //     const limitNum = parseInt(limit);
-    
+
 //     if (pageNum < 1 || limitNum < 1 || limitNum > 100) {
 //         return res.status(400).json({
 //             success: false,
 //             message: 'Invalid pagination parameters'
 //         });
 //     }
-    
+
 //     const skip = (pageNum - 1) * limitNum;
-    
+
 //     try {
 //         // Pipeline for data retrieval
 //         const dataPipeline = [
@@ -98,7 +99,7 @@ exports.createCall = asyncHandler(async (req, res) => {
 //                 }
 //             }
 //         ];
-        
+
 //         // Pipeline for counting total call_astrologers
 //         const countPipeline = [
 //             {
@@ -129,15 +130,15 @@ exports.createCall = asyncHandler(async (req, res) => {
 //                 $count: "total"
 //             }
 //         ];
-        
+
 //         // Execute both pipelines in parallel
 //         const [dataResult, countResult] = await Promise.all([
 //             User.aggregate(dataPipeline),
 //             User.aggregate(countPipeline)
 //         ]);
-        
+
 //         const total = countResult[0]?.total || 0;
-        
+
 //         // Format the response
 //         const formattedData = dataResult.map(item => {
 //             return {
@@ -165,9 +166,9 @@ exports.createCall = asyncHandler(async (req, res) => {
 //                 }
 //             };
 //         });
-        
+
 //         const totalPages = Math.ceil(total / limitNum);
-        
+
 //         const response = {
 //             success: true,
 //             data: formattedData,
@@ -180,7 +181,7 @@ exports.createCall = asyncHandler(async (req, res) => {
 //                 hasPrevPage: pageNum > 1
 //             }
 //         };
-        
+
 //         if (res.paginated) {
 //             res.paginated(formattedData, {
 //                 page: pageNum,
@@ -191,17 +192,17 @@ exports.createCall = asyncHandler(async (req, res) => {
 //         } else {
 //             res.status(200).json(response);
 //         }
-        
+
 //     } catch (error) {
 //         console.error('Error fetching call astrologers:', error);
-        
+
 //         if (error.name === 'CastError') {
 //             return res.status(400).json({
 //                 success: false,
 //                 message: 'Invalid parameters'
 //             });
 //         }
-        
+
 //         res.status(500).json({
 //             success: false,
 //             message: 'Server error while fetching call astrologers'
@@ -210,8 +211,8 @@ exports.createCall = asyncHandler(async (req, res) => {
 // });
 
 exports.getAllCallAstrologersCustomer = asyncHandler(async (req, res) => {
-    const { 
-        page = 1, 
+    const {
+        page = 1,
         limit = 10,
         languages,
         skills,
@@ -222,20 +223,20 @@ exports.getAllCallAstrologersCustomer = asyncHandler(async (req, res) => {
         preBooking,
         search
     } = req.query;
-    
+
     // Validate query parameters
     const pageNum = parseInt(page);
     const limitNum = parseInt(limit);
-    
+
     if (pageNum < 1 || limitNum < 1 || limitNum > 100) {
         return res.status(400).json({
             success: false,
             message: 'Invalid pagination parameters'
         });
     }
-    
+
     const skip = (pageNum - 1) * limitNum;
-    
+
     try {
         // Build match conditions dynamically
         const userMatchConditions = {
@@ -244,31 +245,31 @@ exports.getAllCallAstrologersCustomer = asyncHandler(async (req, res) => {
             isDeleted: { $ne: true },
             profile: { $exists: true, $ne: null }
         };
-        
+
         // Build employee match conditions
         const employeeMatchConditions = {
             "employeeProfile.employeeType": "call_astrologer"
         };
-        
+
         // Parse filter parameters
         if (languages) {
-            const languageArray = Array.isArray(languages) 
-                ? languages 
+            const languageArray = Array.isArray(languages)
+                ? languages
                 : languages.split(',');
             employeeMatchConditions["employeeProfile.languages"] = {
                 $in: languageArray.map(lang => new RegExp(lang.trim(), 'i'))
             };
         }
-        
+
         if (skills) {
-            const skillArray = Array.isArray(skills) 
-                ? skills 
+            const skillArray = Array.isArray(skills)
+                ? skills
                 : skills.split(',');
             employeeMatchConditions["employeeProfile.skills"] = {
                 $in: skillArray.map(skill => new RegExp(skill.trim(), 'i'))
             };
         }
-        
+
         if (minPrice || maxPrice) {
             employeeMatchConditions["employeeProfile.priceCharge"] = {};
             if (minPrice) {
@@ -278,7 +279,7 @@ exports.getAllCallAstrologersCustomer = asyncHandler(async (req, res) => {
                 employeeMatchConditions["employeeProfile.priceCharge"].$lte = parseFloat(maxPrice);
             }
         }
-        
+
         if (experience) {
             const experienceArray = Array.isArray(experience)
                 ? experience.map(exp => parseInt(exp))
@@ -287,7 +288,7 @@ exports.getAllCallAstrologersCustomer = asyncHandler(async (req, res) => {
                 $in: experienceArray
             };
         }
-        
+
         if (days) {
             const daysArray = Array.isArray(days)
                 ? days
@@ -296,12 +297,12 @@ exports.getAllCallAstrologersCustomer = asyncHandler(async (req, res) => {
                 $in: daysArray.map(day => new RegExp(day.trim(), 'i'))
             };
         }
-        
+
         if (preBooking !== undefined) {
-            employeeMatchConditions["employeeProfile.preBooking"] = 
+            employeeMatchConditions["employeeProfile.preBooking"] =
                 preBooking === 'true' || preBooking === true;
         }
-        
+
         // Search functionality (search in name or about)
         if (search) {
             employeeMatchConditions.$or = [
@@ -310,7 +311,7 @@ exports.getAllCallAstrologersCustomer = asyncHandler(async (req, res) => {
                 { "employeeProfile.about": { $regex: search, $options: 'i' } }
             ];
         }
-        
+
         // Pipeline for data retrieval
         const dataPipeline = [
             // Match users
@@ -370,7 +371,7 @@ exports.getAllCallAstrologersCustomer = asyncHandler(async (req, res) => {
                 }
             }
         ];
-        
+
         // Pipeline for counting total call_astrologers with filters
         const countPipeline = [
             {
@@ -394,15 +395,15 @@ exports.getAllCallAstrologersCustomer = asyncHandler(async (req, res) => {
                 $count: "total"
             }
         ];
-        
+
         // Execute both pipelines in parallel
         const [dataResult, countResult] = await Promise.all([
             User.aggregate(dataPipeline),
             User.aggregate(countPipeline)
         ]);
-        
+
         const total = countResult[0]?.total || 0;
-        
+
         // Format the response
         const formattedData = dataResult.map(item => {
             return {
@@ -430,9 +431,9 @@ exports.getAllCallAstrologersCustomer = asyncHandler(async (req, res) => {
                 }
             };
         });
-        
+
         const totalPages = Math.ceil(total / limitNum);
-        
+
         const response = {
             success: true,
             data: formattedData,
@@ -457,7 +458,7 @@ exports.getAllCallAstrologersCustomer = asyncHandler(async (req, res) => {
                 }
             }
         };
-        
+
         if (res.paginated) {
             res.paginated(formattedData, {
                 page: pageNum,
@@ -468,17 +469,17 @@ exports.getAllCallAstrologersCustomer = asyncHandler(async (req, res) => {
         } else {
             res.status(200).json(response);
         }
-        
+
     } catch (error) {
         console.error('Error fetching call astrologers:', error);
-        
+
         if (error.name === 'CastError') {
             return res.status(400).json({
                 success: false,
                 message: 'Invalid parameters'
             });
         }
-        
+
         res.status(500).json({
             success: false,
             message: 'Server error while fetching call astrologers'
@@ -486,9 +487,96 @@ exports.getAllCallAstrologersCustomer = asyncHandler(async (req, res) => {
     }
 });
 
+exports.getSingleCallAstrologerCustomer = asyncHandler(async (req, res) => {
+    const { id } = req.query;
+
+    try {
+        // First, find the user
+        const user = await User.findById(id)
+            .select('-__v -resetPasswordToken -resetPasswordExpire -password');
+
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found'
+            });
+        }
+
+        // Check if user has the correct role
+        if (user.role !== 'astrologer') {
+            return res.status(400).json({
+                success: false,
+                message: 'User is not an astrologer'
+            });
+        }
+
+        // Find the employee profile
+        const employee = await mongoose.model('employee').findById(user.profile)
+            .select('-__v');
+
+        if (!employee) {
+            return res.status(404).json({
+                success: false,
+                message: 'Employee profile not found'
+            });
+        }
+
+        // Check if it's a call astrologer
+        if (employee.employeeType !== 'call_astrologer') {
+            return res.status(400).json({
+                success: false,
+                message: 'This employee is not a call astrologer'
+            });
+        }
+
+        // Transform the response
+        const responseData = {
+            _id: user._id,
+            email: user.email,
+            mobileNo: user.mobileNo,
+            profileImage: user.profileImage,
+            type: user.type,
+            firstName: employee.firstName,
+            lastName: employee.lastName,
+            fullName: `${employee.firstName} ${employee.lastName}`,
+            about: employee.about,
+            priceCharge: employee.priceCharge,
+            skills: employee.skills,
+            experience: employee.experience,
+            languages: employee.languages,
+            createdAt: user.createdAt,
+        };
+
+        // If you have res.ok() defined
+        res.ok(responseData, 'Call astrologer fetched successfully');
+
+        // If res.ok() is not defined, use:
+        // return res.status(200).json({
+        //     success: true,
+        //     message: 'Call astrologer fetched successfully',
+        //     data: responseData
+        // });
+
+    } catch (error) {
+        console.error('Error fetching call astrologer:', error);
+
+        if (error.name === 'CastError') {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid ID format'
+            });
+        }
+
+        return res.status(500).json({
+            success: false,
+            message: 'Server error while fetching call astrologer'
+        });
+    }
+});
+
 exports.getAllCallsAdminandAstrologer = asyncHandler(async (req, res) => {
-    const filter = { };
-    if(req.user.role === 'astrologer') {
+    const filter = {};
+    if (req.user.role === 'astrologer') {
         filter.astrologerId = req.user._id
     }
     const calls = await CallAstrologer.find(filter);
@@ -496,16 +584,16 @@ exports.getAllCallsAdminandAstrologer = asyncHandler(async (req, res) => {
 });
 
 exports.getAllCallsHistoryCustomer = asyncHandler(async (req, res) => {
-    const {page = 1, limit = 10} = req.query;
+    const { page = 1, limit = 10 } = req.query;
     const skip = (page - 1) * limit;
     const total = await CallAstrologer.countDocuments({ userId: req.user._id });
     const calls = await CallAstrologer.find({ userId: req.user._id })
-    .skip(skip)
-    .limit(limit)
-    .sort({ createdAt: -1 })
-    .populate('astrologerId', 'email mobileNo');
+        .skip(skip)
+        .limit(limit)
+        .sort({ createdAt: -1 })
+        .populate('astrologerId', 'email mobileNo');
 
-    res.paginated(calls, { page, limit, total, totalPages: Math.ceil(total / limit) }); 
+    res.paginated(calls, { page, limit, total, totalPages: Math.ceil(total / limit) });
 });
 
 exports.getFilters = asyncHandler(async (req, res) => {
