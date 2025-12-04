@@ -522,7 +522,11 @@ exports.applyServiceCoupon = asyncHandler(async (req, res, next) => {
     }
 
     // 4. Check total redemption limit
-    if (coupon.totalRedemptions >= coupon.redemptionPerUser) {
+    if (
+      coupon.totalRedemptions &&
+      coupon.totalRedemptions > 0 &&
+      (await ServiceOrder.countDocuments({ coupon: coupon._id })) >= coupon.totalRedemptions
+    ) {
       return next(new ErrorHandler("Coupon usage limit reached", 400));
     }
 
