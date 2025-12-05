@@ -55,7 +55,21 @@ exports.checkAvailability = asyncHandler(async (req, res, next) => {
 
         const bookingday = moment(date).format('dddd');
 
-        const employeeAvailabilityDay = employeeAvailability.profile.days.find((day) => day === bookingday);
+        // FIX: Parse the JSON string from the days array
+        let availableDays = [];
+        if (employeeAvailability?.profile?.days && employeeAvailability.profile.days.length > 0) {
+            try {
+                // Parse the JSON string (it's stored as a stringified array)
+                availableDays = JSON.parse(employeeAvailability.profile.days[0]);
+            } catch (parseError) {
+                console.error("Error parsing days JSON:", parseError);
+                // Fallback to using the array as-is if it's already an array
+                availableDays = Array.isArray(employeeAvailability.profile.days) ? 
+                    employeeAvailability.profile.days : [];
+            }
+        }
+        
+        const employeeAvailabilityDay = availableDays.find((day) => day === bookingday);
 
         if (!employeeAvailabilityDay) {
             res.status(404);
@@ -136,6 +150,7 @@ exports.checkAvailability = asyncHandler(async (req, res, next) => {
 
         if (bookingData.length > 0) {
             if (req.body.service_type === "offline") {
+                console.log("issue 2")
                 res.status(404);
                 throw new Error("Astrologer is not available on this day");
             }
