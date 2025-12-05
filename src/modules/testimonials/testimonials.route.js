@@ -2,6 +2,9 @@ const express = require('express');
 const Controller = require('./testimonials.controller');
 const { protect, authorize } = require('../../middlewares/auth');
 
+const getUploader = require("../../middlewares/upload");
+const testimonialsParser = getUploader('testimonials');
+
 const router = express.Router();
 
 // Public routes
@@ -10,7 +13,15 @@ router.get('/public/get-all-approved', Controller.getAllApprovedPublicTestimonia
 
 // Admin routes
 router.use(protect);
-router.post('/create', authorize('admin', 'customer'), Controller.createTestimonial);
+// router.post('/create', authorize('admin', 'customer'), Controller.createTestimonial);
+router.post('/create', 
+  authorize('admin', 'customer'), 
+  testimonialsParser.fields([
+    { name: 'images', maxCount: 3 }, // For images
+    { name: 'videos', maxCount: 2 }, // For videos
+  ]),
+  Controller.createTestimonial
+);
 router.get('/get-all', authorize('admin', 'employee', 'customer'), Controller.getAllTestimonials);
 router.get('/get-single', authorize('admin', 'employee'), Controller.getTestimonialById);
 router.put('/update', authorize('admin', 'employee', 'customer'), Controller.updateTestimonial);

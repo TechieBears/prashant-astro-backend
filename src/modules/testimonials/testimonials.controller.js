@@ -1,33 +1,71 @@
 const asyncHandler = require('express-async-handler');
 const Testimonial = require('./testimonials.model');
 const { default: mongoose } = require('mongoose');
+const ErrorHandler = require('../../utils/errorHandler');
+const path = require('path');
 
 // @desc Create a testimonial (admin)
 // @route POST /api/testimonials/create
 // @access Private (admin)
 exports.createTestimonial = asyncHandler(async (req, res) => {
-  const { user_id, service_id, product_id, message, rating, isActive, media, city, state, country } = req.body;
+  const { service_id, product_id, message, rating, city, state, country } = req.body;
+  const user_id = req.user._id;
+  if (!message) {
+    return new ErrorHandler('Testimonial message is required', 200);
+  }
+  if(!service_id || !product_id || !message || !rating || !city || !state || !country) {
+    return new ErrorHandler('All fields are required', 200);
+  }
+  if(rating && (rating < 1 || rating > 5)){
+    return new ErrorHandler('Rating must be between 1 and 5', 200);
+  }
 
-  if (!user_id || !message) {
-    res.status(400);
-    throw new Error('Both user_id and message are required');
+  // Process uploaded files
+  const mediaFiles = [];
+  
+  if (req.files && req.files.image) {
+    const uploadedFiles = Array.isArray(req.files.image) 
+      ? req.files.image 
+      : [req.files.image];
+    
+    for (const file of uploadedFiles) {
+      // Determine file type based on extension
+      const ext = path.extname(file.originalname).toLowerCase();
+      let fileType = null;
+      
+      if (['.jpg', '.jpeg', '.png', '.webp'].includes(ext)) {
+        fileType = 'image';
+      } else if (['.mp4', '.mov', '.avi', '.mkv'].includes(ext)) {
+        fileType = 'video';
+      }
+      
+      // Construct URL for the uploaded file
+      const fileUrl = `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/testimonials/${file.filename}`;
+      
+      mediaFiles.push({
+        url: fileUrl,
+        type: fileType,
+        filename: file.filename,
+        originalname: file.originalname
+      });
+    }
   }
 
   const payload = {
     user_id,
-    service_id,
-    product_id,
+    service_id: service_id || null,
+    product_id: product_id || null,
     message,
-    rating: rating ?? 5,
-    isActive: false,
-    media,
+    rating: rating ? parseInt(rating) : 5,
+    isActive: false, // Default to false, needs admin approval
+    media: mediaFiles,
     city,
     state,
     country
   };
 
   const created = await Testimonial.create(payload);
-  res.created(created, 'Testimonial created successfully');
+  res.ok(created, 'Testimonial created successfully');
 });
 
 // @desc Get public active testimonials

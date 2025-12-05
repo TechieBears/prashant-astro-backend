@@ -23,10 +23,26 @@ const testimonialsSchema = new mongoose.Schema(
       trim: true,
       maxlength: [2000, 'Message cannot exceed 2000 characters'],
     },
-    media: {
-      type: Array,
-      default: [],
+    rating: {
+      type: Number,
+      min: 1,
+      max: 5,
+      default: 5,
+      required: false
     },
+    media: [{
+      url: {
+        type: String,
+        required: true
+      },
+      type: {
+        type: String,
+        enum: ['image', 'video', 'document', 'audio'],
+        required: true
+      },
+      filename: String,
+      originalname: String
+    }],
     city: {
       type: String,
       required: [true, 'City is required'],
@@ -61,7 +77,8 @@ const testimonialsSchema = new mongoose.Schema(
 );
 
 // Helpful indexes
-testimonialsSchema.index({ isActive: 1, displayOrder: 1, createdAt: -1 });
+// testimonialsSchema.index({ isActive: 1, displayOrder: 1, createdAt: -1 });
+testimonialsSchema.index({ isActive: 1, createdAt: -1 });
 testimonialsSchema.index({ user_id: 'text', service_id: 'text', product_id: 'text', message: 'text' });
 
 module.exports = mongoose.model('Testimonial', testimonialsSchema);
