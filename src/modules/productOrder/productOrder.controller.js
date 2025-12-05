@@ -752,7 +752,7 @@ exports.getProductOrderById = asyncHandler(async (req, res) => {
     .populate('address')
     .populate({
       path: 'items.product',
-      select: 'name category subcategory stock images isActive',
+      select: 'name category stock images isActive',
       populate: [
         { path: 'category', select: 'name' },
         { path: 'subcategory', select: 'name' },
@@ -774,7 +774,7 @@ exports.getProductOrderById = asyncHandler(async (req, res) => {
           _id: item.product._id,
           name: item.product.name,
           category: item.product.category?.name || null,
-          subcategory: item.product.subcategory?.name || null,
+          // subcategory: item.product.subcategory?.name || null,
           images: item.product.images,
           // ✅ prices from snapshot
           mrpPrice: item.snapshot?.mrpPrice,
