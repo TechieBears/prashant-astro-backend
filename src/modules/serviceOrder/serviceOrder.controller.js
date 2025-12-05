@@ -153,7 +153,35 @@ exports.createServiceOrder = asyncHandler(async (req, res, next) => {
       }
 
       const bookingDay = moment(bookingDate).format('dddd');
-      if (!astrologer.profile.days.includes(bookingDay)) {
+
+      // ✅ FIX: Handle stringified JSON array for days
+      let availableDays = [];
+      if (astrologer?.profile?.days) {
+        if (typeof astrologer.profile.days === 'string') {
+          try {
+            availableDays = JSON.parse(astrologer.profile.days);
+          } catch (parseError) {
+            console.error("Error parsing days string:", parseError);
+            availableDays = [];
+          }
+        } else if (Array.isArray(astrologer.profile.days)) {
+          // Check if first element is a stringified array
+          if (astrologer.profile.days.length > 0 &&
+            typeof astrologer.profile.days[0] === 'string' &&
+            astrologer.profile.days[0].startsWith('[')) {
+            try {
+              availableDays = JSON.parse(astrologer.profile.days[0]);
+            } catch (parseError) {
+              console.error("Error parsing days array element:", parseError);
+              availableDays = astrologer.profile.days;
+            }
+          } else {
+            availableDays = astrologer.profile.days;
+          }
+        }
+      }
+
+      if (!availableDays.includes(bookingDay)) {
         await session.abortTransaction();
         session.endSession();
         return next(new ErrorHandler(`Astrologer not available on ${bookingDay}`, 400));
@@ -259,7 +287,7 @@ exports.createServiceOrder = asyncHandler(async (req, res, next) => {
     let gst = totalAmount * 0;
     let finalAmount = totalAmount + gst;
     let amountAfterCoupon = 0;
-    if(coupon){
+    if (coupon) {
       if (coupon.discountIn === 'percent') {
         amountAfterCoupon = finalAmount - ((finalAmount * coupon.discount) / 100);
       }
@@ -904,7 +932,7 @@ exports.getAllServiceOrdersAdmin = asyncHandler(async (req, res, next) => {
     }).select('_id');
 
     const serviceItemIds = serviceOrderItems.map(item => item._id);
-    
+
     // Match ServiceOrders that have any of these ServiceOrderItems in their services array
     if (serviceItemIds.length > 0) {
       matchStage.services = { $in: serviceItemIds };
@@ -1177,7 +1205,7 @@ exports.getAllServiceOrdersAdmin = asyncHandler(async (req, res, next) => {
 
   // Get total count for pagination
   const countMatchStage = {};
-  
+
   if (Object.keys(matchStage).length > 0) {
     Object.assign(countMatchStage, matchStage);
   }
