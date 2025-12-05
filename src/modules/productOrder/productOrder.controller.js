@@ -607,15 +607,15 @@ exports.createProductOrder = asyncHandler(async (req, res) => {
       referralResult = await processReferralReward(userId, session);
 
       // If referral was processed successfully, update order status
-      if (referralResult.success) {
-        savedOrder.paymentStatus = 'PAID';
-        savedOrder.orderStatus = 'CONFIRMED';
-        savedOrder.orderHistory.push({
-          status: 'CONFIRMED',
-          date: new Date()
-        });
-        await savedOrder.save({ session });
-      }
+      // if (referralResult.success) {
+      //   savedOrder.paymentStatus = 'PAID';
+      //   savedOrder.orderStatus = 'CONFIRMED';
+      //   savedOrder.orderHistory.push({
+      //     status: 'CONFIRMED',
+      //     date: new Date()
+      //   });
+      //   await savedOrder.save({ session });
+      // }
     }
 
     // remove all from cart
