@@ -551,6 +551,8 @@ exports.getServiceOrder = asyncHandler(async (req, res, next) => {
     paymentStatus: order.paymentStatus,
     totalAmount: order.totalAmount,
     finalAmount: order.finalAmount,
+    payingAmount: order.payingAmount,
+    discountPercent: order.isCoupon ? parseFloat(((order.finalAmount - order.payingAmount) / order.finalAmount * 100).toFixed(2)) : 0,
     paymentId: order.transaction?.paymentId || null,
     paymentDetails: order.transaction?.paymentDetails || null,
     address: order.address || null,           // ✅ added
