@@ -755,7 +755,7 @@ exports.getProductOrderById = asyncHandler(async (req, res) => {
       select: 'name category stock images isActive',
       populate: [
         { path: 'category', select: 'name' },
-        { path: 'subcategory', select: 'name' },
+        // { path: 'subcategory', select: 'name' },
       ],
     });
 
