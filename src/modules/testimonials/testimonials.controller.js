@@ -7,44 +7,124 @@ const path = require('path');
 // @desc Create a testimonial (admin)
 // @route POST /api/testimonials/create
 // @access Private (admin)
-exports.createTestimonial = asyncHandler(async (req, res) => {
+// exports.createTestimonial = asyncHandler(async (req, res) => {
+//   const { service_id, product_id, message, rating, city, state, country } = req.body;
+//   console.log("🚀 ~ req.body:", req.body);
+//   console.log("🚀 ~ req.files:", req.files);
+//   const user_id = req.user._id;
+//   if (!message) {
+//     return new ErrorHandler('Testimonial message is required', 200);
+//   }
+//   if(!service_id || !product_id || !message || !rating || !city || !state || !country) {
+//     return new ErrorHandler('All fields are required', 200);
+//   }
+//   if(rating && (rating < 1 || rating > 5)){
+//     return new ErrorHandler('Rating must be between 1 and 5', 200);
+//   }
+
+//   // Process uploaded files
+//   const mediaFiles = [];
+  
+//   if (req.files && req.files.image) {
+//     const uploadedFiles = Array.isArray(req.files.image) 
+//       ? req.files.image 
+//       : [req.files.image];
+    
+//     for (const file of uploadedFiles) {
+//       // Determine file type based on extension
+//       const ext = path.extname(file.originalname).toLowerCase();
+//       let fileType = null;
+      
+//       if (['.jpg', '.jpeg', '.png', '.webp'].includes(ext)) {
+//         fileType = 'image';
+//       } else if (['.mp4', '.mov', '.avi', '.mkv'].includes(ext)) {
+//         fileType = 'video';
+//       }
+      
+//       // Construct URL for the uploaded file
+//       const fileUrl = `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/testimonials/${file.filename}`;
+      
+//       mediaFiles.push({
+//         url: fileUrl,
+//         type: fileType,
+//         filename: file.filename,
+//         originalname: file.originalname
+//       });
+//     }
+//   }
+
+//   const payload = {
+//     user_id,
+//     service_id: service_id || null,
+//     product_id: product_id || null,
+//     message,
+//     rating: rating ? parseInt(rating) : 5,
+//     isActive: false, // Default to false, needs admin approval
+//     media: mediaFiles,
+//     city,
+//     state,
+//     country
+//   };
+
+//   const created = await Testimonial.create(payload);
+//   res.ok(created, 'Testimonial created successfully');
+// });
+exports.createTestimonial = asyncHandler(async (req, res, next) => {
+  console.log("create testi hit")
   const { service_id, product_id, message, rating, city, state, country } = req.body;
+  console.log("🚀 ~ req.body:", req.body);
+  console.log("🚀 ~ req.files:", req.files.images);
+  console.log("🚀 ~ req.files.videos:", req.files.videos);
+  
   const user_id = req.user._id;
+  
+  // Validation
   if (!message) {
-    return new ErrorHandler('Testimonial message is required', 200);
+    return next(new ErrorHandler('Testimonial message is required', 400));
   }
-  if(!service_id || !product_id || !message || !rating || !city || !state || !country) {
-    return new ErrorHandler('All fields are required', 200);
+  
+  // Check required fields (except service_id and product_id which are optional)
+  if (!city || !state || !country) {
+    return next(new ErrorHandler('City, state, and country are required', 400));
   }
-  if(rating && (rating < 1 || rating > 5)){
-    return new ErrorHandler('Rating must be between 1 and 5', 200);
+  
+  if (rating && (rating < 1 || rating > 5)) {
+    return next(new ErrorHandler('Rating must be between 1 and 5', 400));
   }
 
   // Process uploaded files
   const mediaFiles = [];
   
-  if (req.files && req.files.image) {
-    const uploadedFiles = Array.isArray(req.files.image) 
-      ? req.files.image 
-      : [req.files.image];
+  // Handle images (if route uses 'images' field)
+  if (req.files && req.files.images) {
+    const uploadedFiles = Array.isArray(req.files.images) 
+      ? req.files.images 
+      : [req.files.images];
     
     for (const file of uploadedFiles) {
-      // Determine file type based on extension
-      const ext = path.extname(file.originalname).toLowerCase();
-      let fileType = null;
-      
-      if (['.jpg', '.jpeg', '.png', '.webp'].includes(ext)) {
-        fileType = 'image';
-      } else if (['.mp4', '.mov', '.avi', '.mkv'].includes(ext)) {
-        fileType = 'video';
-      }
-      
-      // Construct URL for the uploaded file
       const fileUrl = `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/testimonials/${file.filename}`;
       
       mediaFiles.push({
         url: fileUrl,
-        type: fileType,
+        type: 'image', // Always 'image' for images field
+        filename: file.filename,
+        originalname: file.originalname
+      });
+    }
+  }
+  
+  // Handle videos (if route uses 'videos' field)
+  if (req.files && req.files.videos) {
+    const uploadedFiles = Array.isArray(req.files.videos) 
+      ? req.files.videos 
+      : [req.files.videos];
+    
+    for (const file of uploadedFiles) {
+      const fileUrl = `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/testimonials/${file.filename}`;
+      
+      mediaFiles.push({
+        url: fileUrl,
+        type: 'video', // Always 'video' for videos field
         filename: file.filename,
         originalname: file.originalname
       });
@@ -57,7 +137,7 @@ exports.createTestimonial = asyncHandler(async (req, res) => {
     product_id: product_id || null,
     message,
     rating: rating ? parseInt(rating) : 5,
-    isActive: false, // Default to false, needs admin approval
+    isActive: false,
     media: mediaFiles,
     city,
     state,
