@@ -259,6 +259,23 @@ exports.resetPassword = asyncHandler(async (req, res, next) => {
 // @desc Update Employee User
 // @route PUT /api/employee/update?id=employeeId
 // @access Private/Admin
+// exports.updateEmployeeUser = asyncHandler(async (req, res, next) => {
+//     const { id } = req.query;
+//     if (!id) return next(new ErrorHander("Please provide employee id", 400));
+
+//     // 1️⃣ Find the user
+//     const user = await User.findById(id);
+//     if (!user) {
+//         return next(new ErrorHander("Employee not found", 404));
+//     }
+
+//     await EmployeeUser.findByIdAndUpdate(user.profile, req.body, { new: true });
+//     await User.findByIdAndUpdate(id, req.body, { new: true });
+
+//     const updatedUser = await User.findById(id).populate("profile");
+
+//     res.ok(sendUser(updatedUser, updatedUser.profile), "Employee updated successfully");
+// });
 exports.updateEmployeeUser = asyncHandler(async (req, res, next) => {
     const { id } = req.query;
     if (!id) return next(new ErrorHander("Please provide employee id", 400));
@@ -269,9 +286,23 @@ exports.updateEmployeeUser = asyncHandler(async (req, res, next) => {
         return next(new ErrorHander("Employee not found", 404));
     }
 
-    await EmployeeUser.findByIdAndUpdate(user.profile, req.body, { new: true });
-    await User.findByIdAndUpdate(id, req.body, { new: true });
+    // 2️⃣ Prepare update data
+    let updateData = { ...req.body };
+    
+    // 3️⃣ Handle image upload if exists
+    if(req.files?.image?.[0]){
+        // let imageName = generateImageName(req.files.image[0].filename);
+        if(user.profileImage){
+          deleteFile(user.profileImage)
+        }
+        updateData.profileImage = `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/profile/${req.files.image[0].filename}`
+      }
+    
+    // 4️⃣ Update both documents
+    await EmployeeUser.findByIdAndUpdate(user.profile, updateData, { new: true });
+    await User.findByIdAndUpdate(id, updateData, { new: true });
 
+    // 5️⃣ Fetch updated user with populated profile
     const updatedUser = await User.findById(id).populate("profile");
 
     res.ok(sendUser(updatedUser, updatedUser.profile), "Employee updated successfully");
