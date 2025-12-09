@@ -1,6 +1,7 @@
 const asyncHandler = require('express-async-handler');
 const User = require('../auth/user.Model');
 const CustomerUser = require('./customerUser.model');
+const Otp = require('../otp/otp.model');
 const ErrorHander = require('../../utils/errorHandler');
 const sendEmail = require('../../services/email.service');
 const crypto = require('crypto');
@@ -818,6 +819,65 @@ exports.forgotPassword = asyncHandler(async (req, res, next) => {
 
     return next(new ErrorHander("Email could not be sent", 500));
   }
+});
+
+exports.forgotPasswordOtp = asyncHandler(async (req, res, next) => {
+  const {email} = req.body;
+
+  if(!email) return next(new ErrorHander("Please provide email", 400));
+  
+  // 1. verify email
+  const user = await User.findOne({email});
+  if (!user) return next(new ErrorHander("No email found", 200));
+
+  // find user id in otp
+  const otpData = await Otp.findOne({ userId: user._id });
+  if (otpData) {
+    await Otp.deleteOne({ userId: user._id });
+  }
+
+  // 2. Generate random 6 digit number
+  const otp = Math.floor(100000 + Math.random() * 900000);
+  
+  await Otp.create({ userId: user._id, otp });
+
+  // 4. send otp in mail
+  sendEmail({
+    email: user.email,
+    subject: "AstroGuid - Password Reset Otp",
+    message: `Your password reset otp is ${otp}`
+  });
+
+  res.ok(null, "Otp sent successfully");
+});
+
+exports.verifyOtpAndResetPassword = asyncHandler(async (req, res, next) => {
+  const { otp, newPassword } = req.body;
+
+  if (!otp || !newPassword) {
+    return next(new ErrorHander("Please provide otp and new password", 400));
+  }
+
+  // 1️⃣ Find OTP record
+  const otpData = await Otp.findOne({ otp });
+  if (!otpData) {
+    return next(new ErrorHander("Invalid or expired OTP", 400));
+  }
+
+  // 2️⃣ Find user
+  const user = await User.findById(otpData.userId).select("+password");
+  if (!user) {
+    return next(new ErrorHander("User not found", 400));
+  }
+
+  // 3️⃣ Update password
+  user.password = newPassword;
+  await user.save(); // pre-save hook will hash password
+
+  // 4️⃣ Delete OTP so it cannot be reused
+  await Otp.deleteMany({ userId: otpData.userId });
+
+  res.ok(null, "Password reset successfully");
 });
 
 // @desc    POST reset password

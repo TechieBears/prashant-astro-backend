@@ -17,6 +17,9 @@ router.get('/get-wallet-balance', protect, authorize("customer"), CustomerContro
 router.post('/forgot-password', CustomerController.forgotPassword);
 router.post('/reset-password', CustomerController.resetPassword);
 
+router.post('/forgot-password-otp', CustomerController.forgotPasswordOtp);
+router.post('/verify-reset-password', CustomerController.verifyOtpAndResetPassword);
+
 // admin routes
 router.get('/all', protect, authorize("admin", "employee"), CustomerController.getAllCustomerUsers);
 router.put('/admin-update', protect, authorize("admin", "employee"), CustomerController.adminUpdateCustomerUser);
