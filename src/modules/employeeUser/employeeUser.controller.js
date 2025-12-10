@@ -353,8 +353,13 @@ exports.getAllEmployeeUsersWithPagination = asyncHandler(async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
+    const role = req.query.role;
 
-    const matchStage = { role: "employee", isDeleted: false };
+    const matchStage = { };
+
+    if (role) {
+        matchStage.role = role;
+    }
 
     // 🔍 Name search inside employee profile
     if (req.query.name) {
