@@ -18,7 +18,18 @@ exports.createCall = asyncHandler(async (req, res) => {
 });
 
 // exports.getAllCallAstrologersCustomer = asyncHandler(async (req, res) => {
-//     const { page = 1, limit = 10 } = req.query;
+//     const {
+//         page = 1,
+//         limit = 10,
+//         languages,
+//         skills,
+//         minPrice,
+//         maxPrice,
+//         experience,
+//         days,
+//         preBooking,
+//         search
+//     } = req.query;
 
 //     // Validate query parameters
 //     const pageNum = parseInt(page);
@@ -34,16 +45,85 @@ exports.createCall = asyncHandler(async (req, res) => {
 //     const skip = (pageNum - 1) * limitNum;
 
 //     try {
+//         // Build match conditions dynamically
+//         const userMatchConditions = {
+//             role: "astrologer",
+//             isActive: true,
+//             isDeleted: { $ne: true },
+//             profile: { $exists: true, $ne: null }
+//         };
+
+//         // Build employee match conditions
+//         const employeeMatchConditions = {
+//             "employeeProfile.employeeType": "call_astrologer"
+//         };
+
+//         // Parse filter parameters
+//         if (languages) {
+//             const languageArray = Array.isArray(languages)
+//                 ? languages
+//                 : languages.split(',');
+//             employeeMatchConditions["employeeProfile.languages"] = {
+//                 $in: languageArray.map(lang => new RegExp(lang.trim(), 'i'))
+//             };
+//         }
+
+//         if (skills) {
+//             const skillArray = Array.isArray(skills)
+//                 ? skills
+//                 : skills.split(',');
+//             employeeMatchConditions["employeeProfile.skills"] = {
+//                 $in: skillArray.map(skill => new RegExp(skill.trim(), 'i'))
+//             };
+//         }
+
+//         if (minPrice || maxPrice) {
+//             employeeMatchConditions["employeeProfile.priceCharge"] = {};
+//             if (minPrice) {
+//                 employeeMatchConditions["employeeProfile.priceCharge"].$gte = parseFloat(minPrice);
+//             }
+//             if (maxPrice) {
+//                 employeeMatchConditions["employeeProfile.priceCharge"].$lte = parseFloat(maxPrice);
+//             }
+//         }
+
+//         if (experience) {
+//             const experienceArray = Array.isArray(experience)
+//                 ? experience.map(exp => parseInt(exp))
+//                 : [parseInt(experience)];
+//             employeeMatchConditions["employeeProfile.experience"] = {
+//                 $in: experienceArray
+//             };
+//         }
+
+//         if (days) {
+//             const daysArray = Array.isArray(days)
+//                 ? days
+//                 : days.split(',');
+//             employeeMatchConditions["employeeProfile.days"] = {
+//                 $in: daysArray.map(day => new RegExp(day.trim(), 'i'))
+//             };
+//         }
+
+//         if (preBooking !== undefined) {
+//             employeeMatchConditions["employeeProfile.preBooking"] =
+//                 preBooking === 'true' || preBooking === true;
+//         }
+
+//         // Search functionality (search in name or about)
+//         if (search) {
+//             employeeMatchConditions.$or = [
+//                 { "employeeProfile.firstName": { $regex: search, $options: 'i' } },
+//                 { "employeeProfile.lastName": { $regex: search, $options: 'i' } },
+//                 { "employeeProfile.about": { $regex: search, $options: 'i' } }
+//             ];
+//         }
+
 //         // Pipeline for data retrieval
 //         const dataPipeline = [
-//             // Match users with employee role
+//             // Match users
 //             {
-//                 $match: {
-//                     role: "astrologer",
-//                     isActive: true,
-//                     isDeleted: { $ne: true },
-//                     profile: { $exists: true, $ne: null }
-//                 }
+//                 $match: userMatchConditions
 //             },
 //             // Lookup employee profile
 //             {
@@ -58,11 +138,9 @@ exports.createCall = asyncHandler(async (req, res) => {
 //             {
 //                 $unwind: "$employeeProfile"
 //             },
-//             // Filter only call_astrologer type
+//             // Filter only call_astrologer type and apply other filters
 //             {
-//                 $match: {
-//                     "employeeProfile.employeeType": "call_astrologer"
-//                 }
+//                 $match: employeeMatchConditions
 //             },
 //             // Sort by creation date (newest first)
 //             {
@@ -78,6 +156,7 @@ exports.createCall = asyncHandler(async (req, res) => {
 //             // Project only needed fields
 //             {
 //                 $project: {
+//                     _id: 1,
 //                     email: 1,
 //                     mobileNo: 1,
 //                     profileImage: 1,
@@ -100,15 +179,10 @@ exports.createCall = asyncHandler(async (req, res) => {
 //             }
 //         ];
 
-//         // Pipeline for counting total call_astrologers
+//         // Pipeline for counting total call_astrologers with filters
 //         const countPipeline = [
 //             {
-//                 $match: {
-//                     role: "employee",
-//                     isActive: true,
-//                     isDeleted: { $ne: true },
-//                     profile: { $exists: true, $ne: null }
-//                 }
+//                 $match: userMatchConditions
 //             },
 //             {
 //                 $lookup: {
@@ -122,9 +196,7 @@ exports.createCall = asyncHandler(async (req, res) => {
 //                 $unwind: "$employeeProfile"
 //             },
 //             {
-//                 $match: {
-//                     "employeeProfile.employeeType": "call_astrologer"
-//                 }
+//                 $match: employeeMatchConditions
 //             },
 //             {
 //                 $count: "total"
@@ -178,7 +250,19 @@ exports.createCall = asyncHandler(async (req, res) => {
 //                 totalItems: total,
 //                 totalPages,
 //                 hasNextPage: pageNum < totalPages,
-//                 hasPrevPage: pageNum > 1
+//                 hasPrevPage: pageNum > 1,
+//                 appliedFilters: {
+//                     languages: languages ? (Array.isArray(languages) ? languages : languages.split(',')) : undefined,
+//                     skills: skills ? (Array.isArray(skills) ? skills : skills.split(',')) : undefined,
+//                     priceRange: minPrice || maxPrice ? {
+//                         min: minPrice ? parseFloat(minPrice) : undefined,
+//                         max: maxPrice ? parseFloat(maxPrice) : undefined
+//                     } : undefined,
+//                     experience: experience ? (Array.isArray(experience) ? experience.map(exp => parseInt(exp)) : [parseInt(experience)]) : undefined,
+//                     days: days ? (Array.isArray(days) ? days : days.split(',')) : undefined,
+//                     preBooking: preBooking !== undefined ? (preBooking === 'true' || preBooking === true) : undefined,
+//                     search: search || undefined
+//                 }
 //             }
 //         };
 
@@ -209,7 +293,6 @@ exports.createCall = asyncHandler(async (req, res) => {
 //         });
 //     }
 // });
-
 exports.getAllCallAstrologersCustomer = asyncHandler(async (req, res) => {
     const {
         page = 1,
@@ -221,7 +304,8 @@ exports.getAllCallAstrologersCustomer = asyncHandler(async (req, res) => {
         experience,
         days,
         preBooking,
-        search
+        search,
+        sortBy = 'newest'  // Add sortBy parameter
     } = req.query;
 
     // Validate query parameters
@@ -251,13 +335,15 @@ exports.getAllCallAstrologersCustomer = asyncHandler(async (req, res) => {
             "employeeProfile.employeeType": "call_astrologer"
         };
 
-        // Parse filter parameters
+        // Parse filter parameters - FIXED FOR ARRAYS
         if (languages) {
             const languageArray = Array.isArray(languages)
                 ? languages
                 : languages.split(',');
             employeeMatchConditions["employeeProfile.languages"] = {
-                $in: languageArray.map(lang => new RegExp(lang.trim(), 'i'))
+                $elemMatch: { 
+                    $in: languageArray.map(lang => new RegExp(`^${lang.trim()}$`, 'i'))
+                }
             };
         }
 
@@ -266,10 +352,13 @@ exports.getAllCallAstrologersCustomer = asyncHandler(async (req, res) => {
                 ? skills
                 : skills.split(',');
             employeeMatchConditions["employeeProfile.skills"] = {
-                $in: skillArray.map(skill => new RegExp(skill.trim(), 'i'))
+                $elemMatch: { 
+                    $in: skillArray.map(skill => new RegExp(`^${skill.trim()}$`, 'i'))
+                }
             };
         }
 
+        // Price filter - FIXED: Check if priceCharge exists and is a number
         if (minPrice || maxPrice) {
             employeeMatchConditions["employeeProfile.priceCharge"] = {};
             if (minPrice) {
@@ -294,7 +383,9 @@ exports.getAllCallAstrologersCustomer = asyncHandler(async (req, res) => {
                 ? days
                 : days.split(',');
             employeeMatchConditions["employeeProfile.days"] = {
-                $in: daysArray.map(day => new RegExp(day.trim(), 'i'))
+                $elemMatch: { 
+                    $in: daysArray.map(day => new RegExp(`^${day.trim()}$`, 'i'))
+                }
             };
         }
 
@@ -310,6 +401,33 @@ exports.getAllCallAstrologersCustomer = asyncHandler(async (req, res) => {
                 { "employeeProfile.lastName": { $regex: search, $options: 'i' } },
                 { "employeeProfile.about": { $regex: search, $options: 'i' } }
             ];
+        }
+
+        // Define sort object based on sortBy parameter
+        let sortObject = { createdAt: -1 }; // Default sort: newest first
+
+        switch (sortBy) {
+            case 'price_low_to_high':
+                sortObject = { "employeeProfile.priceCharge": 1 };
+                break;
+            case 'price_high_to_low':
+                sortObject = { "employeeProfile.priceCharge": -1 };
+                break;
+            case 'newest':
+                sortObject = { createdAt: -1 };
+                break;
+            case 'oldest':
+                sortObject = { createdAt: 1 };
+                break;
+            case 'experience_high_to_low':
+                sortObject = { "employeeProfile.experience": -1 };
+                break;
+            case 'experience_low_to_high':
+                sortObject = { "employeeProfile.experience": 1 };
+                break;
+            default:
+                // If invalid sortBy, default to newest
+                sortObject = { createdAt: -1 };
         }
 
         // Pipeline for data retrieval
@@ -335,9 +453,20 @@ exports.getAllCallAstrologersCustomer = asyncHandler(async (req, res) => {
             {
                 $match: employeeMatchConditions
             },
-            // Sort by creation date (newest first)
+            // Add fields for proper sorting (handle null/undefined prices)
             {
-                $sort: { createdAt: -1 }
+                $addFields: {
+                    "employeeProfile.sortPrice": {
+                        $ifNull: ["$employeeProfile.priceCharge", 0]
+                    },
+                    "employeeProfile.sortExperience": {
+                        $ifNull: ["$employeeProfile.experience", 0]
+                    }
+                }
+            },
+            // Sort based on sortBy parameter
+            {
+                $sort: sortObject
             },
             // Skip and limit for pagination
             {
@@ -444,6 +573,7 @@ exports.getAllCallAstrologersCustomer = asyncHandler(async (req, res) => {
                 totalPages,
                 hasNextPage: pageNum < totalPages,
                 hasPrevPage: pageNum > 1,
+                sortBy: sortBy,  // Include sortBy in response
                 appliedFilters: {
                     languages: languages ? (Array.isArray(languages) ? languages : languages.split(',')) : undefined,
                     skills: skills ? (Array.isArray(skills) ? skills : skills.split(',')) : undefined,
@@ -464,7 +594,8 @@ exports.getAllCallAstrologersCustomer = asyncHandler(async (req, res) => {
                 page: pageNum,
                 limit: limitNum,
                 total,
-                totalPages
+                totalPages,
+                sortBy: sortBy
             });
         } else {
             res.status(200).json(response);
