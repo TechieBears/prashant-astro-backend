@@ -96,6 +96,11 @@ exports.getAllNotificationsAdmin = asyncHandler(async (req, res) => {
   if (userType) filter.userType = userType;
   if (from) filter.from = from;
 
+  if (req.user.role === "customer") {
+    filter.userType = "specific-customer"; 
+    filter.userIds = { $in: [req.user._id] };
+  }
+
   const notifications = await Notification.find(filter)
     .populate('userIds', 'email mobileNo profileImage')
     .sort({ createdAt: -1 })
