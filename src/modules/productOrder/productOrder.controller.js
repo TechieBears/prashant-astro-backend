@@ -94,7 +94,7 @@ exports.createProductOrder = asyncHandler(async (req, res) => {
     const orderItems = [];
 
     for (const item of items) {
-      const product = await Product.findById(item.product).populate('category', 'name').populate('subcategory', 'name').session(session);
+      const product = await Product.findById(item.product).populate('category', 'name').session(session);
 
       if (!product || !product.isActive) {
         throw new Error(`Product not found: ${item.product}`);

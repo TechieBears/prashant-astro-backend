@@ -400,6 +400,77 @@ async function generateTemplates(notificationFor, data) {
         };
       }
 
+      case "FORGOT_PASSWORD": {
+        // Extract the 6-digit OTP from data
+        const otp = data?.otp || data?.verificationCode || "123456";
+        const firstName = data?.firstName || data?.customerData?.firstName || "User";
+        const email = data?.email || data?.customerData?.email || "user@example.com";
+        
+        // Format OTP with spaces for better readability
+        const formattedOTP = otp.toString().split('').join(' ');
+        
+        // Forgot Password Body
+        const userBody = `
+          <tr>
+            <td style="padding:25px 40px; color:#333; font-size:15px; line-height:22px;">
+              <p>Hi <strong>${firstName}</strong>,</p>
+              
+              <p>We received a request to reset your password for your Astroguid account associated with <strong>${email}</strong>.</p>
+              
+              <p style="margin:25px 0; text-align:center;">
+                <strong style="font-size:18px; display:block; margin-bottom:10px;">Your Verification Code:</strong>
+                <span style="background:#f9f9f9; border:2px dashed #f2703f; padding:15px 25px; font-size:32px; font-weight:bold; letter-spacing:5px; color:#f2703f; display:inline-block; border-radius:8px;">
+                  ${formattedOTP}
+                </span>
+              </p>
+              
+              <p><strong>Instructions:</strong></p>
+              <ul style="margin:15px 0; padding-left:20px;">
+                <li>Enter this 6-digit verification code on the password reset page</li>
+                <li>This code is valid for the next <strong>2 minute</strong></li>
+                <li>If you didn't request a password reset, please ignore this email</li>
+                <li>For security reasons, do not share this code with anyone</li>
+              </ul>
+              
+              <p style="margin-top:25px;">
+                If you need further assistance, please contact our support team.
+              </p>
+              
+              <p style="margin-top:20px;">
+                <strong>Note:</strong> This is an automated message. Please do not reply to this email.
+              </p>
+            </td>
+          </tr>
+        `;
+        
+        // Admin notification (optional - if you want to notify admin about password reset requests)
+        const adminBody = `
+          <tr>
+            <td style="padding:25px 40px; color:#333; font-size:15px; line-height:22px;">
+              <p>Hello Admin,</p>
+              
+              <p>A password reset request has been initiated for the following user:</p>
+              
+              <p style="margin:15px 0; padding:15px; background:#f9f9f9; border-radius:6px;">
+                <strong>User:</strong> ${firstName}<br/>
+                <strong>Email:</strong> ${email}<br/>
+                <strong>Time:</strong> ${new Date().toLocaleString("en-IN")}<br/>
+                <strong>Request IP:</strong> ${data?.ipAddress || "Not available"}
+              </p>
+              
+              <p>
+                This is for your information. No action is required unless you suspect fraudulent activity.
+              </p>
+            </td>
+          </tr>
+        `;
+        
+        return {
+          userBody: `${header({ title: 'Password Reset Request', subTitle: 'Secure your Astroguid account' })}${userBody}${footer}`,
+          adminBody: `${header({ title: 'Password Reset Notification', subTitle: 'User requested password reset' })}${adminBody}${footer}`,
+        };
+      }
+
     }
   } catch (error) {
     console.log("Template Error:", error);

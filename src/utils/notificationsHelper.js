@@ -11,12 +11,15 @@ const sendOrderNotification = async (order, notificationTitle, notificationBody,
   try {
     const { savedOrder, orderItems } = order;
     const { _id: userId, fcmToken } = user;
+    console.log("🚀 ~ sendOrderNotification ~ fcmToken:", fcmToken);
 
     // const notificationTitle = 'Order Placed Successfully!';
     // const notificationBody = `Your order #${savedOrder._id} has been placed successfully. ${payingAmount === 0 ? 'Payment completed using wallet credits.' : `Amount to pay: ₹${payingAmount}`}`;
 
     // 1. Send Firebase Push Notification
     if (fcmToken) {
+      console.log('Notification started...')
+      // console.log("FCM_TOKEN", fcmToken)
       const notificationData = {
         token: fcmToken,
         title: notificationTitle,
@@ -142,6 +145,8 @@ async function commonNotification(notificationFor, type, id) {
               //User Notification
               // PN 
               if (productData[0].userData.fcmToken) {
+                console.log("productData[0].userData.fcmToken", productData[0].userData.fcmToken);
+                console.log("Notifications started... from PRODUCT_BOOKING");
                 const notificationData = {
                   token: productData[0].userData.fcmToken,
                   title: 'Product Booking',
@@ -181,8 +186,8 @@ async function commonNotification(notificationFor, type, id) {
               //Email
               const { userBody, adminBody } = await generateTemplates('PRODUCT_BOOKING', productData[0]);
               const mailData = {
-                // email: [productData[0].userData.email],       //User Email
-                email: 'rohitmiryala2@gmail.com',
+                email: [productData[0].userData.email],       //User Email
+                // email: 'rohitmiryala2@gmail.com',
                 subject: 'Product Booking',
                 message: userBody,
                 template: 'productBooking',

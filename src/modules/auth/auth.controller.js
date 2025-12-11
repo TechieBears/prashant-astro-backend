@@ -34,6 +34,8 @@ const sendUser = (user) => ({
 exports.login = asyncHandler(async (req, res, next) => {
   const { email, password, fcmToken } = req.body;
 
+  console.log("FCM TOKEN", fcmToken);
+
   if (!email || !password) return next(new ErrorHander("Please provide email and password", 400));
 
   const user = await User.findOne({ email }).select('+password').populate('profile');

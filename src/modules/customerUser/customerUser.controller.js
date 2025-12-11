@@ -9,6 +9,7 @@ const mongoose = require('mongoose');
 const Wallet = require('../wallet/wallet.model');
 const { generateImageName } = require('../../utils/reusableFunctions');
 const { deleteFile } = require("../../utils/storage");
+const { generateTemplates } = require('../../utils/templates');
 
 const sendUser = (user, profile) => ({
   _id: user._id,
@@ -827,7 +828,7 @@ exports.forgotPasswordOtp = asyncHandler(async (req, res, next) => {
   if(!email) return next(new ErrorHander("Please provide email", 400));
   
   // 1. verify email
-  const user = await User.findOne({email});
+  const user = await User.findOne({email}).populate('profile');
   if (!user) return next(new ErrorHander("No email found", 200));
 
   // find user id in otp
@@ -841,12 +842,26 @@ exports.forgotPasswordOtp = asyncHandler(async (req, res, next) => {
   
   await Otp.create({ userId: user._id, otp });
 
+  // template for email
+  const { userBody, adminBody } = await generateTemplates('FORGOT_PASSWORD', {
+    otp: otp,
+    firstName: user.profile.firstName || '',
+    lastName: user.profile.lastName || '',
+    email: user.email
+  });
+
   // 4. send otp in mail
   sendEmail({
     email: user.email,
     subject: "AstroGuid - Password Reset Otp",
-    message: `Your password reset otp is ${otp}`
+    message: userBody
   });
+
+  // sendEmail({
+  //   email: 'H5h1o@example.com',
+  //   subject: "AstroGuid - Password Reset Otp",
+  //   message: adminBody
+  // });
 
   res.ok(null, "Otp sent successfully");
 });

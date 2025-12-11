@@ -13,6 +13,7 @@ async function getAccessToken() {
 }
 
 async function sendFirebaseNotification(messageData) {
+  console.log('Notification started...')
   try {
     const accessToken = await getAccessToken();
     const firebaseProjectId = process.env.FIREBASE_PROJECT_ID;
