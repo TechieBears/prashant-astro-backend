@@ -9,6 +9,7 @@ router.get('/public/get-single-call-astrologer', CallController.getSingleCallAst
 router.get('/public/get-filters', CallController.getFilters);
 
 router.post('/create-call', protect, authorize("customer"), CallController.createCall);
+router.post('/start-call', protect, authorize("customer", "astrologer"), CallController.startCall);
 router.get('/public/get-all-calls-history', protect, authorize("customer"), CallController.getAllCallsHistoryCustomer);
 router.get('/get-all-call-astrologers', protect, authorize("admin", "employee", "astrologer"), CallController.getAllCallsAdminandAstrologer);
 

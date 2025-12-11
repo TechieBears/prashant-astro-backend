@@ -29,6 +29,24 @@ const callSchema = new mongoose.Schema({
         enum: ['pending', 'accepted', 'rejected'],
         default: 'pending',
     },
+    sessionId: {
+        type: String,
+    },
+    smartfloCallId: {
+        type: String,
+    },
+    startTime: {
+        type: Date,
+    },
+    endTime: {
+        type: Date,
+    },
+    durationInSeconds: {
+        type: Number,
+    },
+    amountCharged: {
+        type: Number,
+    },
 }, { timestamps: true });
 
 module.exports = mongoose.model('Call', callSchema);

@@ -2,6 +2,8 @@ const asyncHandler = require("express-async-handler");
 const CallAstrologer = require("./call.model");
 const User = require("../auth/user.Model");
 const Employee = require("../employeeUser/employeeUser.model");
+const Wallet = require("../wallet/wallet.model");
+const { startWalletTimer } = require("./callTimer.service");
 const mongoose = require("mongoose");
 
 // Cache filter results for 1 hour (optional)
@@ -16,6 +18,95 @@ exports.createCall = asyncHandler(async (req, res) => {
     const call = await CallAstrologer.create({ userId, astrologerId: callAstrologerId, date, time, duration });
     res.created(call, 'Call created successfully');
 });
+
+exports.startCall = asyncHandler(async (req, res) => {
+    const userId = req.user._id;
+    const { astrologerId } = req.body;
+
+    const user = await User.findById(userId);
+    const astrologer = await User.findById(astrologerId).populate("profile");
+    const employee = await Employee.findById(astrologer.profile);
+    const wallet = await Wallet.findOne({ userId });
+
+    if (!astrologer) {
+        return res.status(404).json({ message: "Astrologer not found" });
+    }
+
+    if (employee.isBusy) {
+        return res.status(400).json({ message: "Astrologer is currently busy" });
+    }
+
+    const perMinRate = employee.priceCharge;
+    const perSec = perMinRate / 60;
+
+    if (!wallet || wallet.balance < perSec * 30) {
+        return res.status(400).json({
+            message: "Insufficient balance for minimum 30 seconds",
+        });
+    }
+
+    // Create call
+    const call = await CallAstrologer.create({
+        userId,
+        astrologerId,
+        date: new Date(),
+        time: new Date().toISOString(),
+        duration: "0",
+        status: "pending",
+    });
+
+    // Smartflo actions...
+    const sessionResponse = await axios.post(
+        "https://api-smartflo.tatateleservices.com/v1/dialer/session_call",
+        {
+            startOrEnd: true,
+            campaignId: process.env.SMARTFLO_CAMPAIGN_ID,
+        },
+        {
+            headers: { Authorization: `Bearer ${process.env.SMARTFLO_TOKEN}` },
+        }
+    );
+
+    const clickResponse = await axios.post(
+        "https://api-smartflo.tatateleservices.com/v1/click_to_call",
+        {
+            agent_number: "+91" + employee.mobile, // use astrologer mobile
+            customer_number: user.mobileNo,
+        },
+        {
+            headers: { Authorization: `Bearer ${process.env.SMARTFLO_TOKEN}` },
+        }
+    );
+
+    call.sessionId = sessionResponse.data?.sessionId || null;
+    call.smartfloCallId = clickResponse.data?.call_id || null;
+    await call.save();
+
+    // Mark astrologer busy
+    employee.isBusy = true;
+    employee.currentCustomerId = userId;
+    await employee.save();
+
+    // Save user session
+    user.currentCallSession = {
+        astrologerId,
+        callId: call._id,
+        isActive: true,
+        perMinuteRate: perMinRate,
+        startedAt: new Date(),
+    };
+    await user.save();
+
+    // Start wallet timer
+    startWalletTimer(user._id);
+
+    return res.json({
+        success: true,
+        message: "Call initiated",
+        callId: call._id,
+    });
+});
+
 
 // exports.getAllCallAstrologersCustomer = asyncHandler(async (req, res) => {
 //     const {
@@ -341,7 +432,7 @@ exports.getAllCallAstrologersCustomer = asyncHandler(async (req, res) => {
                 ? languages
                 : languages.split(',');
             employeeMatchConditions["employeeProfile.languages"] = {
-                $elemMatch: { 
+                $elemMatch: {
                     $in: languageArray.map(lang => new RegExp(`^${lang.trim()}$`, 'i'))
                 }
             };
@@ -352,7 +443,7 @@ exports.getAllCallAstrologersCustomer = asyncHandler(async (req, res) => {
                 ? skills
                 : skills.split(',');
             employeeMatchConditions["employeeProfile.skills"] = {
-                $elemMatch: { 
+                $elemMatch: {
                     $in: skillArray.map(skill => new RegExp(`^${skill.trim()}$`, 'i'))
                 }
             };
@@ -383,7 +474,7 @@ exports.getAllCallAstrologersCustomer = asyncHandler(async (req, res) => {
                 ? days
                 : days.split(',');
             employeeMatchConditions["employeeProfile.days"] = {
-                $elemMatch: { 
+                $elemMatch: {
                     $in: daysArray.map(day => new RegExp(`^${day.trim()}$`, 'i'))
                 }
             };

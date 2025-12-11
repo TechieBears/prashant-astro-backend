@@ -58,6 +58,13 @@ const userSchema = new mongoose.Schema({
   type: {
     type: String,
     enum: ["google", "normal"],
+  },
+  currentCallSession: {
+    astrologerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    callId: { type: mongoose.Schema.Types.ObjectId, ref: 'Call' },
+    isActive: Boolean,
+    perMinuteRate: Number,
+    startedAt: Date,
   }
 }, { timestamps: true });
 

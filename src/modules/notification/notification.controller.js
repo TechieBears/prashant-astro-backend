@@ -96,6 +96,11 @@ exports.getAllNotificationsAdmin = asyncHandler(async (req, res) => {
   if (userType) filter.userType = userType;
   if (from) filter.from = from;
 
+  if (req.user.role === "customer") {
+    filter.userType = "specific-customer";
+    filter.userIds = { $in: [req.user._id] };
+  }
+
   const notifications = await Notification.find(filter)
     .populate('userIds', 'email mobileNo profileImage')
     .sort({ createdAt: -1 })
@@ -109,19 +114,54 @@ exports.getAllNotificationsAdmin = asyncHandler(async (req, res) => {
 
 // Get notifications dropdown for customers
 exports.getNotificationsDropdownCustomer = asyncHandler(async (req, res) => {
+  const { page = 1, limit = 10 } = req.query;
   const userId = req.user._id;
+  // const pipeline = [
+  //   { $match: { $in: [userId], isDeleted: false } },
+  //   {
+  //     $project: {
+  //       title: 1,
+  //       description: 1,
+  //       sentAt: "$createdAt"
+  //     }
+  //   },
+  //   { $sort: { sentAt: -1 } },
+  //   { $skip: (page - 1) * limit },
+  //   { $limit: limit }
+  // ];
+
   const pipeline = [
-    { $match: { $in: [userId], isDeleted: false } },
     {
-      $project: {
-        title: 1,
-        description: 1,
-        sentAt: "$createdAt"
+      $match: {
+        isDeleted: false,
+        userIds: { $in: [userId] }
+      }
+    },
+    {
+      $facet: {
+        metadata: [
+          { $count: "totalCount" }
+        ],
+        data: [
+          {
+            $project: {
+              title: 1,
+              description: 1,
+              sentAt: "$createdAt"
+            }
+          },
+          { $sort: { sentAt: -1 } },
+          { $skip: (page - 1) * limit },
+          { $limit: limit }
+        ]
       }
     }
   ];
+
   const notifications = await Notification.aggregate(pipeline);
-  res.ok(notifications, "Notifications fetched successfully");
+  const total = notifications[0].metadata[0] ? notifications[0].metadata[0].totalCount : 0;
+
+  res.paginated(notifications, { page, limit, total, pages: Math.ceil(total / limit) }, "Notifications fetched successfully");
 });
 
 // Get notifications dropdown for admin and employee
