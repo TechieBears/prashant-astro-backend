@@ -5,7 +5,7 @@ const axios = require('axios');
 async function getAccessToken() {
   const client = new google.auth.JWT({
     email: process.env.FIREBASE_CLIENT_EMAIL,
-    key: process.env.FIREBASE_PRIVATE_KEY,
+    key: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
     scopes: ['https://www.googleapis.com/auth/cloud-platform'],
   });
   const token = await client.authorize();
