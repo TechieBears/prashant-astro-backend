@@ -3,12 +3,38 @@ const Service = require('./service.model');
 const ServiceCategory = require('../serviceCategory/serviceCategory.model');
 const Errorhander = require('../../utils/errorHandler');
 const mongoose = require('mongoose');
+// const { generateImageName } = require('../../utils/reusableFunctions');
+const { deleteFile } = require('../../utils/storage');
+
+function parseField(value) {
+    if (value === undefined || value === null) return value;
+
+    // If it is already an object or array => return as-is
+    if (typeof value === "object") return value;
+
+    // Try JSON parsing
+    try {
+        return JSON.parse(value);
+    } catch (e) {
+        // Return original string if not JSON
+        return value;
+    }
+}
 
 exports.createServiceAdmin = asyncHandler(async (req, res, next) => {
-    const { name, title, subTitle, htmlContent, category, image, videoUrl, price, durationInMinutes, serviceType, gstNumber, hsnCode, isActive } = req.body;
-
+    const { name, title, subTitle, htmlContent, category, price, durationInMinutes, gstNumber, hsnCode, isActive } = req.body;
+    let videoUrl = req.body.videoUrl;
+    if (videoUrl) {
+        try {
+            videoUrl = JSON.parse(videoUrl);
+        } catch (err) {
+            return next(new Errorhander("Invalid videoUrl JSON", 400));
+        }
+    } else {
+        videoUrl = [];
+    }
     // use for each field validation
-    for (const field of ['name', 'title', 'subTitle', 'htmlContent', 'category', 'image', 'videoUrl', 'price', 'durationInMinutes']) {
+    for (const field of ['name', 'title', 'subTitle', 'htmlContent', 'category', 'videoUrl', 'price', 'durationInMinutes']) {
         if (!req.body[field]) {
             return next(new Errorhander(`Please provide ${field}`, 400));
         }
@@ -18,10 +44,33 @@ exports.createServiceAdmin = asyncHandler(async (req, res, next) => {
         return next(new Errorhander("Please provide valid category id", 400));
     }
 
-    // serviceType validation
+    // Parse serviceType safely
+    let serviceType = req.body.serviceType;
     const validServiceTypes = ['online', 'pandit_center', 'pooja_at_home'];
-    if (serviceType && !validServiceTypes.includes(serviceType)) {
-        return next(new Errorhander(`Invalid service type. Valid types are: ${validServiceTypes.join(', ')}`, 400));
+
+    if (serviceType) {
+        try {
+            serviceType = JSON.parse(serviceType);
+        } catch (err) {
+            return next(new Errorhander("Invalid serviceType JSON", 400));
+        }
+
+        if (!Array.isArray(serviceType)) {
+            return next(new Errorhander("serviceType must be an array", 400));
+        }
+
+        for (const type of serviceType) {
+            if (!validServiceTypes.includes(type)) {
+                return next(
+                    new Errorhander(
+                        `Invalid service type: ${type}. Valid types are: ${validServiceTypes.join(", ")}`,
+                        400
+                    )
+                );
+            }
+        }
+    } else {
+        serviceType = ['online']; // default
     }
 
     const serviceExists = await Service.findOne({ name: name.trim() });
@@ -29,14 +78,19 @@ exports.createServiceAdmin = asyncHandler(async (req, res, next) => {
         return next(new Errorhander("Service with this name already exists", 400));
     }
 
+    // let imageName = generateImageName(req.files?.image?.[0]?.originalname);
+
+    const imageFile = req.files?.image?.[0]
+        ? `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/services/${req.files.image[0].filename}` : null;
+
     const service = new Service({
         name: name.trim(),
         title: title.trim(),
         subTitle: subTitle.trim(),
         htmlContent: htmlContent.trim(),
         category,
-        image,
-        isActive: isActive !== undefined ? isActive : true,
+        image: imageFile,
+        isActive: isActive || false,
         videoUrl,
         price,
         gstNumber,
@@ -138,10 +192,14 @@ exports.getAllServicesForAdmin = asyncHandler(async (req, res, next) => {
 
 exports.updateServiceAdmin = asyncHandler(async (req, res, next) => {
     const { id } = req.query;
+    const parsedBody = {};
     if (!id) {
         return next(new Errorhander("Please provide service id", 400));
     }
-    const { name, title, subTitle, description, serviceType, htmlContent, category, image, videoUrl, price, durationInMinutes, isActive, gstNumber, hsnCode } = req.body;
+    for (const key in req.body) {
+        parsedBody[key] = parseField(req.body[key]);
+    }
+    const { name, title, subTitle, description, serviceType, htmlContent, category, image, videoUrl, price, durationInMinutes, isActive, gstNumber, hsnCode } = parsedBody;
 
     const service = await Service.findOne({ _id: id, isDeleted: false });
     if (!service) {
@@ -156,6 +214,14 @@ exports.updateServiceAdmin = asyncHandler(async (req, res, next) => {
         service.name = name.trim();
     }
 
+    if (req.files?.image?.[0]) {
+        // let imageName = generateImageName(req.files.image[0].filename);
+        if (service.image) {
+            deleteFile(service.image)
+        }
+        service.image = `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/services/${req.files.image[0].filename}`
+    }
+
     if (title) service.title = title.trim();
     if (subTitle) service.subTitle = subTitle.trim();
     if (htmlContent) service.htmlContent = htmlContent.trim();
@@ -166,7 +232,7 @@ exports.updateServiceAdmin = asyncHandler(async (req, res, next) => {
         }
         service.category = category;
     }
-    if (image) service.image = image;
+    // if (image) service.image = image;
     if (price !== undefined) service.price = price;
     if (gstNumber) service.gstNumber = gstNumber;
     if (hsnCode) service.hsnCode = hsnCode;

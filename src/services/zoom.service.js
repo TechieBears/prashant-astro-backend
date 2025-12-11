@@ -171,4 +171,4 @@ function extractMeetingFromZoomLink(zoomLink){
     return match ? match[1] : null;
 }
 
-module.exports = { createMeetingForUser, updateMeeting, extractMeetingFromZoomLink };
+module.exports = { getZoomAccessToken, createMeetingForUser, updateMeeting, extractMeetingFromZoomLink };

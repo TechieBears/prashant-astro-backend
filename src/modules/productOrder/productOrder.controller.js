@@ -111,7 +111,7 @@ exports.createProductOrder = asyncHandler(async (req, res) => {
       const snapshot = {
         name: product.name,
         categoryName: product.category?.name || '',
-        subCategoryName: product.subcategory?.name || '',
+        // subCategoryName: product.subcategory?.name || '',
         mrpPrice: product.mrpPrice,
         sellingPrice: product.sellingPrice,
         stock: product.stock,
@@ -131,7 +131,8 @@ exports.createProductOrder = asyncHandler(async (req, res) => {
     }
 
     // GST & amounts (dummy logic, adjust as needed)
-    const gst = totalAmount * 0.18; // 18%
+    // const gst = totalAmount * 0.18; // 18%
+    const gst = totalAmount * 0;
     const finalAmount = totalAmount + gst;
     let amountAfterCoupon = 0;
     if (coupon) {
@@ -146,6 +147,9 @@ exports.createProductOrder = asyncHandler(async (req, res) => {
     // --------------- ✅ WALLET CREDITS LOGIC ----------------
     let walletUsed = 0;
     let payingAmount = amountAfterCoupon;
+    if(amountAfterCoupon === 0) {
+      payingAmount = finalAmount;
+    }
     let walletBalance = 0;
 
     if (useCredits) {
@@ -236,15 +240,15 @@ exports.createProductOrder = asyncHandler(async (req, res) => {
       referralResult = await processReferralReward(userId, session);
 
       // If referral was processed successfully, update order status
-      if (referralResult.success) {
-        savedOrder.paymentStatus = 'PAID';
-        savedOrder.orderStatus = 'CONFIRMED';
-        savedOrder.orderHistory.push({
-          status: 'CONFIRMED',
-          date: new Date()
-        });
-        await savedOrder.save({ session });
-      }
+      // if (referralResult.success) {
+      //   savedOrder.paymentStatus = 'PAID';
+      //   savedOrder.orderStatus = 'CONFIRMED';
+      //   savedOrder.orderHistory.push({
+      //     status: 'CONFIRMED',
+      //     date: new Date()
+      //   });
+      //   await savedOrder.save({ session });
+      // }
     }
 
     // remove all from cart
@@ -303,10 +307,10 @@ exports.getProductOrders = asyncHandler(async (req, res) => {
     .populate('address')
     .populate({
       path: 'items.product',
-      select: 'name category subcategory stock images isActive', // select only needed fields
+      select: 'name category stock images isActive', // select only needed fields
       populate: [
         { path: 'category', select: 'name' },
-        { path: 'subcategory', select: 'name' },
+        // { path: 'subcategory', select: 'name' },
       ],
     });
 
@@ -321,7 +325,7 @@ exports.getProductOrders = asyncHandler(async (req, res) => {
           _id: item.product._id,
           name: item.product.name,
           category: item.product.category?.name || null,
-          subcategory: item.product.subcategory?.name || null,
+          // subcategory: item.product.subcategory?.name || null,
           images: item.product.images,
           // ✅ Only prices from snapshot
           mrpPrice: item.snapshot?.mrpPrice,
@@ -333,6 +337,8 @@ exports.getProductOrders = asyncHandler(async (req, res) => {
     })),
     totalAmount: order.totalAmount,
     finalAmount: order.finalAmount,
+    payingAmount: order.payingAmount,
+    discountPercent: order.isCoupon ? parseFloat(((order.finalAmount - order.payingAmount) / order.finalAmount * 100).toFixed(2)) : 0,
     amount: {
       currency: order.amount?.currency,
       gst: order.amount?.gst,
@@ -380,10 +386,10 @@ exports.getProductOrderById = asyncHandler(async (req, res) => {
     .populate('address')
     .populate({
       path: 'items.product',
-      select: 'name category subcategory stock images isActive',
+      select: 'name category stock images isActive',
       populate: [
         { path: 'category', select: 'name' },
-        { path: 'subcategory', select: 'name' },
+        // { path: 'subcategory', select: 'name' },
       ],
     });
 
@@ -402,7 +408,7 @@ exports.getProductOrderById = asyncHandler(async (req, res) => {
           _id: item.product._id,
           name: item.product.name,
           category: item.product.category?.name || null,
-          subcategory: item.product.subcategory?.name || null,
+          // subcategory: item.product.subcategory?.name || null,
           images: item.product.images,
           // ✅ prices from snapshot
           mrpPrice: item.snapshot?.mrpPrice,
@@ -414,6 +420,8 @@ exports.getProductOrderById = asyncHandler(async (req, res) => {
     })),
     totalAmount: order.totalAmount,
     finalAmount: order.finalAmount,
+    payingAmount: order.payingAmount,
+    discountPercent: order.isCoupon ? parseFloat(((order.finalAmount - order.payingAmount) / order.finalAmount * 100).toFixed(2)) : 0,
     amount: {
       currency: order.amount?.currency,
       gst: order.amount?.gst,

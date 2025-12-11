@@ -4,8 +4,10 @@ on:
   push:
     branches:
       - main
+      - staging
 
 jobs:
+
   deploy-production:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
@@ -27,3 +29,26 @@ jobs:
           git pull origin ${{ github.ref_name }}
           yarn install
           pm2 restart backend
+
+
+  deploy-staging:
+    if: github.ref == 'refs/heads/staging'
+    runs-on: ubuntu-latest
+    name: Deploy to Staging
+
+    steps:
+    - name: Run Deployment on Staging
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ secrets.VPS_HOST }}
+        username: ${{ secrets.VPS_USERNAME }}
+        key: ${{ secrets.VPS_SSH_KEY }}
+        script: |
+          echo "Navigating to staging project directory..."
+          cd ${{ secrets.PROJECT_PATH_DEV }}
+          echo "Resetting and pulling latest staging code..."
+          git fetch --all
+          git reset --hard origin/${{ github.ref_name }}
+          git pull origin ${{ github.ref_name }}
+          yarn install
+          pm2 restart staging-backend

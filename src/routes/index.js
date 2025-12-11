@@ -56,6 +56,8 @@ router.use('/config', configRoutes);
 router.use('/notification', require('../modules/notification/notification.route'));
 router.use('/dashboard', require('../modules/Dashboard/dashboard.route'));
 router.use('/zoom', require('../modules/zoom/zoom.route'));
+router.use('/wallet', require('../modules/wallet/wallet.route'));
+router.use('/call', require('../modules/callAstrologer/call.router'))
 
 // 404 handler for undefined routes (commented out temporarily to debug)
 // router.all('*', (req, res) => {

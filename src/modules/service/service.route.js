@@ -3,6 +3,9 @@ const router = express.Router();
 const serviceController = require('./service.controller');
 const { protect, authorize } = require('../../middlewares/auth');
 
+const getUploader = require("../../middlewares/upload");
+const serviceParser = getUploader('services');
+
 // public routes
 router.get("/public/get-all", serviceController.getAllServicesPublicPaginated);
 router.get("/soulplane/public/get-all", serviceController.getAllServicesSoulplane);
@@ -14,14 +17,14 @@ router.get("/astroguid/public/get-all", serviceController.getAllServicesPublicAs
 
 // admin routes
 router.use(protect, authorize('admin', "employee"));
-router.post("/create", serviceController.createServiceAdmin);
+router.post("/create", serviceParser.fields([{ name: 'image', maxCount: 1 }]), serviceController.createServiceAdmin);
 
 router.get("/get-all", serviceController.getAllServicesAdminPaginated);
 router.get("/get-single", serviceController.getServiceAdmin);
 router.get("/dropdown", serviceController.getAllServicesDropdownAdmin);
 router.get("/all", serviceController.getAllServicesForAdmin);
 
-router.put("/update", serviceController.updateServiceAdmin);
+router.put("/update", serviceParser.fields([{ name: 'image', maxCount: 1 }]), serviceController.updateServiceAdmin);
 
 router.delete("/delete", serviceController.deleteServiceAdmin);
 

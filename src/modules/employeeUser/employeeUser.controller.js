@@ -4,6 +4,23 @@ const EmployeeUser = require('./employeeUser.model');
 const ErrorHander = require('../../utils/errorHandler');
 const sendEmail = require('../../services/email.service');
 const crypto = require('crypto');
+// const { generateImageName } = require('../../utils/reusableFunctions');
+const { deleteFile } = require("../../utils/storage");
+
+function parseField(value) {
+    if (value === undefined || value === null) return value;
+
+    // If it is already an object or array => return as-is
+    if (typeof value === "object") return value;
+
+    // Try JSON parsing
+    try {
+        return JSON.parse(value);
+    } catch (e) {
+        // Return original string if not JSON
+        return value;
+    }
+}
 
 const sendUser = (user, profile) => ({
     _id: user._id,
@@ -33,18 +50,22 @@ const sendUser = (user, profile) => ({
 // @route   POST /api/employee-users/register
 // @access  Private/Admin
 exports.createEmployeeUser = asyncHandler(async (req, res, next) => {
-    const { firstName, lastName, email, mobileNo, profileImage, employeeType, skills, languages, experience, startTime, endTime, days, preBooking } = req.body;
+    const parsedBody = {};
+    for (const key in req.body) {
+        parsedBody[key] = parseField(req.body[key]);
+    }
+    const { firstName, lastName, email, mobileNo, userType, employeeType, skills, languages, experience, startTime, endTime, days, preBooking, about, priceCharge } = parsedBody;
 
 
     // validate fields with for loop
-    for (const field of ['firstName', 'lastName', 'email', 'mobileNo', 'employeeType', 'days', 'preBooking']) {
+    for (const field of ['firstName', 'lastName', 'email', 'mobileNo', 'employeeType']) {
         if (!req.body[field]) {
             return next(new ErrorHander(`Please provide ${field}`, 400));
         }
     }
 
     // 1. Validate
-    if (!firstName || !lastName || !email || !mobileNo || !employeeType || !days || !preBooking) {
+    if (!firstName || !lastName || !email || !mobileNo || !employeeType) {
         return next(new ErrorHander("Please provide all required fields", 400));
     }
 
@@ -54,11 +75,17 @@ exports.createEmployeeUser = asyncHandler(async (req, res, next) => {
         return next(new ErrorHander("User with this email already exists", 400));
     }
 
+    const profileImage = req.files?.image?.[0]
+        ? `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/profile/${req.files?.image?.[0]?.filename}`
+        : "https://cdn-icons-png.flaticon.com/512/149/149071.png";
+
     // 3. Create employee profile
     const employeeProfile = await EmployeeUser.create({
         employeeType,
         firstName,
         lastName,
+        about,
+        priceCharge,
         skills,
         languages,
         experience,
@@ -90,7 +117,7 @@ exports.createEmployeeUser = asyncHandler(async (req, res, next) => {
         password: tempPassword,
         profileImage,
         mobileNo,
-        role: "employee",
+        role: userType? userType : "employee",
         profile: employeeProfile._id,
         isActive: true
     });
@@ -232,6 +259,23 @@ exports.resetPassword = asyncHandler(async (req, res, next) => {
 // @desc Update Employee User
 // @route PUT /api/employee/update?id=employeeId
 // @access Private/Admin
+// exports.updateEmployeeUser = asyncHandler(async (req, res, next) => {
+//     const { id } = req.query;
+//     if (!id) return next(new ErrorHander("Please provide employee id", 400));
+
+//     // 1️⃣ Find the user
+//     const user = await User.findById(id);
+//     if (!user) {
+//         return next(new ErrorHander("Employee not found", 404));
+//     }
+
+//     await EmployeeUser.findByIdAndUpdate(user.profile, req.body, { new: true });
+//     await User.findByIdAndUpdate(id, req.body, { new: true });
+
+//     const updatedUser = await User.findById(id).populate("profile");
+
+//     res.ok(sendUser(updatedUser, updatedUser.profile), "Employee updated successfully");
+// });
 exports.updateEmployeeUser = asyncHandler(async (req, res, next) => {
     const { id } = req.query;
     if (!id) return next(new ErrorHander("Please provide employee id", 400));
@@ -242,9 +286,23 @@ exports.updateEmployeeUser = asyncHandler(async (req, res, next) => {
         return next(new ErrorHander("Employee not found", 404));
     }
 
-    await EmployeeUser.findByIdAndUpdate(user.profile, req.body, { new: true });
-    await User.findByIdAndUpdate(id, req.body, { new: true });
+    // 2️⃣ Prepare update data
+    let updateData = { ...req.body };
+    
+    // 3️⃣ Handle image upload if exists
+    if(req.files?.image?.[0]){
+        // let imageName = generateImageName(req.files.image[0].filename);
+        if(user.profileImage){
+          deleteFile(user.profileImage)
+        }
+        updateData.profileImage = `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/profile/${req.files.image[0].filename}`
+      }
+    
+    // 4️⃣ Update both documents
+    await EmployeeUser.findByIdAndUpdate(user.profile, updateData, { new: true });
+    await User.findByIdAndUpdate(id, updateData, { new: true });
 
+    // 5️⃣ Fetch updated user with populated profile
     const updatedUser = await User.findById(id).populate("profile");
 
     res.ok(sendUser(updatedUser, updatedUser.profile), "Employee updated successfully");
@@ -407,4 +465,25 @@ exports.getAllPublicEmployees = asyncHandler(async (req, res) => {
     });
 
     res.ok(formattedAstrologers, "Public employee users fetched successfully");
+});
+
+exports.getAllcallAstrologerCustomer = asyncHandler(async (req, res) => {
+    const { page = 1, limit = 10 } = req.body;
+    const skip = (page - 1) * limit;
+    const employees = await User.find({
+        role: "employee",
+        isActive: true,
+        isDeleted: false,
+    })
+        .select("email mobileNo profileImage profile") // exclude sensitive fields
+        .populate({
+            path: "profile",
+            model: "employee",
+            match: { employeeType: "call_astrologer" },
+            select:
+                "firstName lastName fullName skills languages experience profile _id employeeType"
+        })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit);
 });

@@ -154,7 +154,35 @@ exports.createServiceOrder = asyncHandler(async (req, res, next) => {
       }
 
       const bookingDay = moment(bookingDate).format('dddd');
-      if (!astrologer.profile.days.includes(bookingDay)) {
+
+      // ✅ FIX: Handle stringified JSON array for days
+      let availableDays = [];
+      if (astrologer?.profile?.days) {
+        if (typeof astrologer.profile.days === 'string') {
+          try {
+            availableDays = JSON.parse(astrologer.profile.days);
+          } catch (parseError) {
+            console.error("Error parsing days string:", parseError);
+            availableDays = [];
+          }
+        } else if (Array.isArray(astrologer.profile.days)) {
+          // Check if first element is a stringified array
+          if (astrologer.profile.days.length > 0 &&
+            typeof astrologer.profile.days[0] === 'string' &&
+            astrologer.profile.days[0].startsWith('[')) {
+            try {
+              availableDays = JSON.parse(astrologer.profile.days[0]);
+            } catch (parseError) {
+              console.error("Error parsing days array element:", parseError);
+              availableDays = astrologer.profile.days;
+            }
+          } else {
+            availableDays = astrologer.profile.days;
+          }
+        }
+      }
+
+      if (!availableDays.includes(bookingDay)) {
         await session.abortTransaction();
         session.endSession();
         return next(new ErrorHandler(`Astrologer not available on ${bookingDay}`, 400));
@@ -257,14 +285,26 @@ exports.createServiceOrder = asyncHandler(async (req, res, next) => {
       totalAmount += service.price;
     }
 
+    let gst = totalAmount * 0;
+    let finalAmount = totalAmount + gst;
+    let amountAfterCoupon = 0;
+    if (coupon) {
+      if (coupon.discountIn === 'percent') {
+        amountAfterCoupon = finalAmount - ((finalAmount * coupon.discount) / 100);
+      }
+      else {
+        amountAfterCoupon = finalAmount - (coupon ? coupon.discount : 0);
+      }
+    }
+
     // ✅ Create a Single ServiceOrder (parent record)
     const serviceOrderPayload = {
       user: userId,
       services: createdOrderItems,
       paymentStatus: 'pending',
       totalAmount,
-      finalAmount: totalAmount,
-      payingAmount: totalAmount,
+      finalAmount,
+      payingAmount: amountAfterCoupon,
       isCoupon: !!coupon,
       coupon: coupon?._id || null,
     };
@@ -451,6 +491,8 @@ exports.getAllServiceOrders = asyncHandler(async (req, res, next) => {
     paymentStatus: order.paymentStatus,
     totalAmount: order.totalAmount,
     finalAmount: order.finalAmount,
+    payingAmount: order.payingAmount,
+    discountPercent: order.isCoupon ? parseFloat(((order.finalAmount - order.payingAmount) / order.finalAmount * 100).toFixed(2)) : 0,
     paymentId: order.transaction?.paymentId || null,
     paymentDetails: order.transaction?.paymentDetails || null,
     createdAt: order.createdAt
@@ -513,6 +555,8 @@ exports.getServiceOrder = asyncHandler(async (req, res, next) => {
     paymentStatus: order.paymentStatus,
     totalAmount: order.totalAmount,
     finalAmount: order.finalAmount,
+    payingAmount: order.payingAmount,
+    discountPercent: order.isCoupon ? parseFloat(((order.finalAmount - order.payingAmount) / order.finalAmount * 100).toFixed(2)) : 0,
     paymentId: order.transaction?.paymentId || null,
     paymentDetails: order.transaction?.paymentDetails || null,
     address: order.address || null,           // ✅ added
@@ -604,7 +648,7 @@ exports.getServiceOrder = asyncHandler(async (req, res, next) => {
 //           },
 //           { $unwind: { path: '$astrologerDetails', preserveNullAndEmptyArrays: true } },
 
-//           // Lookup address details for each service item
+//           // Lookup address details for each service item - CORRECTED
 //           {
 //             $lookup: {
 //               from: 'customeraddresses',
@@ -691,7 +735,7 @@ exports.getServiceOrder = asyncHandler(async (req, res, next) => {
 //     },
 //     { $unwind: { path: '$couponDetails', preserveNullAndEmptyArrays: true } },
 
-//     // Project the final structure
+//     // Project the final structure - CORRECTED
 //     {
 //       $project: {
 //         orderId: '$_id',
@@ -727,6 +771,7 @@ exports.getServiceOrder = asyncHandler(async (req, res, next) => {
 //               serviceId: '$$service.serviceDetails._id',
 //               serviceName: '$$service.serviceDetails.name',
 //               astrologerName: '$$service.astrologerDetails.name',
+//               // CORRECTED: Get price and duration from snapshot
 //               servicePrice: '$$service.snapshot.price',
 //               durationInMinutes: '$$service.snapshot.durationInMinutes',
 //               startTime: '$$service.startTime',
@@ -739,11 +784,24 @@ exports.getServiceOrder = asyncHandler(async (req, res, next) => {
 //               bookingStatus: '$$service.status',
 //               paymentStatus: '$$service.paymentStatus',
 //               zoomLink: '$$service.zoomLink',
+//               cust: {
+//                 firstName: '$$service.cust.firstName',
+//                 lastName: '$$service.cust.lastName',
+//                 email: '$$service.cust.email',
+//                 phone: '$$service.cust.phone',
+//                 addressData: '$$service.cust.addressData' || null
+//               },
+//               // CORRECTED: Proper address handling
 //               address: {
 //                 $cond: {
-//                   if: { $eq: [{ $type: '$$service.addressDetails' }, 'missing'] },
-//                   then: null,
-//                   else: {
+//                   if: {
+//                     $and: [
+//                       '$$service.address',
+//                       { $ne: ['$$service.addressDetails', null] },
+//                       { $ne: ['$$service.addressDetails', {}] }
+//                     ]
+//                   },
+//                   then: {
 //                     _id: '$$service.addressDetails._id',
 //                     firstName: '$$service.addressDetails.firstName',
 //                     lastName: '$$service.addressDetails.lastName',
@@ -755,7 +813,8 @@ exports.getServiceOrder = asyncHandler(async (req, res, next) => {
 //                     city: '$$service.addressDetails.city',
 //                     postalCode: '$$service.addressDetails.postalCode',
 //                     isDefault: '$$service.addressDetails.isDefault'
-//                   }
+//                   },
+//                   else: null
 //                 }
 //               }
 //             }
@@ -768,14 +827,20 @@ exports.getServiceOrder = asyncHandler(async (req, res, next) => {
 //         isCoupon: 1,
 //         coupon: {
 //           $cond: {
-//             if: { $eq: [{ $type: '$couponDetails' }, 'missing'] },
-//             then: null,
-//             else: {
+//             if: {
+//               $and: [
+//                 '$coupon',
+//                 { $ne: ['$couponDetails', null] },
+//                 { $ne: ['$couponDetails', {}] }
+//               ]
+//             },
+//             then: {
 //               couponName: '$couponDetails.couponName',
 //               couponCode: '$couponDetails.couponCode',
 //               discountIn: '$couponDetails.discountIn',
 //               discount: '$couponDetails.discount'
-//             }
+//             },
+//             else: null
 //           }
 //         },
 //         paymentId: '$transactionDetails.paymentId',
@@ -838,7 +903,7 @@ exports.getAllServiceOrdersAdmin = asyncHandler(async (req, res, next) => {
   const limit = parseInt(req.query.limit) || 20;
   const skip = (page - 1) * limit;
 
-  // Build match stage
+  // Build match stage for ServiceOrder
   const matchStage = {};
 
   if (req.query.orderId) {
@@ -860,15 +925,36 @@ exports.getAllServiceOrdersAdmin = asyncHandler(async (req, res, next) => {
     };
   }
 
-  // Handle astrologerId filtering with aggregation
+  // Handle astrologerId filtering - REMOVED from matchStage
+  // We'll handle this differently in aggregation
+
+  const aggregationPipeline = [];
+
+  // First, if astrologerId is provided, we need to find ServiceOrderItems first
   if (req.query.astrologerId) {
-    matchStage['services.astrologer'] = new mongoose.Types.ObjectId(req.query.astrologerId);
+    // Find all ServiceOrderItems for this astrologer
+    const serviceOrderItems = await ServiceOrderItem.find({
+      astrologer: new mongoose.Types.ObjectId(req.query.astrologerId)
+    }).select('_id');
+
+    const serviceItemIds = serviceOrderItems.map(item => item._id);
+
+    // Match ServiceOrders that have any of these ServiceOrderItems in their services array
+    if (serviceItemIds.length > 0) {
+      matchStage.services = { $in: serviceItemIds };
+    } else {
+      // If no service items found for this astrologer, return empty result
+      matchStage.services = { $in: [] }; // Will match nothing
+    }
   }
 
-  const aggregationPipeline = [
-    // Match orders based on filters
-    ...(Object.keys(matchStage).length > 0 ? [{ $match: matchStage }] : []),
+  // Add match stage if it has conditions
+  if (Object.keys(matchStage).length > 0) {
+    aggregationPipeline.push({ $match: matchStage });
+  }
 
+  // Rest of the aggregation pipeline (unchanged)
+  aggregationPipeline.push(
     // Lookup services with populated data
     {
       $lookup: {
@@ -909,7 +995,7 @@ exports.getAllServiceOrdersAdmin = asyncHandler(async (req, res, next) => {
           },
           { $unwind: { path: '$astrologerDetails', preserveNullAndEmptyArrays: true } },
 
-          // Lookup address details for each service item - CORRECTED
+          // Lookup address details for each service item
           {
             $lookup: {
               from: 'customeraddresses',
@@ -922,6 +1008,13 @@ exports.getAllServiceOrdersAdmin = asyncHandler(async (req, res, next) => {
         ]
       }
     },
+
+    // Filter out orders where serviceItems array is empty after filtering
+    ...(req.query.astrologerId ? [{
+      $match: {
+        'serviceItems.0': { $exists: true }
+      }
+    }] : []),
 
     // Lookup user details
     {
@@ -944,7 +1037,7 @@ exports.getAllServiceOrdersAdmin = asyncHandler(async (req, res, next) => {
     },
     { $unwind: { path: '$userDetails', preserveNullAndEmptyArrays: true } },
 
-    // Lookup customer profile details (where firstName and lastName are stored)
+    // Lookup customer profile details
     {
       $lookup: {
         from: 'customers',
@@ -996,7 +1089,7 @@ exports.getAllServiceOrdersAdmin = asyncHandler(async (req, res, next) => {
     },
     { $unwind: { path: '$couponDetails', preserveNullAndEmptyArrays: true } },
 
-    // Project the final structure - CORRECTED
+    // Project the final structure
     {
       $project: {
         orderId: '$_id',
@@ -1032,7 +1125,6 @@ exports.getAllServiceOrdersAdmin = asyncHandler(async (req, res, next) => {
               serviceId: '$$service.serviceDetails._id',
               serviceName: '$$service.serviceDetails.name',
               astrologerName: '$$service.astrologerDetails.name',
-              // CORRECTED: Get price and duration from snapshot
               servicePrice: '$$service.snapshot.price',
               durationInMinutes: '$$service.snapshot.durationInMinutes',
               startTime: '$$service.startTime',
@@ -1052,7 +1144,6 @@ exports.getAllServiceOrdersAdmin = asyncHandler(async (req, res, next) => {
                 phone: '$$service.cust.phone',
                 addressData: '$$service.cust.addressData' || null
               },
-              // CORRECTED: Proper address handling
               address: {
                 $cond: {
                   if: {
@@ -1116,31 +1207,17 @@ exports.getAllServiceOrdersAdmin = asyncHandler(async (req, res, next) => {
     // Pagination
     { $skip: skip },
     { $limit: limit }
-  ];
+  );
 
   // Get total count for pagination
+  const countMatchStage = {};
+
+  if (Object.keys(matchStage).length > 0) {
+    Object.assign(countMatchStage, matchStage);
+  }
+
   const countPipeline = [
-    ...(Object.keys(matchStage).length > 0 ? [{ $match: matchStage }] : []),
-
-    // Handle astrologer filtering in count
-    ...(req.query.astrologerId ? [{
-      $lookup: {
-        from: 'serviceorderitems',
-        localField: 'services',
-        foreignField: '_id',
-        as: 'serviceItems',
-        pipeline: [{
-          $match: {
-            astrologer: new mongoose.Types.ObjectId(req.query.astrologerId)
-          }
-        }]
-      }
-    }, {
-      $match: {
-        'serviceItems.0': { $exists: true }
-      }
-    }] : []),
-
+    { $match: countMatchStage },
     { $count: 'total' }
   ];
 

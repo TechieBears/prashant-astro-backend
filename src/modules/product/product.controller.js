@@ -3,15 +3,63 @@ const Product = require('./product.model');
 const Category = require('../productCategory/productCategory.model');
 const Subcategory = require('../productSubcategory/productSubcategory.model');
 const Errorhander = require('../../utils/errorHandler');
+// const { generateImageName } = require('../../utils/reusableFunctions');
+const { deleteFile } = require("../../utils/storage");
+
+function parseField(value) {
+  if (value === undefined || value === null) return value;
+
+  // If it is already an object or array => return as-is
+  if (typeof value === "object") return value;
+
+  // Try JSON parsing
+  try {
+    return JSON.parse(value);
+  } catch (e) {
+    // Return original string if not JSON
+    return value;
+  }
+}
 
 // @desc Create a product
 // @route POST /api/products/create
 // @access Private (admin only)
 exports.createProduct = asyncHandler(async (req, res, next) => {
-  const { name, description, images, additionalInfo, specification, highlights, category, subcategory, mrpPrice, sellingPrice, stock, gstNumber, hsnCode, isActive } = req.body;
+  const parsedBody = {};
+  for (const key in req.body) {
+    parsedBody[key] = parseField(req.body[key]);
+  }
+  const {
+    name,
+    description,
+    additionalInfo,
+    specification,
+    highlights,
+    category,
+    // subcategory,
+    mrpPrice,
+    sellingPrice,
+    stock,
+    gstNumber,
+    hsnCode,
+    isActive
+  } = parsedBody;
+  // const { name, description, additionalInfo, specification, highlights, category, subcategory, mrpPrice, sellingPrice, stock, gstNumber, hsnCode, isActive } = req.body;
+
+  if (!req.files?.images || req.files.images.length === 0) {
+    await session.abortTransaction();
+    session.endSession();
+    return next(new Errorhander("At least one product image is required", 400));
+  }
+
+  const images = req.files.images.map(file => {
+    // let imageName = generateImageName(file.originalname);
+    return `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/product/${file.filename}`
+  }
+  );
 
   // Validate required fields
-  if (!name || !description || !category || !subcategory || !mrpPrice || !sellingPrice || !stock) {
+  if (!name || !description || !category || !mrpPrice || !sellingPrice || !stock) {
     res.status(400);
     throw new Error('All required fields must be provided');
   }
@@ -24,17 +72,17 @@ exports.createProduct = asyncHandler(async (req, res, next) => {
   }
 
   // Validate subcategory exists and is active
-  const subcategoryExists = await Subcategory.findById(subcategory);
-  if (!subcategoryExists || !subcategoryExists.isActive) {
-    res.status(400);
-    throw new Error('Invalid or inactive subcategory');
-  }
+  // const subcategoryExists = await Subcategory.findById(subcategory);
+  // if (!subcategoryExists || !subcategoryExists.isActive) {
+  //   res.status(400);
+  //   throw new Error('Invalid or inactive subcategory');
+  // }
 
-  // Validate subcategory belongs to category
-  if (subcategoryExists.categoryId.toString() !== category) {
-    res.status(400);
-    throw new Error('Subcategory does not belong to the selected category');
-  }
+  // // Validate subcategory belongs to category
+  // if (subcategoryExists.categoryId.toString() !== category) {
+  //   res.status(400);
+  //   throw new Error('Subcategory does not belong to the selected category');
+  // }
 
   // Validate prices
   if (Number(sellingPrice) > Number(mrpPrice)) {
@@ -49,7 +97,7 @@ exports.createProduct = asyncHandler(async (req, res, next) => {
     specification,
     highlights,
     category,
-    subcategory,
+    // subcategory,
     mrpPrice,
     sellingPrice,
     stock,
@@ -62,7 +110,7 @@ exports.createProduct = asyncHandler(async (req, res, next) => {
 
   const productResponse = await Product.findById(product._id)
     .populate('category', 'name')
-    .populate('subcategory', 'name')
+    // .populate('subcategory', 'name')
     .populate('createdBy', 'firstName lastName email');
 
   res.created(productResponse, 'Product created successfully');
@@ -84,9 +132,9 @@ exports.getAllProducts = asyncHandler(async (req, res, next) => {
   }
 
   // Filter by subcategory
-  if (req.query.subcategory) {
-    query.subcategory = req.query.subcategory;
-  }
+  // if (req.query.subcategory) {
+  //   query.subcategory = req.query.subcategory;
+  // }
 
   // Search by name or description
   if (req.query.search && req.query.search !== '') {
@@ -110,7 +158,7 @@ exports.getAllProducts = asyncHandler(async (req, res, next) => {
 
   const products = await Product.find(query)
     .populate('category', 'name')
-    .populate('subcategory', 'name')
+    // .populate('subcategory', 'name')
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(limit);
@@ -129,7 +177,7 @@ exports.getNewArrivals = asyncHandler(async (req, res, next) => {
 
   const products = await Product.find(query)
     .populate('category', 'name')
-    .populate('subcategory', 'name')
+    // .populate('subcategory', 'name')
     .sort({ createdAt: -1 })
     .limit(10);
 
@@ -166,18 +214,18 @@ exports.getAllProductsAdmin = asyncHandler(async (req, res, next) => {
   }
 
   // 🔹 Filter by subcategory name
-  if (req.query.subcategoryId) {
-    const subcategory = await Subcategory.findOne({
-      _id: req.query.subcategoryId,
-      isDeleted: false,
-    }).select('_id');
+  // if (req.query.subcategoryId) {
+  //   const subcategory = await Subcategory.findOne({
+  //     _id: req.query.subcategoryId,
+  //     isDeleted: false,
+  //   }).select('_id');
 
-    if (subcategory) {
-      query.subcategory = subcategory._id;
-    } else {
-      return res.paginated([], { page, limit, total: 0, pages: 0 }, "No products found");
-    }
-  }
+  //   if (subcategory) {
+  //     query.subcategory = subcategory._id;
+  //   } else {
+  //     return res.paginated([], { page, limit, total: 0, pages: 0 }, "No products found");
+  //   }
+  // }
 
   // 🔹 Search by name or description
   if (req.query.name && req.query.name !== '') {
@@ -211,7 +259,7 @@ exports.getAllProductsAdmin = asyncHandler(async (req, res, next) => {
 
   const products = await Product.find(query)
     .populate('category', 'name')
-    .populate('subcategory', 'name')
+    // .populate('subcategory', 'name')
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(limit);
@@ -231,23 +279,23 @@ exports.getAllProductsAdmin = asyncHandler(async (req, res, next) => {
 exports.getProductById = asyncHandler(async (req, res, next) => {
   const product = await Product.findById(req.query.id)
     .populate('category', 'name')
-    .populate('subcategory', 'name');
+    // .populate('subcategory', 'name');
 
   if (!product || !product.isActive || product.isDeleted) {
     res.status(404);
     throw new Error('Product not found');
   }
 
-  // 🔹 Fetch related products (same subcategory, exclude current, limit 10)
+  // 🔹 Fetch related products (same category, exclude current, limit 10)
   const relatedProducts = await Product.find({
-    subcategory: product.subcategory._id,
+    category: product.category._id,
     _id: { $ne: product._id },
     isActive: true,
     isDeleted: false
   })
-    .select('name description sellingPrice mrpPrice images stock category subcategory') // only useful fields
+    .select('name description sellingPrice mrpPrice images stock category') // only useful fields
     .populate('category', 'name')
-    .populate('subcategory', 'name')
+    // .populate('subcategory', 'name')
     .limit(10);
 
   // 🔹 Build response
@@ -266,7 +314,7 @@ exports.getProductById = asyncHandler(async (req, res, next) => {
 exports.getProductByIdAdmin = asyncHandler(async (req, res, next) => {
   const product = await Product.findById(req.query.id)
     .populate('category', 'name')
-    .populate('subcategory', 'name')
+    // .populate('subcategory', 'name')
     .populate('createdBy', 'firstName lastName email')
     .populate('updatedBy', 'firstName lastName email');
 
@@ -281,6 +329,73 @@ exports.getProductByIdAdmin = asyncHandler(async (req, res, next) => {
 // @desc Update a product
 // @route PUT /api/products/update
 // @access Private (admin only)
+// exports.updateProduct = asyncHandler(async (req, res, next) => {
+//   const product = await Product.findById(req.query.id);
+//   if (!product) {
+//     res.status(404);
+//     throw new Error('Product not found');
+//   }
+
+//   const { name, description, images, additionalInfo, specification, highlights, category, subcategory, mrpPrice, sellingPrice, stock, gstNumber, hsnCode, isActive } = req.body;
+
+//   // Validate category if provided
+//   if (category) {
+//     const categoryExists = await Category.findById(category);
+//     if (!categoryExists || !categoryExists.isActive) {
+//       res.status(400);
+//       throw new Error('Invalid or inactive category');
+//     }
+//   }
+
+//   // Validate subcategory if provided
+//   if (subcategory) {
+//     const subcategoryExists = await Subcategory.findById(subcategory);
+//     if (!subcategoryExists || !subcategoryExists.isActive) {
+//       res.status(400);
+//       throw new Error('Invalid or inactive subcategory');
+//     }
+
+//     // Validate subcategory belongs to category
+//     const categoryId = category || product.category;
+//     if (subcategoryExists.categoryId.toString() !== categoryId.toString()) {
+//       res.status(400);
+//       throw new Error('Subcategory does not belong to the selected category');
+//     }
+//   }
+
+//   // Validate prices if provided
+//   const finalMrpPrice = mrpPrice || product.mrpPrice;
+//   const finalSellingPrice = sellingPrice || product.sellingPrice;
+//   if (finalSellingPrice > finalMrpPrice) {
+//     res.status(400);
+//     throw new Error('Selling price cannot be greater than MRP price');
+//   }
+
+//   // Update fields
+//   if (name) product.name = name;
+//   if (description) product.description = description;
+//   if (images) product.images = images;
+//   if (additionalInfo !== undefined) product.additionalInfo = additionalInfo;
+//   if (specification !== undefined) product.specification = specification;
+//   if (highlights !== undefined) product.highlights = highlights;
+//   if (category) product.category = category;
+//   if (subcategory) product.subcategory = subcategory;
+//   if (mrpPrice) product.mrpPrice = mrpPrice;
+//   if (sellingPrice) product.sellingPrice = sellingPrice;
+//   if (stock !== undefined) product.stock = stock;
+//   if (gstNumber) product.gstNumber = gstNumber;
+//   if (hsnCode) product.hsnCode = hsnCode;
+//   if (isActive !== undefined) product.isActive = isActive;
+
+//   product.updatedBy = req.user._id;
+//   await product.save();
+
+//   const updated = await Product.findById(product._id)
+//     .populate('category', 'name')
+//     .populate('subcategory', 'name')
+
+//   res.ok(updated, 'Product updated successfully');
+// });
 exports.updateProduct = asyncHandler(async (req, res, next) => {
   const product = await Product.findById(req.query.id);
   if (!product) {
@@ -288,7 +403,7 @@ exports.updateProduct = asyncHandler(async (req, res, next) => {
     throw new Error('Product not found');
   }
 
-  const { name, description, images, additionalInfo, specification, highlights, category, subcategory, mrpPrice, sellingPrice, stock, gstNumber, hsnCode, isActive } = req.body;
+  const { name, description, deletedImages, additionalInfo, specification, highlights, category, mrpPrice, sellingPrice, stock, gstNumber, hsnCode, isActive } = req.body;
 
   // Validate category if provided
   if (category) {
@@ -300,38 +415,71 @@ exports.updateProduct = asyncHandler(async (req, res, next) => {
   }
 
   // Validate subcategory if provided
-  if (subcategory) {
-    const subcategoryExists = await Subcategory.findById(subcategory);
-    if (!subcategoryExists || !subcategoryExists.isActive) {
-      res.status(400);
-      throw new Error('Invalid or inactive subcategory');
-    }
+  // if (subcategory) {
+  //   const subcategoryExists = await Subcategory.findById(subcategory);
+  //   if (!subcategoryExists || !subcategoryExists.isActive) {
+  //     res.status(400);
+  //     throw new Error('Invalid or inactive subcategory');
+  //   }
 
-    // Validate subcategory belongs to category
-    const categoryId = category || product.category;
-    if (subcategoryExists.categoryId.toString() !== categoryId.toString()) {
-      res.status(400);
-      throw new Error('Subcategory does not belong to the selected category');
-    }
-  }
+  //   // Validate subcategory belongs to category
+  //   const categoryId = category || product.category;
+  //   if (subcategoryExists.categoryId.toString() !== categoryId.toString()) {
+  //     res.status(400);
+  //     throw new Error('Subcategory does not belong to the selected category');
+  //   }
+  // }
 
   // Validate prices if provided
-  const finalMrpPrice = mrpPrice || product.mrpPrice;
-  const finalSellingPrice = sellingPrice || product.sellingPrice;
+  const finalMrpPrice = Number(mrpPrice ?? product.mrpPrice);
+  const finalSellingPrice = Number(sellingPrice ?? product.sellingPrice);
   if (finalSellingPrice > finalMrpPrice) {
     res.status(400);
     throw new Error('Selling price cannot be greater than MRP price');
   }
 
+  let images = [...product.images]; // Create a copy of current images
+
+  // Handle deleted images
+  if (deletedImages && deletedImages.length > 0) {
+    // Parse deletedImages if it's a string (from form-data)
+    let deletedImagesArray = deletedImages;
+    if (typeof deletedImages === 'string') {
+      try {
+        deletedImagesArray = JSON.parse(deletedImages);
+      } catch (err) {
+        console.error('Error parsing deletedImages:', err);
+        deletedImagesArray = [deletedImages]; // Fallback to single image
+      }
+    }
+
+    // Delete files from server
+    deletedImagesArray.forEach(imageUrl => {
+      deleteFile(imageUrl);
+    });
+
+    // Remove deleted images from the images array
+    images = images.filter(image => !deletedImagesArray.includes(image));
+  }
+
+  // Handle new uploaded images
+  if (req.files?.images && req.files.images.length > 0) {
+    const newImages = req.files.images.map(file =>
+      `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/product/${file.filename}`
+    );
+    // Add new images to existing ones
+    images = [...images, ...newImages];
+  }
+
   // Update fields
   if (name) product.name = name;
   if (description) product.description = description;
-  if (images) product.images = images;
+  product.images = images; // Always update images array
   if (additionalInfo !== undefined) product.additionalInfo = additionalInfo;
   if (specification !== undefined) product.specification = specification;
   if (highlights !== undefined) product.highlights = highlights;
   if (category) product.category = category;
-  if (subcategory) product.subcategory = subcategory;
+  // if (subcategory) product.subcategory = subcategory;
   if (mrpPrice) product.mrpPrice = mrpPrice;
   if (sellingPrice) product.sellingPrice = sellingPrice;
   if (stock !== undefined) product.stock = stock;
@@ -344,7 +492,7 @@ exports.updateProduct = asyncHandler(async (req, res, next) => {
 
   const updated = await Product.findById(product._id)
     .populate('category', 'name')
-    .populate('subcategory', 'name')
+    // .populate('subcategory', 'name')
 
   res.ok(updated, 'Product updated successfully');
 });
@@ -401,7 +549,7 @@ exports.restoreProduct = asyncHandler(async (req, res, next) => {
 
   const restored = await Product.findById(product._id)
     .populate('category', 'name')
-    .populate('subcategory', 'name')
+    // .populate('subcategory', 'name')
     .populate('createdBy', 'firstName lastName email')
     .populate('updatedBy', 'firstName lastName email');
 
@@ -482,13 +630,13 @@ exports.getProductsByCategory = asyncHandler(async (req, res, next) => {
 
   const query = { category: req.query.categoryId, isActive: true };
 
-  if (req.query.subcategory) {
-    query.subcategory = req.query.subcategory;
-  }
+  // if (req.query.subcategory) {
+  //   query.subcategory = req.query.subcategory;
+  // }
 
   const products = await Product.find(query)
     .populate('category', 'name')
-    .populate('subcategory', 'name')
+    // .populate('subcategory', 'name')
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(limit);
@@ -506,7 +654,7 @@ exports.getFeaturedProducts = asyncHandler(async (req, res, next) => {
 
   const products = await Product.find({ isActive: true, stock: { $gt: 0 } })
     .populate('category', 'name')
-    .populate('subcategory', 'name')
+    // .populate('subcategory', 'name')
     .sort({ createdAt: -1 })
     .limit(limit);
 
@@ -516,50 +664,50 @@ exports.getFeaturedProducts = asyncHandler(async (req, res, next) => {
 // @desc Get products by subcategory
 // @route GET /api/products/subcategory/:subcategoryId
 // @access Public
-exports.getProductsBySubcategory = asyncHandler(async (req, res, next) => {
-  const page = parseInt(req.query.page) || 1;
-  const limit = parseInt(req.query.limit) || 10;
-  const skip = (page - 1) * limit;
+// exports.getProductsBySubcategory = asyncHandler(async (req, res, next) => {
+//   const page = parseInt(req.query.page) || 1;
+//   const limit = parseInt(req.query.limit) || 10;
+//   const skip = (page - 1) * limit;
 
-  const subcategory = await Subcategory.findById(req.query.subcategoryId);
-  if (!subcategory || !subcategory.isActive) {
-    res.status(404);
-    throw new Error('Subcategory not found');
-  }
+//   const subcategory = await Subcategory.findById(req.query.subcategoryId);
+//   if (!subcategory || !subcategory.isActive) {
+//     res.status(404);
+//     throw new Error('Subcategory not found');
+//   }
 
-  const query = { subcategory: req.query.subcategoryId, isActive: true };
+//   const query = { subcategory: req.query.subcategoryId, isActive: true };
 
-  // Search by name or description
-  if (req.query.search && req.query.search !== '') {
-    query.$or = [
-      { name: { $regex: req.query.search, $options: 'i' } },
-      { description: { $regex: req.query.search, $options: 'i' } }
-    ];
-  }
+//   // Search by name or description
+//   if (req.query.search && req.query.search !== '') {
+//     query.$or = [
+//       { name: { $regex: req.query.search, $options: 'i' } },
+//       { description: { $regex: req.query.search, $options: 'i' } }
+//     ];
+//   }
 
-  // Filter by price range
-  if (req.query.minPrice || req.query.maxPrice) {
-    query.sellingPrice = {};
-    if (req.query.minPrice) query.sellingPrice.$gte = parseFloat(req.query.minPrice);
-    if (req.query.maxPrice) query.sellingPrice.$lte = parseFloat(req.query.maxPrice);
-  }
+//   // Filter by price range
+//   if (req.query.minPrice || req.query.maxPrice) {
+//     query.sellingPrice = {};
+//     if (req.query.minPrice) query.sellingPrice.$gte = parseFloat(req.query.minPrice);
+//     if (req.query.maxPrice) query.sellingPrice.$lte = parseFloat(req.query.maxPrice);
+//   }
 
-  // Filter by stock availability
-  if (req.query.inStock === 'true') {
-    query.stock = { $gt: 0 };
-  }
+//   // Filter by stock availability
+//   if (req.query.inStock === 'true') {
+//     query.stock = { $gt: 0 };
+//   }
 
-  const products = await Product.find(query)
-    .populate('category', 'name')
-    .populate('subcategory', 'name')
-    .sort({ createdAt: -1 })
-    .skip(skip)
-    .limit(limit);
+//   const products = await Product.find(query)
+//     .populate('category', 'name')
+//     .populate('subcategory', 'name')
+//     .sort({ createdAt: -1 })
+//     .skip(skip)
+//     .limit(limit);
 
-  const total = await Product.countDocuments(query);
+//   const total = await Product.countDocuments(query);
 
-  res.paginated(products, { page, limit, total, pages: Math.ceil(total / limit) });
-});
+//   res.paginated(products, { page, limit, total, pages: Math.ceil(total / limit) });
+// });
 
 exports.getOurProducts = asyncHandler(async (req, res, next) => {
   const products = await Product.find({ isDeleted: false, isActive: true, category: req.query.categoryId }).sort({ createdAt: -1 }).limit(20).select('-__v -isActive -isDeleted -createdBy -updatedBy');

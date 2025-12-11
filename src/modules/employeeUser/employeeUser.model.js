@@ -8,7 +8,7 @@ const employeeUserSchema = new mongoose.Schema({
     uniqueId: String,
     employeeType:{
         type: String,
-        enum: ["astrologer", "employee"],
+        enum: ["astrologer", "employee", "call_astrologer"],
     },
     firstName: {
         type: String,
@@ -19,6 +19,12 @@ const employeeUserSchema = new mongoose.Schema({
         type: String,
         required: [true, "Last name is required"],
         maxlength: 50
+    },
+    about:{
+        type: String,
+    },
+    priceCharge:{
+        type: Number,
     },
     skills:{
         type: [String],
@@ -40,7 +46,7 @@ const employeeUserSchema = new mongoose.Schema({
         enum: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
     },
     preBooking:{
-        type: Number,
+        type: Boolean,
     }
 }, { timestamps: true });
 

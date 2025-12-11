@@ -1,17 +1,26 @@
 const asyncHandler = require('express-async-handler');
 const ProductCategory = require('./productCategory.model');
+const Errorhander = require('../../utils/errorHandler');
+const ProductSubcategory = require('../productSubcategory/productSubcategory.model');
+// const { generateImageName } = require('../../utils/reusableFunctions');
+const {deleteFile} = require('../../utils/storage');
 
 // @desc Create a product category
 // @route POST /api/product-categories
 // @access private (admin, super-admin)
 exports.createProductCategory = asyncHandler(async (req, res) => {
-  const { name, image } = req.body;
+  const { name } = req.body;
 
   const existing = await ProductCategory.findByName(name);
   if (existing) {
     res.status(400);
     throw new Error(`Category with name '${name}' already exists`);
   }
+  // let imageName = generateImageName(req.files?.image?.[0].filename);
+
+  const image = req.files?.image?.[0] ? 
+  `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/product_categories/${req.files?.image?.[0].filename}`
+  : null;
 
   const category = await ProductCategory.create({
     name,
@@ -84,7 +93,7 @@ exports.updateProductCategory = asyncHandler(async (req, res) => {
     throw new Error('Category not found');
   }
 
-  const { name, image, isActive } = req.body;
+  const { name, isActive } = req.body;
   if (name && name !== category.name) {
     const existing = await ProductCategory.findByName(name);
     if (existing && existing._id.toString() !== req.query.id) {
@@ -93,8 +102,16 @@ exports.updateProductCategory = asyncHandler(async (req, res) => {
     }
   }
 
+  if(req.files?.image?.[0]){
+    // let imageName = generateImageName(req.files.image[0].filename);
+    if(category.image){
+      deleteFile(category.image)
+    }
+    category.image = `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/product_categories/${req.files.image[0].filename}`
+  }
+
   if (name) category.name = name;
-  if (image) category.image = image;
+  // if (image) category.image = image;
   if (isActive !== undefined && isActive !== null) category.isActive = isActive;
   category.updatedBy = req.user._id;
   await category.save();
@@ -133,12 +150,11 @@ exports.deleteProductCategory = asyncHandler(async (req, res) => {
     throw new Error('Category not found');
   }
 
-  const ProductSubcategory = require('../productSubcategory/productSubcategory.model');
-  const subCount = await ProductSubcategory.countDocuments({ categoryId: req.query.id, isActive: true });
-  if (subCount > 0) {
-    res.status(400);
-    throw new Error(`Cannot delete category. It has ${subCount} active subcategory(ies). Please delete or deactivate subcategories first.`);
-  }
+  // const subCount = await ProductSubcategory.countDocuments({ categoryId: req.query.id, isActive: true });
+  // if (subCount > 0) {
+  //   res.status(400);
+  //   throw new Error(`Cannot delete category. It has ${subCount} active subcategory(ies). Please delete or deactivate subcategories first.`);
+  // }
 
   if (category.image?.imageId) {
     try { await deleteImageFromCloudinary(category.image.imageId); } catch (e) { }
@@ -183,31 +199,31 @@ exports.getActiveProductCategories = asyncHandler(async (req, res) => {
 // @desc Get product category statistics
 // @route GET /api/product-categories/stats
 // @access private (admin, super-admin)
-exports.getProductCategoryStats = asyncHandler(async (req, res) => {
-  const total = await ProductCategory.countDocuments();
-  const active = await ProductCategory.countDocuments({ isActive: true });
-  const inactive = await ProductCategory.countDocuments({ isActive: false });
+// exports.getProductCategoryStats = asyncHandler(async (req, res) => {
+//   const total = await ProductCategory.countDocuments();
+//   const active = await ProductCategory.countDocuments({ isActive: true });
+//   const inactive = await ProductCategory.countDocuments({ isActive: false });
 
-  const categoriesWithSubcounts = await ProductCategory.aggregate([
-    {
-      $lookup: {
-        from: 'productsubcategories',
-        localField: '_id',
-        foreignField: 'categoryId',
-        as: 'subcategories'
-      }
-    },
-    { $project: { name: 1, subcategoryCount: { $size: '$subcategories' }, isActive: 1 } },
-    { $sort: { subcategoryCount: -1 } }
-  ]);
+//   const categoriesWithSubcounts = await ProductCategory.aggregate([
+//     {
+//       $lookup: {
+//         from: 'productsubcategories',
+//         localField: '_id',
+//         foreignField: 'categoryId',
+//         as: 'subcategories'
+//       }
+//     },
+//     { $project: { name: 1, subcategoryCount: { $size: '$subcategories' }, isActive: 1 } },
+//     { $sort: { subcategoryCount: -1 } }
+//   ]);
 
-  const recent = await ProductCategory.find()
-    .select('name isActive createdAt')
-    .sort({ createdAt: -1 })
-    .limit(5);
+//   const recent = await ProductCategory.find()
+//     .select('name isActive createdAt')
+//     .sort({ createdAt: -1 })
+//     .limit(5);
 
-  res.ok({ total, active, inactive, categoriesWithSubcounts, recent });
-});
+//   res.ok({ total, active, inactive, categoriesWithSubcounts, recent });
+// });
 
 // @desc Get our product categories
 // @route GET /api/product-categories/our-product-categories

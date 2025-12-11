@@ -7,11 +7,32 @@ const {
   updateImageInCloudinary,
   getThumbnailUrl 
 } = require('../../services/cloudinary.service');
+// const { generateImageName } = require('../../utils/reusableFunctions');
+const { deleteFile } = require("../../utils/storage");
+
+function parseField(value) {
+  if (value === undefined || value === null) return value;
+
+  // If it is already an object or array => return as-is
+  if (typeof value === "object") return value;
+
+  // Try JSON parsing
+  try {
+    return JSON.parse(value);
+  } catch (e) {
+    // Return original string if not JSON
+    return value;
+  }
+}
 
 // @desc    Create a new banner
 // @route   POST /api/banners
 // @access  Private/Admin
 exports.createBanner = asyncHandler(async (req, res) => {
+    const parsedBody = {};
+  for (const key in req.body) {
+    parsedBody[key] = parseField(req.body[key]);
+  }
     const { 
         title, 
         description, 
@@ -21,8 +42,8 @@ exports.createBanner = asyncHandler(async (req, res) => {
         startDate, 
         endDate, 
         button,
-        image
-    } = req.body;
+        // image
+    } = parsedBody;
 
     // Parse button if it's string
     let parsedButton = [];
@@ -40,11 +61,17 @@ exports.createBanner = asyncHandler(async (req, res) => {
         throw new ErrorHander(`Banner with title '${title}' already exists`, 400);
     }
 
+    // let imageName = generateImageName(req.files?.image?.[0].filename);
+
+    const imageFile = req.files?.image?.[0]
+    ? `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/banners/${req.files.image[0].filename}`: null;
+
     // Create banner
     const banner = await Banner.create({
         title,
         description,
-        image: image || null,
+        // image: image || null,
+        image: imageFile || null,
         type,
         bannerFor: bannerFor?.bannerFor || 'home',
         button: parsedButton,
@@ -62,15 +89,19 @@ exports.createBanner = asyncHandler(async (req, res) => {
 // @access  Public
 exports.getActiveBanners = asyncHandler(async (req, res) => {
     const { type, bannerFor } = req.query;
-    if(!type) return res.status(400).json({ message: "Type query parameter is required" });
-    const banners = await Banner.find({ 
-        type: type,
+
+    let filter = {
         isActive: true,
         isDeleted: false,
-        bannerFor: bannerFor? bannerFor : { $in: ['home', 'products', 'services'] },
         startDate: { $lte: new Date() },
         endDate: { $gte: new Date() }
-    }).select("-__v");
+    };
+
+    if(bannerFor) filter.bannerFor = bannerFor;
+    if(type) filter.type = type;
+
+    if(!type) return res.status(400).json({ message: "Type query parameter is required" });
+    const banners = await Banner.find(filter).select("-__v");
     res.ok(banners);
 });
 
@@ -82,6 +113,10 @@ exports.getAllBanners = asyncHandler(async (req, res) => {
 
     const filters = { isDeleted: false };
     if (req.query.name) filters.title = { $regex: req.query.name, $options: 'i' };
+    
+    if(req.query.type) filters.type = req.query.type;
+
+    if(req.query.bannerFor) filters.bannerFor = req.query.bannerFor;
 
     const banners = await Banner.find({ isDeleted: false }).skip((page - 1) * limit).limit(limit).select("-__v").sort({ position: 1, createdAt: -1 });
     const total = await Banner.countDocuments({ isDeleted: false });
@@ -109,11 +144,19 @@ exports.updateBanner = asyncHandler(async (req, res, next) => {
         throw new ErrorHander('Banner not found', 404);
     }
 
-    const { title, description, image, type, bannerFor, position, startDate, endDate, isActive, button } = req.body;
+    const { title, description, type, bannerFor, position, startDate, endDate, isActive, button } = req.body;
+
+    if(req.files?.image?.[0]){
+        // let imageName = generateImageName(req.files.image[0].filename);
+        if(banner.image){
+            deleteFile(banner.image)
+        }
+        banner.image = `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/banners/${req.files.image[0].filename}`;
+    }
 
     if (title) banner.title = title;
     if (description) banner.description = description;
-    if (image) banner.image = image;
+    // if (image) banner.image = image;
     if (type) banner.type = type;
     if (bannerFor) banner.bannerFor = bannerFor;
     if (position !== undefined) banner.position = position;
