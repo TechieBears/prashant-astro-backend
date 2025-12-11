@@ -47,7 +47,15 @@ const employeeUserSchema = new mongoose.Schema({
     },
     preBooking:{
         type: Boolean,
-    }
+    },
+    isBusy: {
+        type: Boolean,
+        default: false,
+    },
+    currentCustomerId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+    },
 }, { timestamps: true });
 
 // Virtual for full name
