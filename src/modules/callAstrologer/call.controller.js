@@ -5,6 +5,7 @@ const Employee = require("../employeeUser/employeeUser.model");
 const Wallet = require("../wallet/wallet.model");
 const { startWalletTimer } = require("./callTimer.service");
 const mongoose = require("mongoose");
+const axios = require("axios");
 
 // Cache filter results for 1 hour (optional)
 const filterCache = new Map();
@@ -20,16 +21,21 @@ exports.createCall = asyncHandler(async (req, res) => {
 });
 
 exports.startCall = asyncHandler(async (req, res) => {
+    console.log("awdawd")
     const userId = req.user._id;
     const { astrologerId } = req.body;
 
     const user = await User.findById(userId);
+    console.log("1 .....")
     const astrologer = await User.findById(astrologerId).populate("profile");
+    if(!astrologer) {
+        return res.status(404).json({ message: "Call Astrologer not found" });
+    }
     const employee = await Employee.findById(astrologer.profile);
     const wallet = await Wallet.findOne({ userId });
 
     if (!astrologer) {
-        return res.status(404).json({ message: "Astrologer not found" });
+        return res.status(404).json({ message: "Call Astrologer not found" });
     }
 
     if (employee.isBusy) {
@@ -40,7 +46,8 @@ exports.startCall = asyncHandler(async (req, res) => {
     const perSec = perMinRate / 60;
 
     if (!wallet || wallet.balance < perSec * 30) {
-        return res.status(400).json({
+        return res.status(201).json({
+            success: false,
             message: "Insufficient balance for minimum 30 seconds",
         });
     }
@@ -55,30 +62,46 @@ exports.startCall = asyncHandler(async (req, res) => {
         status: "pending",
     });
 
+    console.log("2 .....")
+
     // Smartflo actions...
-    const sessionResponse = await axios.post(
-        "https://api-smartflo.tatateleservices.com/v1/dialer/session_call",
-        {
-            startOrEnd: true,
-            campaignId: process.env.SMARTFLO_CAMPAIGN_ID,
-        },
-        {
-            headers: { Authorization: `Bearer ${process.env.SMARTFLO_TOKEN}` },
-        }
-    );
+    // const sessionResponse = await axios.post(
+    //     "https://api-smartflo.tatateleservices.com/v1/dialer/session_call",
+    //     {
+    //         startOrEnd: true,
+    //         campaignId: process.env.SMARTFLO_CAMPAIGN_ID,
+    //     },
+    //     {
+    //         headers: { Authorization: `Bearer ${process.env.SMARTFLO_TOKEN}` },
+    //     }
+    // );
+
+    // console.log("sessionResponse:", sessionResponse.data);
 
     const clickResponse = await axios.post(
         "https://api-smartflo.tatateleservices.com/v1/click_to_call",
         {
-            agent_number: "+91" + employee.mobile, // use astrologer mobile
-            customer_number: user.mobileNo,
+            // agent_number: "+91" + employee.mobile, // use astrologer mobile
+            // customer_number: user.mobileNo,
+            // agent_number: "+917965092272", // Dummy agent number for testing
+            // destination_number: '+918459520880', // Dummy number for testing
+            // async: 1
+            // agent_number: "+917965092272",
+            agent_number: "0507117830001",
+            // destination_number: "+919768772343", // ronil
+            destination_number: "+919920402582", // raj sir
+            call_timeout: 30, // in seconds
+            async: 1,
         },
         {
             headers: { Authorization: `Bearer ${process.env.SMARTFLO_TOKEN}` },
         }
     );
 
-    call.sessionId = sessionResponse.data?.sessionId || null;
+    console.log("clickResponse:", clickResponse.data);
+
+    // call.sessionId = sessionResponse.data?.sessionId || null;
+    call.sessionId = null;
     call.smartfloCallId = clickResponse.data?.call_id || null;
     await call.save();
 
@@ -104,286 +127,10 @@ exports.startCall = asyncHandler(async (req, res) => {
         success: true,
         message: "Call initiated",
         callId: call._id,
+        callDetails: clickResponse.data,
     });
 });
 
-
-// exports.getAllCallAstrologersCustomer = asyncHandler(async (req, res) => {
-//     const {
-//         page = 1,
-//         limit = 10,
-//         languages,
-//         skills,
-//         minPrice,
-//         maxPrice,
-//         experience,
-//         days,
-//         preBooking,
-//         search
-//     } = req.query;
-
-//     // Validate query parameters
-//     const pageNum = parseInt(page);
-//     const limitNum = parseInt(limit);
-
-//     if (pageNum < 1 || limitNum < 1 || limitNum > 100) {
-//         return res.status(400).json({
-//             success: false,
-//             message: 'Invalid pagination parameters'
-//         });
-//     }
-
-//     const skip = (pageNum - 1) * limitNum;
-
-//     try {
-//         // Build match conditions dynamically
-//         const userMatchConditions = {
-//             role: "astrologer",
-//             isActive: true,
-//             isDeleted: { $ne: true },
-//             profile: { $exists: true, $ne: null }
-//         };
-
-//         // Build employee match conditions
-//         const employeeMatchConditions = {
-//             "employeeProfile.employeeType": "call_astrologer"
-//         };
-
-//         // Parse filter parameters
-//         if (languages) {
-//             const languageArray = Array.isArray(languages)
-//                 ? languages
-//                 : languages.split(',');
-//             employeeMatchConditions["employeeProfile.languages"] = {
-//                 $in: languageArray.map(lang => new RegExp(lang.trim(), 'i'))
-//             };
-//         }
-
-//         if (skills) {
-//             const skillArray = Array.isArray(skills)
-//                 ? skills
-//                 : skills.split(',');
-//             employeeMatchConditions["employeeProfile.skills"] = {
-//                 $in: skillArray.map(skill => new RegExp(skill.trim(), 'i'))
-//             };
-//         }
-
-//         if (minPrice || maxPrice) {
-//             employeeMatchConditions["employeeProfile.priceCharge"] = {};
-//             if (minPrice) {
-//                 employeeMatchConditions["employeeProfile.priceCharge"].$gte = parseFloat(minPrice);
-//             }
-//             if (maxPrice) {
-//                 employeeMatchConditions["employeeProfile.priceCharge"].$lte = parseFloat(maxPrice);
-//             }
-//         }
-
-//         if (experience) {
-//             const experienceArray = Array.isArray(experience)
-//                 ? experience.map(exp => parseInt(exp))
-//                 : [parseInt(experience)];
-//             employeeMatchConditions["employeeProfile.experience"] = {
-//                 $in: experienceArray
-//             };
-//         }
-
-//         if (days) {
-//             const daysArray = Array.isArray(days)
-//                 ? days
-//                 : days.split(',');
-//             employeeMatchConditions["employeeProfile.days"] = {
-//                 $in: daysArray.map(day => new RegExp(day.trim(), 'i'))
-//             };
-//         }
-
-//         if (preBooking !== undefined) {
-//             employeeMatchConditions["employeeProfile.preBooking"] =
-//                 preBooking === 'true' || preBooking === true;
-//         }
-
-//         // Search functionality (search in name or about)
-//         if (search) {
-//             employeeMatchConditions.$or = [
-//                 { "employeeProfile.firstName": { $regex: search, $options: 'i' } },
-//                 { "employeeProfile.lastName": { $regex: search, $options: 'i' } },
-//                 { "employeeProfile.about": { $regex: search, $options: 'i' } }
-//             ];
-//         }
-
-//         // Pipeline for data retrieval
-//         const dataPipeline = [
-//             // Match users
-//             {
-//                 $match: userMatchConditions
-//             },
-//             // Lookup employee profile
-//             {
-//                 $lookup: {
-//                     from: "employees",
-//                     localField: "profile",
-//                     foreignField: "_id",
-//                     as: "employeeProfile"
-//                 }
-//             },
-//             // Unwind employee profile
-//             {
-//                 $unwind: "$employeeProfile"
-//             },
-//             // Filter only call_astrologer type and apply other filters
-//             {
-//                 $match: employeeMatchConditions
-//             },
-//             // Sort by creation date (newest first)
-//             {
-//                 $sort: { createdAt: -1 }
-//             },
-//             // Skip and limit for pagination
-//             {
-//                 $skip: skip
-//             },
-//             {
-//                 $limit: limitNum
-//             },
-//             // Project only needed fields
-//             {
-//                 $project: {
-//                     _id: 1,
-//                     email: 1,
-//                     mobileNo: 1,
-//                     profileImage: 1,
-//                     createdAt: 1,
-//                     updatedAt: 1,
-//                     "employeeProfile._id": 1,
-//                     "employeeProfile.firstName": 1,
-//                     "employeeProfile.lastName": 1,
-//                     "employeeProfile.about": 1,
-//                     "employeeProfile.priceCharge": 1,
-//                     "employeeProfile.skills": 1,
-//                     "employeeProfile.experience": 1,
-//                     "employeeProfile.employeeType": 1,
-//                     "employeeProfile.languages": 1,
-//                     "employeeProfile.startTime": 1,
-//                     "employeeProfile.endTime": 1,
-//                     "employeeProfile.days": 1,
-//                     "employeeProfile.preBooking": 1
-//                 }
-//             }
-//         ];
-
-//         // Pipeline for counting total call_astrologers with filters
-//         const countPipeline = [
-//             {
-//                 $match: userMatchConditions
-//             },
-//             {
-//                 $lookup: {
-//                     from: "employees",
-//                     localField: "profile",
-//                     foreignField: "_id",
-//                     as: "employeeProfile"
-//                 }
-//             },
-//             {
-//                 $unwind: "$employeeProfile"
-//             },
-//             {
-//                 $match: employeeMatchConditions
-//             },
-//             {
-//                 $count: "total"
-//             }
-//         ];
-
-//         // Execute both pipelines in parallel
-//         const [dataResult, countResult] = await Promise.all([
-//             User.aggregate(dataPipeline),
-//             User.aggregate(countPipeline)
-//         ]);
-
-//         const total = countResult[0]?.total || 0;
-
-//         // Format the response
-//         const formattedData = dataResult.map(item => {
-//             return {
-//                 _id: item._id,
-//                 email: item.email,
-//                 mobileNo: item.mobileNo,
-//                 profileImage: item.profileImage,
-//                 createdAt: item.createdAt,
-//                 updatedAt: item.updatedAt,
-//                 profile: {
-//                     _id: item.employeeProfile._id,
-//                     firstName: item.employeeProfile.firstName,
-//                     lastName: item.employeeProfile.lastName,
-//                     fullName: `${item.employeeProfile.firstName} ${item.employeeProfile.lastName}`,
-//                     about: item.employeeProfile.about,
-//                     priceCharge: item.employeeProfile.priceCharge,
-//                     skills: item.employeeProfile.skills,
-//                     experience: item.employeeProfile.experience,
-//                     employeeType: item.employeeProfile.employeeType,
-//                     languages: item.employeeProfile.languages,
-//                     startTime: item.employeeProfile.startTime,
-//                     endTime: item.employeeProfile.endTime,
-//                     days: item.employeeProfile.days,
-//                     preBooking: item.employeeProfile.preBooking
-//                 }
-//             };
-//         });
-
-//         const totalPages = Math.ceil(total / limitNum);
-
-//         const response = {
-//             success: true,
-//             data: formattedData,
-//             pagination: {
-//                 currentPage: pageNum,
-//                 limit: limitNum,
-//                 totalItems: total,
-//                 totalPages,
-//                 hasNextPage: pageNum < totalPages,
-//                 hasPrevPage: pageNum > 1,
-//                 appliedFilters: {
-//                     languages: languages ? (Array.isArray(languages) ? languages : languages.split(',')) : undefined,
-//                     skills: skills ? (Array.isArray(skills) ? skills : skills.split(',')) : undefined,
-//                     priceRange: minPrice || maxPrice ? {
-//                         min: minPrice ? parseFloat(minPrice) : undefined,
-//                         max: maxPrice ? parseFloat(maxPrice) : undefined
-//                     } : undefined,
-//                     experience: experience ? (Array.isArray(experience) ? experience.map(exp => parseInt(exp)) : [parseInt(experience)]) : undefined,
-//                     days: days ? (Array.isArray(days) ? days : days.split(',')) : undefined,
-//                     preBooking: preBooking !== undefined ? (preBooking === 'true' || preBooking === true) : undefined,
-//                     search: search || undefined
-//                 }
-//             }
-//         };
-
-//         if (res.paginated) {
-//             res.paginated(formattedData, {
-//                 page: pageNum,
-//                 limit: limitNum,
-//                 total,
-//                 totalPages
-//             });
-//         } else {
-//             res.status(200).json(response);
-//         }
-
-//     } catch (error) {
-//         console.error('Error fetching call astrologers:', error);
-
-//         if (error.name === 'CastError') {
-//             return res.status(400).json({
-//                 success: false,
-//                 message: 'Invalid parameters'
-//             });
-//         }
-
-//         res.status(500).json({
-//             success: false,
-//             message: 'Server error while fetching call astrologers'
-//         });
-//     }
-// });
 exports.getAllCallAstrologersCustomer = asyncHandler(async (req, res) => {
     const {
         page = 1,
@@ -396,7 +143,7 @@ exports.getAllCallAstrologersCustomer = asyncHandler(async (req, res) => {
         days,
         preBooking,
         search,
-        sortBy = 'newest'  // Add sortBy parameter
+        sortBy = 'newest'
     } = req.query;
 
     // Validate query parameters
@@ -415,7 +162,7 @@ exports.getAllCallAstrologersCustomer = asyncHandler(async (req, res) => {
     try {
         // Build match conditions dynamically
         const userMatchConditions = {
-            role: "astrologer",
+            role: "employee",
             isActive: true,
             isDeleted: { $ne: true },
             profile: { $exists: true, $ne: null }
@@ -426,15 +173,13 @@ exports.getAllCallAstrologersCustomer = asyncHandler(async (req, res) => {
             "employeeProfile.employeeType": "call_astrologer"
         };
 
-        // Parse filter parameters - FIXED FOR ARRAYS
+        // Parse filter parameters - FIXED: Using $in instead of $elemMatch
         if (languages) {
             const languageArray = Array.isArray(languages)
                 ? languages
                 : languages.split(',');
             employeeMatchConditions["employeeProfile.languages"] = {
-                $elemMatch: {
-                    $in: languageArray.map(lang => new RegExp(`^${lang.trim()}$`, 'i'))
-                }
+                $in: languageArray.map(lang => new RegExp(`^${lang.trim()}$`, 'i'))
             };
         }
 
@@ -443,15 +188,17 @@ exports.getAllCallAstrologersCustomer = asyncHandler(async (req, res) => {
                 ? skills
                 : skills.split(',');
             employeeMatchConditions["employeeProfile.skills"] = {
-                $elemMatch: {
-                    $in: skillArray.map(skill => new RegExp(`^${skill.trim()}$`, 'i'))
-                }
+                $in: skillArray.map(skill => new RegExp(`^${skill.trim()}$`, 'i'))
             };
         }
 
         // Price filter - FIXED: Check if priceCharge exists and is a number
         if (minPrice || maxPrice) {
-            employeeMatchConditions["employeeProfile.priceCharge"] = {};
+            employeeMatchConditions["employeeProfile.priceCharge"] = {
+                $exists: true,
+                $ne: null
+            };
+            
             if (minPrice) {
                 employeeMatchConditions["employeeProfile.priceCharge"].$gte = parseFloat(minPrice);
             }
@@ -474,9 +221,7 @@ exports.getAllCallAstrologersCustomer = asyncHandler(async (req, res) => {
                 ? days
                 : days.split(',');
             employeeMatchConditions["employeeProfile.days"] = {
-                $elemMatch: {
-                    $in: daysArray.map(day => new RegExp(`^${day.trim()}$`, 'i'))
-                }
+                $in: daysArray.map(day => new RegExp(`^${day.trim()}$`, 'i'))
             };
         }
 
@@ -517,12 +262,11 @@ exports.getAllCallAstrologersCustomer = asyncHandler(async (req, res) => {
                 sortObject = { "employeeProfile.experience": 1 };
                 break;
             default:
-                // If invalid sortBy, default to newest
                 sortObject = { createdAt: -1 };
         }
 
-        // Pipeline for data retrieval
-        const dataPipeline = [
+        // Base pipeline (without pagination)
+        const basePipeline = [
             // Match users
             {
                 $match: userMatchConditions
@@ -544,17 +288,25 @@ exports.getAllCallAstrologersCustomer = asyncHandler(async (req, res) => {
             {
                 $match: employeeMatchConditions
             },
-            // Add fields for proper sorting (handle null/undefined prices)
+            // Add fields for proper sorting (handle null/undefined values)
             {
                 $addFields: {
-                    "employeeProfile.sortPrice": {
+                    sortPrice: {
                         $ifNull: ["$employeeProfile.priceCharge", 0]
                     },
-                    "employeeProfile.sortExperience": {
+                    sortExperience: {
                         $ifNull: ["$employeeProfile.experience", 0]
+                    },
+                    sortCreatedAt: {
+                        $ifNull: ["$createdAt", new Date(0)]
                     }
                 }
-            },
+            }
+        ];
+
+        // Pipeline for data retrieval (with pagination)
+        const dataPipeline = [
+            ...basePipeline,
             // Sort based on sortBy parameter
             {
                 $sort: sortObject
@@ -587,30 +339,15 @@ exports.getAllCallAstrologersCustomer = asyncHandler(async (req, res) => {
                     "employeeProfile.startTime": 1,
                     "employeeProfile.endTime": 1,
                     "employeeProfile.days": 1,
-                    "employeeProfile.preBooking": 1
+                    "employeeProfile.preBooking": 1,
+                    "employeeProfile.isBusy": 1
                 }
             }
         ];
 
-        // Pipeline for counting total call_astrologers with filters
+        // Pipeline for counting total (add count stage to base pipeline)
         const countPipeline = [
-            {
-                $match: userMatchConditions
-            },
-            {
-                $lookup: {
-                    from: "employees",
-                    localField: "profile",
-                    foreignField: "_id",
-                    as: "employeeProfile"
-                }
-            },
-            {
-                $unwind: "$employeeProfile"
-            },
-            {
-                $match: employeeMatchConditions
-            },
+            ...basePipeline,
             {
                 $count: "total"
             }
@@ -647,7 +384,8 @@ exports.getAllCallAstrologersCustomer = asyncHandler(async (req, res) => {
                     startTime: item.employeeProfile.startTime,
                     endTime: item.employeeProfile.endTime,
                     days: item.employeeProfile.days,
-                    preBooking: item.employeeProfile.preBooking
+                    preBooking: item.employeeProfile.preBooking,
+                    isBusy: item.employeeProfile.isBusy
                 }
             };
         });
@@ -664,7 +402,7 @@ exports.getAllCallAstrologersCustomer = asyncHandler(async (req, res) => {
                 totalPages,
                 hasNextPage: pageNum < totalPages,
                 hasPrevPage: pageNum > 1,
-                sortBy: sortBy,  // Include sortBy in response
+                sortBy: sortBy,
                 appliedFilters: {
                     languages: languages ? (Array.isArray(languages) ? languages : languages.split(',')) : undefined,
                     skills: skills ? (Array.isArray(skills) ? skills : skills.split(',')) : undefined,
