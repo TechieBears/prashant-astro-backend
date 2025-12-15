@@ -23,10 +23,13 @@ exports.createCall = asyncHandler(async (req, res) => {
 exports.startCall = asyncHandler(async (req, res) => {
     console.log("awdawd")
     const userId = req.user._id;
-    const { astrologerId } = req.body;
+    const { astrologerId, phoneNumber, callDuration } = req.body;
+
+    if(!userId || !astrologerId || !phoneNumber || !callDuration) {
+        return res.status(400).json({ message: "Missing required fields" });
+    }
 
     const user = await User.findById(userId);
-    console.log("1 .....")
     const astrologer = await User.findById(astrologerId).populate("profile");
     if(!astrologer) {
         return res.status(404).json({ message: "Call Astrologer not found" });
@@ -45,10 +48,10 @@ exports.startCall = asyncHandler(async (req, res) => {
     const perMinRate = employee.priceCharge;
     const perSec = perMinRate / 60;
 
-    if (!wallet || wallet.balance < perSec * 30) {
+    if (!wallet || wallet.balance < perSec * callDuration) {
         return res.status(201).json({
             success: false,
-            message: "Insufficient balance for minimum 30 seconds",
+            message: `Not enough balance in wallet.`,
         });
     }
 
@@ -64,20 +67,6 @@ exports.startCall = asyncHandler(async (req, res) => {
 
     console.log("2 .....")
 
-    // Smartflo actions...
-    // const sessionResponse = await axios.post(
-    //     "https://api-smartflo.tatateleservices.com/v1/dialer/session_call",
-    //     {
-    //         startOrEnd: true,
-    //         campaignId: process.env.SMARTFLO_CAMPAIGN_ID,
-    //     },
-    //     {
-    //         headers: { Authorization: `Bearer ${process.env.SMARTFLO_TOKEN}` },
-    //     }
-    // );
-
-    // console.log("sessionResponse:", sessionResponse.data);
-
     const clickResponse = await axios.post(
         "https://api-smartflo.tatateleservices.com/v1/click_to_call",
         {
@@ -89,7 +78,9 @@ exports.startCall = asyncHandler(async (req, res) => {
             // agent_number: "+917965092272",
             agent_number: "0507117830001",
             // destination_number: "+919768772343", // ronil
-            destination_number: "+919920402582", // raj sir
+            // destination_number: "+919920402582", // rajen...
+            // destination_number: "+917757915697", // sairam
+            destination_number: "+917030291243", // vasanth
             call_timeout: 30, // in seconds
             async: 1,
         },
