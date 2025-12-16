@@ -54,7 +54,7 @@ exports.createEmployeeUser = asyncHandler(async (req, res, next) => {
     for (const key in req.body) {
         parsedBody[key] = parseField(req.body[key]);
     }
-    const { firstName, lastName, email, mobileNo, userType, employeeType, skills, languages, experience, startTime, endTime, days, preBooking, about, priceCharge } = parsedBody;
+    const { firstName, lastName, email, mobileNo, userType, employeeType, skills, languages, experience, startTime, endTime, days, preBooking, about, priceCharge, agentId } = parsedBody;
 
 
     // validate fields with for loop
@@ -92,7 +92,8 @@ exports.createEmployeeUser = asyncHandler(async (req, res, next) => {
         startTime,
         endTime,
         days,
-        preBooking
+        preBooking,
+        agentId
     });
 
     const generateTempPassword = () => {

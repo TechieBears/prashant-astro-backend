@@ -48,6 +48,7 @@ const employeeUserSchema = new mongoose.Schema({
     preBooking:{
         type: Boolean,
     },
+    // call astrologer
     isBusy: {
         type: Boolean,
         default: false,
@@ -55,6 +56,9 @@ const employeeUserSchema = new mongoose.Schema({
     currentCustomerId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",
+    },
+    agentId:{
+        type: String,
     },
 }, { timestamps: true });
 

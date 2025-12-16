@@ -16,24 +16,15 @@ const callSchema = new mongoose.Schema({
         type: Date,
         required: true,
     },
-    time: {
-        type: String,
-        required: true,
-    },
-    duration: {
-        type: String,
-        required: true,
-    },
     status: {
         type: String,
         enum: ['pending', 'accepted', 'rejected'],
         default: 'pending',
     },
-    sessionId: {
-        type: String,
-    },
-    smartfloCallId: {
-        type: String,
+    smartfloCall: {
+        ref_id:{
+            type: String,
+        }
     },
     startTime: {
         type: Date,
@@ -41,8 +32,8 @@ const callSchema = new mongoose.Schema({
     endTime: {
         type: Date,
     },
-    durationInSeconds: {
-        type: Number,
+    duration: {
+        type: Number, // in seconds
     },
     amountCharged: {
         type: Number,

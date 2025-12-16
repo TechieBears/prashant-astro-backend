@@ -7,23 +7,9 @@ const { startWalletTimer } = require("./callTimer.service");
 const mongoose = require("mongoose");
 const axios = require("axios");
 
-// Cache filter results for 1 hour (optional)
-const filterCache = new Map();
-
-exports.createCall = asyncHandler(async (req, res) => {
+exports.callInitiate = asyncHandler(async (req, res) => {
     const userId = req.user._id;
-    const { callAstrologerId, date, time, duration } = req.body;
-    if (!userId || !callAstrologerId || !date || !time || !duration) {
-        return res.status(400).json({ success: false, message: 'Missing required fields' });
-    }
-    const call = await CallAstrologer.create({ userId, astrologerId: callAstrologerId, date, time, duration });
-    res.created(call, 'Call created successfully');
-});
-
-exports.startCall = asyncHandler(async (req, res) => {
-    console.log("awdawd")
-    const userId = req.user._id;
-    const { astrologerId, phoneNumber, callDuration } = req.body;
+    const { astrologerId, phoneNumber, callDuration, agentId } = req.body;
 
     if(!userId || !astrologerId || !phoneNumber || !callDuration) {
         return res.status(400).json({ message: "Missing required fields" });
@@ -60,29 +46,21 @@ exports.startCall = asyncHandler(async (req, res) => {
         userId,
         astrologerId,
         date: new Date(),
-        time: new Date().toISOString(),
-        duration: "0",
+        startTime: new Date().toISOString(),
+        duration: callDuration,
         status: "pending",
     });
-
-    console.log("2 .....")
 
     const clickResponse = await axios.post(
         "https://api-smartflo.tatateleservices.com/v1/click_to_call",
         {
-            // agent_number: "+91" + employee.mobile, // use astrologer mobile
-            // customer_number: user.mobileNo,
-            // agent_number: "+917965092272", // Dummy agent number for testing
-            // destination_number: '+918459520880', // Dummy number for testing
-            // async: 1
-            // agent_number: "+917965092272",
-            agent_number: "0507117830001",
-            // destination_number: "+919768772343", // ronil
-            // destination_number: "+919920402582", // rajen...
-            // destination_number: "+917757915697", // sairam
-            destination_number: "+917030291243", // vasanth
-            call_timeout: 30, // in seconds
+            // agent_number: "0507117830001",
+            // destination_number: "+919768772343",
+            agent_number: agentId, // from employee(call_astrologer) profile
+            destination_number: phoneNumber, // customer's phone number
+            call_timeout: callDuration, // in seconds
             async: 1,
+            custom_identifier: `${call._id}`,
         },
         {
             headers: { Authorization: `Bearer ${process.env.SMARTFLO_TOKEN}` },
@@ -91,9 +69,7 @@ exports.startCall = asyncHandler(async (req, res) => {
 
     console.log("clickResponse:", clickResponse.data);
 
-    // call.sessionId = sessionResponse.data?.sessionId || null;
-    call.sessionId = null;
-    call.smartfloCallId = clickResponse.data?.call_id || null;
+    call.smartfloCall.ref_id = clickResponse.data?.ref_id || null;
     await call.save();
 
     // Mark astrologer busy
@@ -111,15 +87,17 @@ exports.startCall = asyncHandler(async (req, res) => {
     };
     await user.save();
 
-    // Start wallet timer
-    startWalletTimer(user._id);
+    // // Start wallet timer
+    // startWalletTimer(user._id);
 
     return res.json({
         success: true,
         message: "Call initiated",
-        callId: call._id,
-        callDetails: clickResponse.data,
     });
+});
+
+exports.fetchActiveCalls = asyncHandler(async (req, res) => {
+
 });
 
 exports.getAllCallAstrologersCustomer = asyncHandler(async (req, res) => {
@@ -607,5 +585,96 @@ exports.getFilters = asyncHandler(async (req, res) => {
             success: false,
             message: 'Failed to fetch filter data'
         });
+    }
+});
+
+// exports.webhookCallHangup = asyncHandler(async (req, res) => {
+//     console.log("8888888888888888888888888888888888888888888888888888888888888888888888888888888")
+//     console.log("webhookCallHangup body:", req.body);
+//     res.status(200).json({ success: true, data: req.body });
+// });
+exports.webhookCallHangup = asyncHandler(async (req, res) => {
+    try {
+        console.log("📞 webhookCallHangup body:", req.body);
+
+        const {
+            custom_identifier, // <-- your Call._id
+            call_status,
+            billsec,
+            start_stamp,
+            end_stamp
+        } = req.body;
+
+        if (!custom_identifier) {
+            return res.status(200).json({ success: true });
+        }
+
+        // 1. Find call
+        const call = await CallAstrologer.findById(custom_identifier);
+        if (!call) {
+            return res.status(200).json({ success: true });
+        }
+
+        // Prevent double processing
+        if (call.status !== "pending") {
+            return res.status(200).json({ success: true });
+        }
+
+        // 2. Load user, astrologer, employee, wallet
+        const user = await User.findById(call.userId);
+        const astrologerUser = await User.findById(call.astrologerId);
+        const employee = await Employee.findById(astrologerUser.profile);
+        const wallet = await Wallet.findOne({ userId: user._id });
+
+        // 3. Calculate duration
+        const durationInSeconds = parseInt(billsec || "0", 10);
+
+        // 4. Decide call result
+        const FAILED_STATUSES = ["missed", "busy", "no_answer", "failed"];
+        const SUCCESS_STATUSES = ["completed", "answered"];
+
+        if (FAILED_STATUSES.includes(call_status)) {
+            call.status = "rejected";
+            call.duration = 0;
+            call.amountCharged = 0;
+        }
+
+        if (SUCCESS_STATUSES.includes(call_status)) {
+            const perSecondRate = user.currentCallSession.perMinuteRate / 60;
+            const amount = durationInSeconds * perSecondRate;
+
+            call.status = "accepted";
+            call.duration = durationInSeconds;
+            call.amountCharged = amount;
+
+            // Deduct wallet
+            if (wallet) {
+                wallet.balance -= amount;
+                await wallet.save();
+            }
+        }
+
+        // 5. Update timestamps
+        call.startTime = start_stamp ? new Date(start_stamp) : call.startTime;
+        call.endTime = end_stamp ? new Date(end_stamp) : new Date();
+
+        await call.save();
+
+        // 6. Free astrologer
+        employee.isBusy = false;
+        employee.currentCustomerId = null;
+        await employee.save();
+
+        // 7. Clear user session
+        user.currentCallSession = null;
+        await user.save();
+
+        console.log(`✅ Call ${call._id} closed. Status: ${call.status}`);
+
+        return res.status(200).json({ success: true });
+    } catch (err) {
+        console.error("❌ webhookCallHangup error:", err);
+        // IMPORTANT: always return 200
+        return res.status(200).json({ success: true });
     }
 });
