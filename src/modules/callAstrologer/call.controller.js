@@ -6,6 +6,7 @@ const Wallet = require("../wallet/wallet.model");
 const { startWalletTimer } = require("./callTimer.service");
 const mongoose = require("mongoose");
 const axios = require("axios");
+const WalletTransaction = require("../wallet/walletTransactions.model");
 
 exports.callInitiate = asyncHandler(async (req, res) => {
     const userId = req.user._id;
@@ -652,6 +653,14 @@ exports.webhookCallHangup = asyncHandler(async (req, res) => {
                 wallet.balance -= amount;
                 await wallet.save();
             }
+
+            // 🔹 CREATE WALLET TRANSACTION
+            await WalletTransaction.create({
+                userId: user._id,
+                type: "call_charge",
+                amount: amount,
+                transactionDate: new Date(),
+            });
         }
 
         // 5. Update timestamps
@@ -669,8 +678,9 @@ exports.webhookCallHangup = asyncHandler(async (req, res) => {
         user.currentCallSession = null;
         await user.save();
 
-        console.log(`✅ Call ${call._id} closed. Status: ${call.status}`);
-
+        console.log(
+            `✅ Call ${call._id} closed | Status: ${call.status} | Charged: ${call.amountCharged}`
+        );
         return res.status(200).json({ success: true });
     } catch (err) {
         console.error("❌ webhookCallHangup error:", err);
