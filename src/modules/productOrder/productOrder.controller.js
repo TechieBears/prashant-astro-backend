@@ -147,7 +147,7 @@ exports.createProductOrder = asyncHandler(async (req, res) => {
     // --------------- ✅ WALLET CREDITS LOGIC ----------------
     let walletUsed = 0;
     let payingAmount = amountAfterCoupon;
-    if(amountAfterCoupon === 0) {
+    if (amountAfterCoupon === 0) {
       payingAmount = finalAmount;
     }
     let walletBalance = 0;
@@ -181,6 +181,22 @@ exports.createProductOrder = asyncHandler(async (req, res) => {
     // Ensure payingAmount is not negative
     payingAmount = Math.max(0, payingAmount);
 
+    // ----------------- ✅ RAZORPAY ORDER CREATION -----------------
+    let razorpayOrder = null;
+
+    if (['CARD', 'UPI', 'WALLET', 'NETBANKING'].includes(paymentMethod) && payingAmount > 0) {
+      razorpayOrder = await razorpay.orders.create({
+        amount: Math.round(payingAmount * 100), // Razorpay works in paise
+        currency: 'INR',
+        receipt: `PROD_${Date.now()}`,
+        payment_capture: 1,
+        notes: {
+          userId: userId.toString(),
+          orderType: 'PRODUCT'
+        }
+      });
+    }
+
     // Create order
     const productOrderPayload = {
       user: userId,
@@ -198,12 +214,18 @@ exports.createProductOrder = asyncHandler(async (req, res) => {
       },
       address,
       paymentMethod,
+      // paymentDetails: {
+      //   ...(paymentDetails || {}),
+      //   ...(razorpayOrderId && { razorpayOrderId }),
+      //   ...(razorpayPaymentId && { razorpayPaymentId }),
+      //   ...(razorpaySignature && { razorpaySignature }),
+      //   ...(razorpayPaymentDetails && { razorpayPaymentDetails }),
+      // },
       paymentDetails: {
-        ...(paymentDetails || {}),
-        ...(razorpayOrderId && { razorpayOrderId }),
-        ...(razorpayPaymentId && { razorpayPaymentId }),
-        ...(razorpaySignature && { razorpaySignature }),
-        ...(razorpayPaymentDetails && { razorpayPaymentDetails }),
+        ...paymentDetails,
+        razorpayOrderId: razorpayOrder?.id || null,
+        razorpayAmount: razorpayOrder?.amount || null,
+        razorpayCurrency: razorpayOrder?.currency || null,
       },
       orderStatus: 'PENDING',
       paymentStatus: paymentMethod === 'COD' ? 'PENDING' : payingAmount === 0 ? 'PAID' : 'PENDING', // 👈 If payingAmount is 0, mark as PAID
@@ -289,7 +311,14 @@ exports.createProductOrder = asyncHandler(async (req, res) => {
           remainingBalance: walletBalance - walletUsed,
           payingAmount: payingAmount
         },
-        referralReward: referralResult
+        referralReward: referralResult,
+        razorpay: razorpayOrder
+          ? {
+            orderId: razorpayOrder.id,
+            amount: razorpayOrder.amount,
+            currency: razorpayOrder.currency
+          }
+          : null
       },
     });
   } catch (error) {
