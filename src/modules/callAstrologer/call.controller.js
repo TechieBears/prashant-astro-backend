@@ -441,7 +441,7 @@ exports.getSingleCallAstrologerCustomer = asyncHandler(async (req, res) => {
         }
 
         // Find the employee profile
-        const employee = await mongoose.model('employee').findById(user.profile)
+        const employee = await Employee.findById(user.profile)
             .select('-__v');
 
         if (!employee) {
@@ -462,6 +462,7 @@ exports.getSingleCallAstrologerCustomer = asyncHandler(async (req, res) => {
         // Transform the response
         const responseData = {
             _id: user._id,
+            agentId: employee.agentId || null,
             email: user.email,
             mobileNo: user.mobileNo,
             profileImage: user.profileImage,
