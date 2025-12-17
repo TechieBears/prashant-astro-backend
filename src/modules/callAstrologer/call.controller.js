@@ -433,10 +433,10 @@ exports.getSingleCallAstrologerCustomer = asyncHandler(async (req, res) => {
         }
 
         // Check if user has the correct role
-        if (user.role !== 'astrologer') {
+        if (user.role !== 'employee') {
             return res.status(400).json({
                 success: false,
-                message: 'User is not an astrologer'
+                message: 'User is not call astrologer'
             });
         }
 
