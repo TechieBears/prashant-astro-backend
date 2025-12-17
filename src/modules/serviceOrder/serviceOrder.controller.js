@@ -25,6 +25,10 @@ exports.createServiceOrder = asyncHandler(async (req, res, next) => {
     paymentId,
     paymentDetails,
     couponId,
+    razorpayOrderId,
+    razorpayPaymentId,
+    razorpaySignature,
+    razorpayPaymentDetails,
   } = req.body;
 
   if (!Array.isArray(serviceItems) || serviceItems.length === 0) {
@@ -272,9 +276,15 @@ exports.createServiceOrder = asyncHandler(async (req, res, next) => {
         pendingAmount: service.price,
         payingAmount: service.price,
         isCoupon: !!coupon,
-        paymentId: `${paymentId || 'PAY'}-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        paymentId: paymentId || razorpayPaymentId || `PAY-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
         userId,
-        paymentDetails: paymentDetails || {},
+        paymentDetails: {
+          ...(paymentDetails || {}),
+          ...(razorpayOrderId && { razorpayOrderId }),
+          ...(razorpayPaymentId && { razorpayPaymentId }),
+          ...(razorpaySignature && { razorpaySignature }),
+          ...(razorpayPaymentDetails && { razorpayPaymentDetails }),
+        },
       }], { session });
 
       // Link transaction to orderItem
@@ -307,6 +317,12 @@ exports.createServiceOrder = asyncHandler(async (req, res, next) => {
       payingAmount: amountAfterCoupon,
       isCoupon: !!coupon,
       coupon: coupon?._id || null,
+      paymentDetails: {
+        ...(razorpayOrderId && { razorpayOrderId }),
+        ...(razorpayPaymentId && { razorpayPaymentId }),
+        ...(razorpaySignature && { razorpaySignature }),
+        ...(razorpayPaymentDetails && { razorpayPaymentDetails }),
+      },
     };
 
     const serviceOrder = await ServiceOrder.create([serviceOrderPayload], { session });

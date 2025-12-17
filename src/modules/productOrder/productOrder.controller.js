@@ -29,7 +29,7 @@ exports.checkoutProductOrder = asyncHandler(async (req, res) => { });
 // @route   POST /api/product-order/create
 // @access  Private (customer)
 exports.createProductOrder = asyncHandler(async (req, res) => {
-  const { items, address, paymentMethod, paymentDetails, couponId, useCredits } = req.body; // 👈 Added useCredits
+  const { items, address, paymentMethod, paymentDetails, couponId, useCredits, razorpayOrderId, razorpayPaymentId, razorpaySignature, razorpayPaymentDetails } = req.body; // 👈 Added razorpay fields
   const userId = req.user._id;
 
   // --------------- ✅ Validate Coupon (if provided) ----------------
@@ -198,7 +198,13 @@ exports.createProductOrder = asyncHandler(async (req, res) => {
       },
       address,
       paymentMethod,
-      paymentDetails: paymentDetails || {},
+      paymentDetails: {
+        ...(paymentDetails || {}),
+        ...(razorpayOrderId && { razorpayOrderId }),
+        ...(razorpayPaymentId && { razorpayPaymentId }),
+        ...(razorpaySignature && { razorpaySignature }),
+        ...(razorpayPaymentDetails && { razorpayPaymentDetails }),
+      },
       orderStatus: 'PENDING',
       paymentStatus: paymentMethod === 'COD' ? 'PENDING' : payingAmount === 0 ? 'PAID' : 'PENDING', // 👈 If payingAmount is 0, mark as PAID
     };
@@ -221,12 +227,16 @@ exports.createProductOrder = asyncHandler(async (req, res) => {
       payingAmount: payingAmount,
       walletUsed: walletUsed, // 👈 Store wallet usage in transaction
       isCoupon: !!coupon,
-      paymentId: paymentDetails?.transactionId || `PROD-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      paymentId: paymentDetails?.transactionId || razorpayPaymentId || `PROD-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
       userId,
       paymentDetails: {
-        ...paymentDetails,
+        ...(paymentDetails || {}),
         walletUsed: walletUsed,
-        originalAmount: amountAfterCoupon
+        originalAmount: amountAfterCoupon,
+        ...(razorpayOrderId && { razorpayOrderId }),
+        ...(razorpayPaymentId && { razorpayPaymentId }),
+        ...(razorpaySignature && { razorpaySignature }),
+        ...(razorpayPaymentDetails && { razorpayPaymentDetails }),
       },
     };
 
