@@ -76,9 +76,9 @@ exports.createNotification = asyncHandler(async (req, res) => {
   const savedNotification = await notification.save();
 
   // Send immediately if no scheduled time
-  if (!scheduledAt) {
-    await sendBulkNotifications(savedNotification);
-  }
+  await sendBulkNotifications(savedNotification);
+  // if (!scheduledAt) {
+  // }
 
   res.status(201).json({
     success: true,
@@ -94,7 +94,7 @@ exports.getAllNotificationsAdmin = asyncHandler(async (req, res) => {
   const filter = {};
   if (status) filter.status = status;
   if (userType) filter.userType = userType;
-  if (from) filter.from = from;
+  if (from == 'admin') filter.from = from;
 
   if (req.user.role === "customer") {
     filter.userType = "specific-customer";
@@ -198,12 +198,13 @@ async function sendBulkNotifications(notification) {
     const sendPromises = users.map(async (user) => {
       try {
         const messageData = {
-          token: user.fcmToken,
+          token: [user.fcmToken],
           title: notification.title,
           body: notification.description || '',
           image: notification.image,
           data: {
             redirectionUrl: notification.redirectionUrl || '',
+            deepLink: notification.redirectionUrl || '',
             redirectId: notification.redirectId || '',
             notificationId: notification._id.toString(),
             type: notification.notificationType

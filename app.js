@@ -7,34 +7,40 @@ const responseMiddleware = require("./src/middlewares/response");
 const helmet = require("helmet");
 const path = require("path"); // ✅ added
 require("dotenv").config();
+const admin = require('firebase-admin');
 
 const allowedOrigins = process.env.CORS_ORIGIN;
 
 const app = express();
- 
+
 app.use(helmet());
 app.use(morgan("common"));
 app.use(cors({
-    origin: function (origin, callback) {
-      if (!origin) {
-        // Allow requests like Postman / curl with no origin
-        return callback(null, true);
-      }
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-      // Instead of throwing, reject gracefully
-      return callback(new Error(`CORS not allowed for origin: ${origin}`), false);
-    },
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-    credentials: true,
-    optionsSuccessStatus: 200 // important for legacy browsers
-  }));
+  origin: function (origin, callback) {
+    if (!origin) {
+      // Allow requests like Postman / curl with no origin
+      return callback(null, true);
+    }
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    // Instead of throwing, reject gracefully
+    return callback(new Error(`CORS not allowed for origin: ${origin}`), false);
+  },
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true,
+  optionsSuccessStatus: 200 // important for legacy browsers
+}));
 
 app.use(express.json({ limit: "200mb" }));
 app.use(express.urlencoded({ limit: "200mb", extended: true }));
 app.use(cookieParser());
+
+const serviceAccount = require('./src/config/firebase-config.json');
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+});
 
 // standardized success response helpers
 app.use(responseMiddleware);

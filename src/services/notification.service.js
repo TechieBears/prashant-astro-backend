@@ -196,6 +196,7 @@ async function sendRealTimeNotifications(notification, userIds) {
           data: {
             notificationId: notification._id.toString(),
             type: 'order_update',
+            deepLink: notification.redirectionUrl || '',
             redirectionUrl: notification.redirectionUrl,
             redirectId: notification.redirectId,
             click_action: 'FLUTTER_NOTIFICATION_CLICK'
