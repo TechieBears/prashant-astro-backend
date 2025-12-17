@@ -1,17 +1,6 @@
 const { google } = require('googleapis');
 const axios = require('axios');
 const admin = require('firebase-admin');
-const serviceAccount = require('../config/firebase-config.json');
-
-async function getAccessToken() {
-  const client = new google.auth.JWT({
-    email: serviceAccount.client_email,
-    key: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-    scopes: ['https://www.googleapis.com/auth/cloud-platform'],
-  });
-  const token = await client.authorize();
-  return token.access_token;
-}
 
 async function sendFirebaseNotification(messageData) {
   try {
