@@ -12,13 +12,13 @@ exports.callInitiate = asyncHandler(async (req, res) => {
     const userId = req.user._id;
     const { astrologerId, phoneNumber, callDuration, agentId } = req.body;
 
-    if(!userId || !astrologerId || !phoneNumber || !callDuration) {
+    if (!userId || !astrologerId || !phoneNumber || !callDuration) {
         return res.status(400).json({ message: "Missing required fields" });
     }
 
     const user = await User.findById(userId);
     const astrologer = await User.findById(astrologerId).populate("profile");
-    if(!astrologer) {
+    if (!astrologer) {
         return res.status(404).json({ message: "Call Astrologer not found" });
     }
     const employee = await Employee.findById(astrologer.profile);
@@ -168,7 +168,7 @@ exports.getAllCallAstrologersCustomer = asyncHandler(async (req, res) => {
                 $exists: true,
                 $ne: null
             };
-            
+
             if (minPrice) {
                 employeeMatchConditions["employeeProfile.priceCharge"].$gte = parseFloat(minPrice);
             }
@@ -519,10 +519,18 @@ exports.getAllCallsHistoryCustomer = asyncHandler(async (req, res) => {
     const skip = (page - 1) * limit;
     const total = await CallAstrologer.countDocuments({ userId: req.user._id });
     const calls = await CallAstrologer.find({ userId: req.user._id })
+        .populate({
+            path: 'astrologerId',
+            select: 'email mobileNo role profile profileImage',
+            populate: {
+                path: 'profile',
+                model: 'employee',
+                select: 'firstName lastName priceCharge skills languages experience'
+            }
+        })
         .skip(skip)
         .limit(limit)
-        .sort({ createdAt: -1 })
-        .populate('astrologerId', 'email mobileNo');
+        .sort({ createdAt: -1 });
 
     res.paginated(calls, { page, limit, total, totalPages: Math.ceil(total / limit) });
 });
