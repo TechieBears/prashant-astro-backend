@@ -60,6 +60,7 @@ router.use('/wallet', require('../modules/wallet/wallet.route'));
 router.use('/call', require('../modules/callAstrologer/call.router'));
 
 router.use('/payments', require('../modules/razorpaytest/razorpaytest.route'));
+router.use('/webhook', require('../modules/webhook/webhook.route'));
 
 // 404 handler for undefined routes (commented out temporarily to debug)
 // router.all('*', (req, res) => {
