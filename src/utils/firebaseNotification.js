@@ -9,51 +9,36 @@ async function sendFirebaseNotification(messageData) {
       notification: {
         title: messageData.title,
         body: messageData.body,
-        image: messageData.image || undefined
       },
       data: {
+        image: "https://api.soulplan.net/prodmedia/services/1765457303783-34caaa346c72cebd307b9f4c1e76440713487506.jpg",
         notificationFor: `${messageData.deepLink}`,
         "deepLink": `soulplan://${messageData.deepLink}`,
         id: "SAdfsdfsadf",
         pnid: "Sadfsadfsf",
-        notifee: JSON.stringify({
-          title: messageData.title,
-          body: messageData.body,
-          data: {
-            "deepLink": `soulplan://${messageData.deepLink}`,
-            "image": messageData.image || ""
-          },
-          priority: "high",
-          android: {
-            notification: {
-              channelId: "channel_02",
-              clickAction: "default",
-              "image": messageData.image || undefined,
-              "click_action": "FLUTTER_NOTIFICATION_CLICK"
-            },
-          },
-
-        }),
+        timeStamp: new Date().toISOString()
       },
       tokens: messageData.token,
       apns: {
         payload: {
           aps: {
             "mutable-content": 1,
+            "badge": 1,
             "alert": {
               title: messageData.title,
               body: messageData.body,
             },
             "sound": "default",
-            "content-available": 1,
             'thread-id': 'events_group'
           },
         },
       },
       android: {
         priority: 'high',
-        // "image": messageData.image || undefined,
-        // "click_action": "FLUTTER_NOTIFICATION_CLICK"
+        notification: {
+          clickAction: 'FLUTTER_NOTIFICATION_CLICK',
+          imageUrl: "https://api.soulplan.net/prodmedia/services/1765457303783-34caaa346c72cebd307b9f4c1e76440713487506.jpg"
+        }
       },
       "fcm_options": {
         "image": messageData.image || undefined
@@ -72,9 +57,9 @@ async function sendFirebaseNotification(messageData) {
     };
     console.log("🚀 ~ sendFirebaseNotification ~ Pimessage:", message);
     try {
-      const response = await admin.messaging().sendEachForMulticast(Pimessage);
+      const response = await admin.messaging().sendEachForMulticast(message);
       console.log('🚀 Notification sent successfully:', JSON.stringify(response));
-      process.exit(0);
+      return JSON.stringify(response);
     } catch (error) {
       console.error('❌ Error sending notification:', error);
       process.exit(1);
