@@ -1,4 +1,4 @@
-const { razorpay } = require('../../config/razorpay');
+const razorpay = require('../../config/razorpay');
 const crypto = require('crypto');
 
 exports.createOrder = async (req, res) => {

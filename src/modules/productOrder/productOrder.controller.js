@@ -15,6 +15,7 @@ const sendEmail = require('../../services/email.service');
 const { sendFirebaseNotification } = require('../../utils/firebaseNotification');
 const { sendOrderNotification, sendOrderUpdateNotification } = require('../../utils/notificationsHelper');
 const { commonNotification } = require('../../utils/notificationsHelper');
+const razorpay = require('../../config/razorpay');
 
 exports.commonNotification = asyncHandler(async (req, res) => {
   await commonNotification('PRODUCT_BOOKING', "service", "6916dd476e7c0db5bac9f43c");
