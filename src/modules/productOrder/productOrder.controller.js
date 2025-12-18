@@ -15,6 +15,7 @@ const sendEmail = require('../../services/email.service');
 const { sendFirebaseNotification } = require('../../utils/firebaseNotification');
 const { sendOrderNotification, sendOrderUpdateNotification } = require('../../utils/notificationsHelper');
 const { commonNotification } = require('../../utils/notificationsHelper');
+const { createRazorpayOrder } = require('../../services/razorpay.service');
 
 exports.commonNotification = asyncHandler(async (req, res) => {
   await commonNotification('PRODUCT_BOOKING', "service", "6916dd476e7c0db5bac9f43c");
@@ -29,8 +30,11 @@ exports.checkoutProductOrder = asyncHandler(async (req, res) => { });
 // @route   POST /api/product-order/create
 // @access  Private (customer)
 exports.createProductOrder = asyncHandler(async (req, res) => {
-  const { items, address, paymentMethod, paymentDetails, couponId, useCredits } = req.body; // 👈 Added useCredits
+  const { items, address, paymentMethod, paymentDetails, couponId, useCredits, razorpayOrderId, razorpayPaymentId, razorpaySignature, razorpayPaymentDetails } = req.body; // 👈 Added razorpay fields
   const userId = req.user._id;
+
+  console.log(req.body);
+  console.log(userId);
 
   // --------------- ✅ Validate Coupon (if provided) ----------------
   let coupon = null;
@@ -147,7 +151,7 @@ exports.createProductOrder = asyncHandler(async (req, res) => {
     // --------------- ✅ WALLET CREDITS LOGIC ----------------
     let walletUsed = 0;
     let payingAmount = amountAfterCoupon;
-    if(amountAfterCoupon === 0) {
+    if (amountAfterCoupon === 0) {
       payingAmount = finalAmount;
     }
     let walletBalance = 0;
@@ -181,6 +185,21 @@ exports.createProductOrder = asyncHandler(async (req, res) => {
     // Ensure payingAmount is not negative
     payingAmount = Math.max(0, payingAmount);
 
+    // ----------------- ✅ RAZORPAY ORDER CREATION -----------------
+    let razorpayOrder = null;
+
+    if (['CARD', 'UPI', 'WALLET', 'NETBANKING'].includes(paymentMethod) && payingAmount > 0) {
+      razorpayOrder = await createRazorpayOrder({
+        amount: payingAmount, // use payingAmount as amount for Razorpay
+        currency: 'INR',
+        receiptPrefix: 'PROD',
+        notes: {
+          userId: userId.toString(),
+          orderType: 'PRODUCT',
+        },
+      });
+    }
+
     // Create order
     const productOrderPayload = {
       user: userId,
@@ -198,7 +217,19 @@ exports.createProductOrder = asyncHandler(async (req, res) => {
       },
       address,
       paymentMethod,
-      paymentDetails: paymentDetails || {},
+      // paymentDetails: {
+      //   ...(paymentDetails || {}),
+      //   ...(razorpayOrderId && { razorpayOrderId }),
+      //   ...(razorpayPaymentId && { razorpayPaymentId }),
+      //   ...(razorpaySignature && { razorpaySignature }),
+      //   ...(razorpayPaymentDetails && { razorpayPaymentDetails }),
+      // },
+      paymentDetails: {
+        ...paymentDetails,
+        razorpayOrderId: razorpayOrder?.id || null,
+        razorpayAmount: razorpayOrder?.amount || null,
+        razorpayCurrency: razorpayOrder?.currency || null,
+      },
       orderStatus: 'PENDING',
       paymentStatus: paymentMethod === 'COD' ? 'PENDING' : payingAmount === 0 ? 'PAID' : 'PENDING', // 👈 If payingAmount is 0, mark as PAID
     };
@@ -221,12 +252,16 @@ exports.createProductOrder = asyncHandler(async (req, res) => {
       payingAmount: payingAmount,
       walletUsed: walletUsed, // 👈 Store wallet usage in transaction
       isCoupon: !!coupon,
-      paymentId: paymentDetails?.transactionId || `PROD-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      paymentId: paymentDetails?.transactionId || razorpayPaymentId || `PROD-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
       userId,
       paymentDetails: {
-        ...paymentDetails,
+        ...(paymentDetails || {}),
         walletUsed: walletUsed,
-        originalAmount: amountAfterCoupon
+        originalAmount: amountAfterCoupon,
+        ...(razorpayOrderId && { razorpayOrderId }),
+        ...(razorpayPaymentId && { razorpayPaymentId }),
+        ...(razorpaySignature && { razorpaySignature }),
+        ...(razorpayPaymentDetails && { razorpayPaymentDetails }),
       },
     };
 
@@ -258,7 +293,7 @@ exports.createProductOrder = asyncHandler(async (req, res) => {
     session.endSession();
 
     // ✅ Send Notification to customer after successful order creation
-    await commonNotification('PRODUCT_BOOKING', "product", savedOrder._id.toString());
+    // await commonNotification('PRODUCT_BOOKING', "product", savedOrder._id.toString());
     // await sendOrderNotification(
     //   { savedOrder, orderItems},
     //   'ORDER PLACED SUCCESSFULLY!',
@@ -279,7 +314,14 @@ exports.createProductOrder = asyncHandler(async (req, res) => {
           remainingBalance: walletBalance - walletUsed,
           payingAmount: payingAmount
         },
-        referralReward: referralResult
+        referralReward: referralResult,
+        razorpay: razorpayOrder
+          ? {
+            orderId: razorpayOrder.id,
+            amount: razorpayOrder.amount,
+            currency: razorpayOrder.currency
+          }
+          : null
       },
     });
   } catch (error) {

@@ -39,6 +39,9 @@ const serviceOrderSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Transaction',
     },
+    paymentDetails: {
+        type: Object,
+    },
     // address: {
     //     type: mongoose.Schema.Types.ObjectId,
     //     ref: 'customerAddress',

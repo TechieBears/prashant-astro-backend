@@ -13,6 +13,7 @@ const ProductOrder = require('../productOrder/productOrder.model');
 const { processReferralReward } = require('../../services/referral.service');
 const { updateMeeting, createMeetingForUser } = require('../../services/zoom.service');
 const { commonNotification } = require('../../utils/notificationsHelper');
+const { createRazorpayOrder } = require('../../services/razorpay.service');
 
 // @desc Create Service Order (Buy Now - Multiple Services)
 // @route POST /api/service-order/create
@@ -25,6 +26,10 @@ exports.createServiceOrder = asyncHandler(async (req, res, next) => {
     paymentId,
     paymentDetails,
     couponId,
+    razorpayOrderId,
+    razorpayPaymentId,
+    razorpaySignature,
+    razorpayPaymentDetails,
   } = req.body;
 
   if (!Array.isArray(serviceItems) || serviceItems.length === 0) {
@@ -272,9 +277,15 @@ exports.createServiceOrder = asyncHandler(async (req, res, next) => {
         pendingAmount: service.price,
         payingAmount: service.price,
         isCoupon: !!coupon,
-        paymentId: `${paymentId || 'PAY'}-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        paymentId: paymentId || razorpayPaymentId || `PAY-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
         userId,
-        paymentDetails: paymentDetails || {},
+        paymentDetails: {
+          ...(paymentDetails || {}),
+          ...(razorpayOrderId && { razorpayOrderId }),
+          ...(razorpayPaymentId && { razorpayPaymentId }),
+          ...(razorpaySignature && { razorpaySignature }),
+          ...(razorpayPaymentDetails && { razorpayPaymentDetails }),
+        },
       }], { session });
 
       // Link transaction to orderItem
@@ -287,13 +298,39 @@ exports.createServiceOrder = asyncHandler(async (req, res, next) => {
 
     let gst = totalAmount * 0;
     let finalAmount = totalAmount + gst;
-    let amountAfterCoupon = 0;
+    let amountAfterCoupon = finalAmount;
     if (coupon) {
       if (coupon.discountIn === 'percent') {
         amountAfterCoupon = finalAmount - ((finalAmount * coupon.discount) / 100);
       }
       else {
         amountAfterCoupon = finalAmount - (coupon ? coupon.discount : 0);
+      }
+    }
+
+    // Calculate paying amount
+    const payingAmount = amountAfterCoupon > 0 ? amountAfterCoupon : finalAmount;
+
+    // ----------------- ✅ RAZORPAY ORDER CREATION -----------------
+    let razorpayOrder = null;
+
+    // Create Razorpay order for online payment methods (not COD)
+    if (paymentType && !['COD', 'CASH'].includes(paymentType) && payingAmount > 0) {
+      try {
+        razorpayOrder = await createRazorpayOrder({
+          amount: payingAmount, // use payingAmount as amount for Razorpay
+          currency: 'INR',
+          receiptPrefix: 'SERVICE',
+          notes: {
+            userId: userId.toString(),
+            orderType: 'SERVICE',
+          },
+        });
+      } catch (error) {
+        await session.abortTransaction();
+        session.endSession();
+        console.error('Razorpay order creation failed:', error);
+        return next(new ErrorHandler('Failed to create Razorpay order: ' + error.message, 500));
       }
     }
 
@@ -304,9 +341,18 @@ exports.createServiceOrder = asyncHandler(async (req, res, next) => {
       paymentStatus: 'pending',
       totalAmount,
       finalAmount,
-      payingAmount: amountAfterCoupon,
+      payingAmount: payingAmount,
       isCoupon: !!coupon,
       coupon: coupon?._id || null,
+      paymentDetails: {
+        ...(paymentDetails || {}),
+        razorpayOrderId: razorpayOrder?.id || razorpayOrderId || null,
+        razorpayAmount: razorpayOrder?.amount || null,
+        razorpayCurrency: razorpayOrder?.currency || null,
+        ...(razorpayPaymentId && { razorpayPaymentId }),
+        ...(razorpaySignature && { razorpaySignature }),
+        ...(razorpayPaymentDetails && { razorpayPaymentDetails }),
+      },
     };
 
     const serviceOrder = await ServiceOrder.create([serviceOrderPayload], { session });
@@ -424,13 +470,20 @@ exports.createServiceOrder = asyncHandler(async (req, res, next) => {
     };
 
     // send notification to customer and admin
-    await commonNotification("SERVICE_BOOKING", "service", populatedOrder.services[0]._id)
+    // await commonNotification("SERVICE_BOOKING", "service", populatedOrder.services[0]._id)
 
     res.status(201).json({
       success: true,
       message: 'Service order created successfully with individual transactions per service',
       order: formattedOrder,
-      referralReward: referralResult // 👈 Include referral result in response
+      referralReward: referralResult, // 👈 Include referral result in response
+      razorpay: razorpayOrder
+        ? {
+            orderId: razorpayOrder.id,
+            amount: razorpayOrder.amount,
+            currency: razorpayOrder.currency
+          }
+        : null
     });
 
   } catch (error) {
