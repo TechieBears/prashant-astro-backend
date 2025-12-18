@@ -2,8 +2,8 @@ const asyncHandler = require('express-async-handler');
 const ErrorHander = require('../../utils/errorHandler');
 const Wallet = require('./wallet.model');
 const WalletTransaction = require('./walletTransactions.model');
-const razorpay = require('../../config/razorpay');
 const mongoose = require('mongoose');
+const { createRazorpayOrder } = require('../../services/razorpay.service');
 
 // @desc    add wallet balance (with Razorpay payment gateway integration)
 // @route   POST /api/wallet/add-balance
@@ -56,15 +56,14 @@ exports.addWalletBalance = asyncHandler(async (req, res, next) => {
 
   // For online payment methods, create Razorpay order
   try {
-    const paymentOrder = await razorpay.orders.create({
-      amount: Math.round(amount * 100), // Razorpay works in paise
+    const paymentOrder = await createRazorpayOrder({
+      amount, // amount to add to wallet
       currency: 'INR',
-      receipt: `WALLET_${Date.now()}`,
-      payment_capture: 1,
+      receiptPrefix: 'WALLET',
       notes: {
         userId: userId.toString(),
-        orderType: 'WALLET'
-      }
+        orderType: 'WALLET',
+      },
     });
 
     // Return payment order details for frontend to process payment

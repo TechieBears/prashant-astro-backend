@@ -15,7 +15,7 @@ const sendEmail = require('../../services/email.service');
 const { sendFirebaseNotification } = require('../../utils/firebaseNotification');
 const { sendOrderNotification, sendOrderUpdateNotification } = require('../../utils/notificationsHelper');
 const { commonNotification } = require('../../utils/notificationsHelper');
-const razorpay = require('../../config/razorpay');
+const { createRazorpayOrder } = require('../../services/razorpay.service');
 
 exports.commonNotification = asyncHandler(async (req, res) => {
   await commonNotification('PRODUCT_BOOKING', "service", "6916dd476e7c0db5bac9f43c");
@@ -32,6 +32,9 @@ exports.checkoutProductOrder = asyncHandler(async (req, res) => { });
 exports.createProductOrder = asyncHandler(async (req, res) => {
   const { items, address, paymentMethod, paymentDetails, couponId, useCredits, razorpayOrderId, razorpayPaymentId, razorpaySignature, razorpayPaymentDetails } = req.body; // 👈 Added razorpay fields
   const userId = req.user._id;
+
+  console.log(req.body);
+  console.log(userId);
 
   // --------------- ✅ Validate Coupon (if provided) ----------------
   let coupon = null;
@@ -186,15 +189,14 @@ exports.createProductOrder = asyncHandler(async (req, res) => {
     let razorpayOrder = null;
 
     if (['CARD', 'UPI', 'WALLET', 'NETBANKING'].includes(paymentMethod) && payingAmount > 0) {
-      razorpayOrder = await razorpay.orders.create({
-        amount: Math.round(payingAmount * 100), // Razorpay works in paise
+      razorpayOrder = await createRazorpayOrder({
+        amount: payingAmount, // use payingAmount as amount for Razorpay
         currency: 'INR',
-        receipt: `PROD_${Date.now()}`,
-        payment_capture: 1,
+        receiptPrefix: 'PROD',
         notes: {
           userId: userId.toString(),
-          orderType: 'PRODUCT'
-        }
+          orderType: 'PRODUCT',
+        },
       });
     }
 
@@ -291,7 +293,7 @@ exports.createProductOrder = asyncHandler(async (req, res) => {
     session.endSession();
 
     // ✅ Send Notification to customer after successful order creation
-    await commonNotification('PRODUCT_BOOKING', "product", savedOrder._id.toString());
+    // await commonNotification('PRODUCT_BOOKING', "product", savedOrder._id.toString());
     // await sendOrderNotification(
     //   { savedOrder, orderItems},
     //   'ORDER PLACED SUCCESSFULLY!',

@@ -13,7 +13,7 @@ const ProductOrder = require('../productOrder/productOrder.model');
 const { processReferralReward } = require('../../services/referral.service');
 const { updateMeeting, createMeetingForUser } = require('../../services/zoom.service');
 const { commonNotification } = require('../../utils/notificationsHelper');
-const razorpay = require('../../config/razorpay');
+const { createRazorpayOrder } = require('../../services/razorpay.service');
 
 // @desc Create Service Order (Buy Now - Multiple Services)
 // @route POST /api/service-order/create
@@ -317,15 +317,14 @@ exports.createServiceOrder = asyncHandler(async (req, res, next) => {
     // Create Razorpay order for online payment methods (not COD)
     if (paymentType && !['COD', 'CASH'].includes(paymentType) && payingAmount > 0) {
       try {
-        razorpayOrder = await razorpay.orders.create({
-          amount: Math.round(payingAmount * 100), // Razorpay works in paise
+        razorpayOrder = await createRazorpayOrder({
+          amount: payingAmount, // use payingAmount as amount for Razorpay
           currency: 'INR',
-          receipt: `SERVICE_${Date.now()}`,
-          payment_capture: 1,
+          receiptPrefix: 'SERVICE',
           notes: {
             userId: userId.toString(),
-            orderType: 'SERVICE'
-          }
+            orderType: 'SERVICE',
+          },
         });
       } catch (error) {
         await session.abortTransaction();
@@ -471,7 +470,7 @@ exports.createServiceOrder = asyncHandler(async (req, res, next) => {
     };
 
     // send notification to customer and admin
-    await commonNotification("SERVICE_BOOKING", "service", populatedOrder.services[0]._id)
+    // await commonNotification("SERVICE_BOOKING", "service", populatedOrder.services[0]._id)
 
     res.status(201).json({
       success: true,

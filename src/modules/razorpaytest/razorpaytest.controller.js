@@ -1,16 +1,14 @@
-const razorpay = require('../../config/razorpay');
-const crypto = require('crypto');
+const { createRazorpayOrder, verifyRazorpayPayment, fetchRazorpayPaymentDetails } = require('../../services/razorpay.service');
 
 exports.createOrder = async (req, res) => {
     try {
         const { amount, currency, notes } = req.body;
 
-        const order = await razorpay.orders.create({
-            amount,                 // smallest unit
-            currency,               // INR or USD
-            receipt: `rcpt_${Date.now()}`,
-            payment_capture: 1,
-            notes
+        const order = await createRazorpayOrder({
+            amount: amount / 100,          // existing API expects smallest unit (paise)
+            currency: currency || 'INR',
+            receiptPrefix: 'rcpt',
+            notes: notes || {},
         });
 
         res.status(200).json({
@@ -33,14 +31,13 @@ exports.verifyPayment = async (req, res) => {
             razorpay_signature
         } = req.body;
 
-        const body = razorpay_order_id + "|" + razorpay_payment_id;
+        const isValid = verifyRazorpayPayment({
+            razorpayOrderId: razorpay_order_id,
+            razorpayPaymentId: razorpay_payment_id,
+            razorpaySignature: razorpay_signature,
+        });
 
-        const expectedSignature = crypto
-            .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
-            .update(body.toString())
-            .digest("hex");
-
-        if (expectedSignature === razorpay_signature) {
+        if (isValid) {
             return res.status(200).json({ success: true });
         }
 
@@ -53,9 +50,7 @@ exports.verifyPayment = async (req, res) => {
 
 exports.fetchPaymentDetails = async (req, res) => {
     try {
-        const payment = await razorpay.payments.fetch(
-            req.params.paymentId
-        );
+        const payment = await fetchRazorpayPaymentDetails(req.params.paymentId);
 
         if (payment.status === 'captured') {
             return res.json({
