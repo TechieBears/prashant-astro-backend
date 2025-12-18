@@ -2,6 +2,7 @@ const asyncHandler = require("express-async-handler");
 const CallAstrologer = require("./call.model");
 const User = require("../auth/user.Model");
 const Employee = require("../employeeUser/employeeUser.model");
+const ServiceCategory = require("../serviceCategory/serviceCategory.model");
 const Wallet = require("../wallet/wallet.model");
 const { startWalletTimer } = require("./callTimer.service");
 const mongoose = require("mongoose");
@@ -12,13 +13,13 @@ exports.callInitiate = asyncHandler(async (req, res) => {
     const userId = req.user._id;
     const { astrologerId, phoneNumber, callDuration, agentId } = req.body;
 
-    if(!userId || !astrologerId || !phoneNumber || !callDuration) {
+    if (!userId || !astrologerId || !phoneNumber || !callDuration) {
         return res.status(400).json({ message: "Missing required fields" });
     }
 
     const user = await User.findById(userId);
     const astrologer = await User.findById(astrologerId).populate("profile");
-    if(!astrologer) {
+    if (!astrologer) {
         return res.status(404).json({ message: "Call Astrologer not found" });
     }
     const employee = await Employee.findById(astrologer.profile);
@@ -168,7 +169,7 @@ exports.getAllCallAstrologersCustomer = asyncHandler(async (req, res) => {
                 $exists: true,
                 $ne: null
             };
-            
+
             if (minPrice) {
                 employeeMatchConditions["employeeProfile.priceCharge"].$gte = parseFloat(minPrice);
             }
@@ -514,15 +515,149 @@ exports.getAllCallsAdminandAstrologer = asyncHandler(async (req, res) => {
     res.status(200).json({ success: true, data: calls });
 });
 
+exports.getAllCallAstrologersMobileByServiceCategory = asyncHandler(async (req, res) => {
+  try {
+    
+    // Get all call astrologers with their service categories populated
+    const callAstrologers = await Employee.find({
+      employeeType: "call_astrologer"
+    })
+    .populate('serviceCategory', 'name description') // Populate service categories
+    .lean();
+
+    // Group astrologers by service category
+    const categoryMap = {};
+    
+    // Process each astrologer
+    for (const astrologer of callAstrologers) {
+      // Find the associated user
+      const user = await User.findOne({
+        profile: astrologer._id,
+        role: "employee",
+        isActive: true,
+        isDeleted: false
+      })
+      .select('email mobileNo profileImage fcmToken')
+      .lean();
+
+      if (!user) {
+        continue; // Skip if no active user found
+      }
+
+      // Prepare astrologer data
+      const astrologerData = {
+        user: {
+          _id: user._id,
+          email: user.email,
+          mobileNo: user.mobileNo,
+          profileImage: user.profileImage,
+          fcmToken: user.fcmToken
+        },
+        astrologer: {
+          _id: astrologer._id,
+          uniqueId: astrologer.uniqueId,
+          employeeType: astrologer.employeeType,
+          firstName: astrologer.firstName,
+          lastName: astrologer.lastName,
+          fullName: `${astrologer.firstName} ${astrologer.lastName}`,
+          about: astrologer.about,
+          priceCharge: astrologer.priceCharge,
+          skills: astrologer.skills,
+          languages: astrologer.languages,
+          experience: astrologer.experience,
+          startTime: astrologer.startTime,
+          endTime: astrologer.endTime,
+          days: astrologer.days,
+          preBooking: astrologer.preBooking,
+          isBusy: astrologer.isBusy,
+          currentCustomerId: astrologer.currentCustomerId,
+          agentId: astrologer.agentId
+        }
+      };
+
+      // If astrologer has service categories
+      if (astrologer.serviceCategory && astrologer.serviceCategory.length > 0) {
+        astrologer.serviceCategory.forEach(category => {
+          const categoryId = category._id.toString();
+          
+          if (!categoryMap[categoryId]) {
+            categoryMap[categoryId] = {
+              serviceCategory: {
+                _id: category._id,
+                name: category.name,
+                description: category.description
+              },
+              astrologers: []
+            };
+          }
+          
+          categoryMap[categoryId].astrologers.push(astrologerData);
+        });
+      } else {
+        // Add to General category if no specific categories
+        const generalId = 'general';
+        if (!categoryMap[generalId]) {
+          categoryMap[generalId] = {
+            serviceCategory: {
+              _id: generalId,
+              name: "General",
+              description: "Astrologers available for general consultations"
+            },
+            astrologers: []
+          };
+        }
+        categoryMap[generalId].astrologers.push(astrologerData);
+      }
+    }
+
+    // Convert map to array
+    let groupedData = Object.values(categoryMap);
+
+    // Sort by category name (General should be last)
+    groupedData.sort((a, b) => {
+      if (a.serviceCategory._id === 'general') return 1;
+      if (b.serviceCategory._id === 'general') return -1;
+      return a.serviceCategory.name.localeCompare(b.serviceCategory.name);
+    });
+
+    // Sort astrologers within each category by price
+    groupedData.forEach(category => {
+      category.astrologers.sort((a, b) => a.astrologer.priceCharge - b.astrologer.priceCharge);
+    });
+
+    return res.status(200).json({
+      success: true,
+      count: callAstrologers.length,
+      data: groupedData
+    });
+
+  } catch (error) {
+    console.error("Error fetching call astrologers:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error while fetching call astrologers",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined
+    });
+  }
+});
+
 exports.getAllCallsHistoryCustomer = asyncHandler(async (req, res) => {
     const { page = 1, limit = 10 } = req.query;
     const skip = (page - 1) * limit;
     const total = await CallAstrologer.countDocuments({ userId: req.user._id });
     const calls = await CallAstrologer.find({ userId: req.user._id })
+        .populate({
+            path: 'astrologerId',
+            select: 'email mobileNo role profile profileImage',
+            populate: {
+                path: 'profile',
+                model: 'employee',
+                select: 'firstName lastName priceCharge skills languages experience'
+            }
+        })
         .skip(skip)
         .limit(limit)
-        .sort({ createdAt: -1 })
-        .populate('astrologerId', 'email mobileNo');
+        .sort({ createdAt: -1 });
 
     res.paginated(calls, { page, limit, total, totalPages: Math.ceil(total / limit) });
 });

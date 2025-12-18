@@ -823,12 +823,12 @@ exports.forgotPassword = asyncHandler(async (req, res, next) => {
 });
 
 exports.forgotPasswordOtp = asyncHandler(async (req, res, next) => {
-  const {email} = req.body;
+  const { email } = req.body;
 
-  if(!email) return next(new ErrorHander("Please provide email", 400));
-  
+  if (!email) return next(new ErrorHander("Please provide email", 400));
+
   // 1. verify email
-  const user = await User.findOne({email}).populate('profile');
+  const user = await User.findOne({ email }).populate('profile');
   if (!user) return next(new ErrorHander("No email found", 200));
 
   // find user id in otp
@@ -839,7 +839,7 @@ exports.forgotPasswordOtp = asyncHandler(async (req, res, next) => {
 
   // 2. Generate random 6 digit number
   const otp = Math.floor(100000 + Math.random() * 900000);
-  
+
   await Otp.create({ userId: user._id, otp });
 
   // template for email
@@ -947,4 +947,25 @@ exports.getWalletBalance = asyncHandler(async (req, res, next) => {
     return res.ok({ balance: 0 }, "Wallet balance fetched successfully");
   }
   res.ok({ balance: wallet.balance }, "Wallet balance fetched successfully");
+});
+
+
+exports.updateCustomerFCM = asyncHandler(async (req, res, next) => {
+  const customerId = req.user.profile._id;
+
+  if (!customerId) {
+    throw new ErrorHander("Please provide customer id", 400);
+  }
+
+  const customer = await CustomerUser.findById(customerId);
+  if (!customer) {
+    throw new ErrorHander("Customer not found", 404);
+  }
+
+  // Update profile fields
+  const { fcmToken } = req.body;
+
+  if (fcmToken !== undefined) customer.fcmToken = fcmToken;
+  await customer.save();
+  return res.ok({ user: sendUser(user, customer) }, "Customer updated successfully");
 });

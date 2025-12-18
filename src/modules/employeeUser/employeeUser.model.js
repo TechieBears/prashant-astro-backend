@@ -49,6 +49,12 @@ const employeeUserSchema = new mongoose.Schema({
         type: Boolean,
     },
     // call astrologer
+    serviceCategory:[
+        {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "ServiceCategory",
+        }
+    ],
     isBusy: {
         type: Boolean,
         default: false,
