@@ -6,6 +6,7 @@ const router = express.Router();
 
 router.get('/public/get-all-call-astrologers', CallController.getAllCallAstrologersCustomer);
 router.get('/public/get-single-call-astrologer', CallController.getSingleCallAstrologerCustomer);
+router.get('/public/get-all-call-astrologers-mobile', CallController.getAllCallAstrologersMobileByServiceCategory);
 router.get('/public/get-filters', CallController.getFilters);
 
 router.post('/initiate', protect, authorize("customer", "astrologer"), CallController.callInitiate);
