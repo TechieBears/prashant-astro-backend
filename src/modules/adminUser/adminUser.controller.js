@@ -4,16 +4,14 @@ const AdminUser = require('./adminUser.model');
 const ErrorHander = require('../../utils/errorHandler');
 const mongoose = require('mongoose');
 
-const sendUser = (user, profile) => ({
-    _id: user._id,
-    firstName: profile.firstName,
-    lastName: profile.lastName,
-    email: user.email,
-    phone: user.phone,
-    role: user.role,
-    isActive: user.isActive,
-    createdAt: user.createdAt,
-    updatedAt: user.updatedAt,
+const sendUser = (user) => ({
+  _id: user._id,
+  email: user.email,
+  mobileNo: user.mobileNo,
+  profileImage: user.profileImage,
+  firstName: user.profile.firstName || null,
+  lastName: user.profile.lastName || null,
+  role: user.role
 });
 
 const {
@@ -22,6 +20,7 @@ const {
     updateImageInCloudinary,
     getThumbnailUrl
 } = require('../../services/cloudinary.service');
+const { deleteFile } = require('../../utils/storage');
 
 // @desc    Create new admin user
 // @route   POST /api/admin-users
@@ -42,7 +41,7 @@ exports.createAdminUser = asyncHandler(async (req, res, next) => {
     try {
         // 1. Create Admin profile
         const adminUser = await AdminUser.create(
-            [{ firstName, lastName, permissions: permissions? permissions : ['read', 'write', 'delete', 'manage-users', 'manage-settings'] }],
+            [{ firstName, lastName, permissions: permissions ? permissions : ['read', 'write', 'delete', 'manage-users', 'manage-settings'] }],
             { session }
         );
 
@@ -68,7 +67,7 @@ exports.createAdminUser = asyncHandler(async (req, res, next) => {
         res.status(201).json({
             success: true,
             message: "Admin user created successfully",
-            data: {user: sendUser(user[0], adminUser[0]),}
+            data: { user: sendUser(user[0], adminUser[0]), }
         });
     } catch (error) {
         // ❌ Rollback if something fails
@@ -142,17 +141,104 @@ exports.getAdminUser = asyncHandler(async (req, res) => {
 // @desc    Update admin user
 // @route   PUT /api/admin-users/:id
 // @access  Private/Admin
+// exports.updateAdminUser = asyncHandler(async (req, res) => {
+//     console.log('Files received in request:', req.files);
+//     console.log('Body received in request:', req.body);
+//     const user = await User.findById(req.user._id).populate('profile');
+//     if (!user) {
+//         res.status(404);
+//         throw new Error('User not found');
+//     }
+
+//     // Check for uploaded file
+//     if (req.files && req.files.image && req.files.image[0]) {
+//         // Delete old profile image if it exists and is not the default
+//         if (user.profileImage && 
+//             user.profileImage !== "https://cdn-icons-png.flaticon.com/512/149/149071.png") {
+//             try {
+//                 await deleteFile(user.profileImage);
+//             } catch (error) {
+//                 console.error('Error deleting old profile image:', error);
+//                 // Don't throw error, continue with update
+//             }
+//         }
+        
+//         // Set new profile image
+//         req.body.profileImage = req.files.image[0].location || req.files.image[0].path;
+//     }
+
+//     await AdminUser.findByIdAndUpdate(user.profile, req.body, { new: true });
+//     const updatedUser = await User.findByIdAndUpdate(req.user._id, req.body, { new: true }).populate('profile');
+
+//     res.ok({ user: sendUser(updatedUser) }, 'Admin user updated successfully');
+
+// });
 exports.updateAdminUser = asyncHandler(async (req, res) => {
+    
+    // Find user with profile populated first to get current image
     const user = await User.findById(req.user._id).populate('profile');
-    if(!user){
+    
+    if (!user) {
         res.status(404);
         throw new Error('User not found');
     }
-    await AdminUser.findByIdAndUpdate(user.profile, req.body, { new: true });
-    const updatedUser = await User.findByIdAndUpdate(req.user._id, req.body, { new: true }).populate('profile');
+
+    // Check for uploaded file
+    if (req.files && req.files.image && req.files.image[0]) {
+        // Delete old profile image if it exists and is not the default
+        if (user.profileImage && 
+            user.profileImage !== "https://cdn-icons-png.flaticon.com/512/149/149071.png") {
+            try {
+                await deleteFile(user.profileImage);
+            } catch (error) {
+                console.error('Error deleting old profile image:', error);
+                // Don't throw error, continue with update
+            }
+        }
+        
+        // Set new profile image
+        req.body.profileImage = req.files.image[0].location || req.files.image[0].path;
+    }
+
+    // Define allowed fields that can be updated
+    const allowedUserFields = ['mobileNo', 'profileImage', 'fcmToken'];
+    const allowedProfileFields = ['firstName', 'lastName', 'title', 'gender']; // Adjust based on your AdminUser model
+    
+    // Filter req.body for user updates
+    const userUpdates = {};
+    allowedUserFields.forEach(field => {
+        if (req.body[field] !== undefined) {
+            userUpdates[field] = req.body[field];
+        }
+    });
+
+    // Filter req.body for profile updates
+    const profileUpdates = {};
+    allowedProfileFields.forEach(field => {
+        if (req.body[field] !== undefined) {
+            profileUpdates[field] = req.body[field];
+        }
+    });
+
+    // Update the profile (customer, admin, or employee model based on role)
+    if (Object.keys(profileUpdates).length > 0) {
+        await mongoose.model(user.role).findByIdAndUpdate(
+            user.profile._id, 
+            profileUpdates, 
+            { new: true }
+        );
+    }
+
+    // Update the user
+    const updatedUser = await User.findByIdAndUpdate(
+        req.user._id, 
+        userUpdates, 
+        { new: true }
+    ).populate('profile');
+
+    console.log('Updated User:', updatedUser);
 
     res.ok({ user: sendUser(updatedUser) }, 'Admin user updated successfully');
-
 });
 
 // @desc    Update admin user password

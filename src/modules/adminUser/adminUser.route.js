@@ -1,9 +1,11 @@
 const express = require('express');
 const AdminController = require('./adminUser.controller');
-const { uploadImage } = require('../../services/cloudinary.service');
 
 // Import middleware (assuming these exist in your project)
 const { protect, authorize } = require('../../middlewares/auth');
+
+const getUploader = require('../../middlewares/upload');
+const adminProfileParser = getUploader('admin-profile');
 
 const router = express.Router();
 
@@ -19,7 +21,7 @@ router.get('/stats', authorize('admin', 'employee'), AdminController.getAdminUse
 router.get('/', authorize('admin', 'employee'), AdminController.getAllAdminUsers);
 
 router.get('/:id', authorize('admin', 'employee'), AdminController.getAdminUser);
-router.put('/update', authorize('admin', 'employee'), uploadImage('profile-images'), AdminController.updateAdminUser);
+router.put('/update', authorize('admin', 'employee'), adminProfileParser.fields([{ name: 'image', maxCount: 1 }]), AdminController.updateAdminUser);
 router.delete('/:id', authorize('super-admin'), AdminController.deleteAdminUser);
 
 // Password update route
