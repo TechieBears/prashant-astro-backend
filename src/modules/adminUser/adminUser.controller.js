@@ -197,7 +197,7 @@ exports.updateAdminUser = asyncHandler(async (req, res) => {
         }
         
         // Set new profile image
-        req.body.profileImage = req.files.image[0].location || req.files.image[0].path;
+        req.body.profileImage = `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/admin-profile/${req.files.image[0].filename}`;
     }
 
     // Define allowed fields that can be updated
