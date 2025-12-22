@@ -552,11 +552,10 @@ exports.updateCustomerUser = asyncHandler(async (req, res, next) => {
   if (mobileNo !== undefined) user.mobileNo = mobileNo;
   if (isActive !== undefined) user.isActive = isActive;
   if (req.files?.image?.[0]) {
-    let imageName = generateImageName(req.files?.image?.[0]?.originalname);
-    if (user.image) {
-      deleteFile(user.image)
+    if (user.profileImage) {
+      deleteFile(user.profileImage);
     }
-    user.profileImage = `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/profile/${imageName}`;
+    user.profileImage = `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/profile/${req.files.image[0].filename}`;
   }
   await user.save();
   return res.ok({ user: sendUser(user, customer) }, "Customer updated successfully");
