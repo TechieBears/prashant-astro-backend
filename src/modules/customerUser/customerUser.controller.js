@@ -966,5 +966,5 @@ exports.updateCustomerFCM = asyncHandler(async (req, res, next) => {
 
   if (fcmToken !== undefined) customer.fcmToken = fcmToken;
   await customer.save();
-  return res.ok({ user: sendUser(user, customer) }, "Customer updated successfully");
+  return res.ok(null, "Customer updated successfully");
 });
