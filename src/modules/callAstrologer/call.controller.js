@@ -516,129 +516,129 @@ exports.getAllCallsAdminandAstrologer = asyncHandler(async (req, res) => {
 });
 
 exports.getAllCallAstrologersMobileByServiceCategory = asyncHandler(async (req, res) => {
-  try {
-    
-    // Get all call astrologers with their service categories populated
-    const callAstrologers = await Employee.find({
-      employeeType: "call_astrologer"
-    })
-    .populate('serviceCategory', 'name description') // Populate service categories
-    .lean();
+    try {
 
-    // Group astrologers by service category
-    const categoryMap = {};
-    
-    // Process each astrologer
-    for (const astrologer of callAstrologers) {
-      // Find the associated user
-      const user = await User.findOne({
-        profile: astrologer._id,
-        role: "employee",
-        isActive: true,
-        isDeleted: false
-      })
-      .select('email mobileNo profileImage fcmToken')
-      .lean();
+        // Get all call astrologers with their service categories populated
+        const callAstrologers = await Employee.find({
+            employeeType: "call_astrologer"
+        })
+            .populate('serviceCategory', 'name description') // Populate service categories
+            .lean();
 
-      if (!user) {
-        continue; // Skip if no active user found
-      }
+        // Group astrologers by service category
+        const categoryMap = {};
 
-      // Prepare astrologer data
-      const astrologerData = {
-        user: {
-          _id: user._id,
-          email: user.email,
-          mobileNo: user.mobileNo,
-          profileImage: user.profileImage,
-          fcmToken: user.fcmToken
-        },
-        astrologer: {
-          _id: astrologer._id,
-          uniqueId: astrologer.uniqueId,
-          employeeType: astrologer.employeeType,
-          firstName: astrologer.firstName,
-          lastName: astrologer.lastName,
-          fullName: `${astrologer.firstName} ${astrologer.lastName}`,
-          about: astrologer.about,
-          priceCharge: astrologer.priceCharge,
-          skills: astrologer.skills,
-          languages: astrologer.languages,
-          experience: astrologer.experience,
-          startTime: astrologer.startTime,
-          endTime: astrologer.endTime,
-          days: astrologer.days,
-          preBooking: astrologer.preBooking,
-          isBusy: astrologer.isBusy,
-          currentCustomerId: astrologer.currentCustomerId,
-          agentId: astrologer.agentId
-        }
-      };
+        // Process each astrologer
+        for (const astrologer of callAstrologers) {
+            // Find the associated user
+            const user = await User.findOne({
+                profile: astrologer._id,
+                role: "employee",
+                isActive: true,
+                isDeleted: false
+            })
+                .select('email mobileNo profileImage fcmToken')
+                .lean();
 
-      // If astrologer has service categories
-      if (astrologer.serviceCategory && astrologer.serviceCategory.length > 0) {
-        astrologer.serviceCategory.forEach(category => {
-          const categoryId = category._id.toString();
-          
-          if (!categoryMap[categoryId]) {
-            categoryMap[categoryId] = {
-              serviceCategory: {
-                _id: category._id,
-                name: category.name,
-                description: category.description
-              },
-              astrologers: []
+            if (!user) {
+                continue; // Skip if no active user found
+            }
+
+            // Prepare astrologer data
+            const astrologerData = {
+                user: {
+                    _id: user._id,
+                    email: user.email,
+                    mobileNo: user.mobileNo,
+                    profileImage: user.profileImage,
+                    fcmToken: user.fcmToken
+                },
+                astrologer: {
+                    _id: astrologer._id,
+                    uniqueId: astrologer.uniqueId,
+                    employeeType: astrologer.employeeType,
+                    firstName: astrologer.firstName,
+                    lastName: astrologer.lastName,
+                    fullName: `${astrologer.firstName} ${astrologer.lastName}`,
+                    about: astrologer.about,
+                    priceCharge: astrologer.priceCharge,
+                    skills: astrologer.skills,
+                    languages: astrologer.languages,
+                    experience: astrologer.experience,
+                    startTime: astrologer.startTime,
+                    endTime: astrologer.endTime,
+                    days: astrologer.days,
+                    preBooking: astrologer.preBooking,
+                    isBusy: astrologer.isBusy,
+                    currentCustomerId: astrologer.currentCustomerId,
+                    agentId: astrologer.agentId
+                }
             };
-          }
-          
-          categoryMap[categoryId].astrologers.push(astrologerData);
-        });
-      } else {
-        // Add to General category if no specific categories
-        const generalId = 'general';
-        if (!categoryMap[generalId]) {
-          categoryMap[generalId] = {
-            serviceCategory: {
-              _id: generalId,
-              name: "General",
-              description: "Astrologers available for general consultations"
-            },
-            astrologers: []
-          };
+
+            // If astrologer has service categories
+            if (astrologer.serviceCategory && astrologer.serviceCategory.length > 0) {
+                astrologer.serviceCategory.forEach(category => {
+                    const categoryId = category._id.toString();
+
+                    if (!categoryMap[categoryId]) {
+                        categoryMap[categoryId] = {
+                            serviceCategory: {
+                                _id: category._id,
+                                name: category.name,
+                                description: category.description
+                            },
+                            astrologers: []
+                        };
+                    }
+
+                    categoryMap[categoryId].astrologers.push(astrologerData);
+                });
+            } else {
+                // Add to General category if no specific categories
+                const generalId = 'general';
+                if (!categoryMap[generalId]) {
+                    categoryMap[generalId] = {
+                        serviceCategory: {
+                            _id: generalId,
+                            name: "General",
+                            description: "Astrologers available for general consultations"
+                        },
+                        astrologers: []
+                    };
+                }
+                categoryMap[generalId].astrologers.push(astrologerData);
+            }
         }
-        categoryMap[generalId].astrologers.push(astrologerData);
-      }
+
+        // Convert map to array
+        let groupedData = Object.values(categoryMap);
+
+        // Sort by category name (General should be last)
+        groupedData.sort((a, b) => {
+            if (a.serviceCategory._id === 'general') return 1;
+            if (b.serviceCategory._id === 'general') return -1;
+            return a.serviceCategory.name.localeCompare(b.serviceCategory.name);
+        });
+
+        // Sort astrologers within each category by price
+        groupedData.forEach(category => {
+            category.astrologers.sort((a, b) => a.astrologer.priceCharge - b.astrologer.priceCharge);
+        });
+
+        return res.status(200).json({
+            success: true,
+            count: callAstrologers.length,
+            data: groupedData
+        });
+
+    } catch (error) {
+        console.error("Error fetching call astrologers:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Server error while fetching call astrologers",
+            error: process.env.NODE_ENV === "development" ? error.message : undefined
+        });
     }
-
-    // Convert map to array
-    let groupedData = Object.values(categoryMap);
-
-    // Sort by category name (General should be last)
-    groupedData.sort((a, b) => {
-      if (a.serviceCategory._id === 'general') return 1;
-      if (b.serviceCategory._id === 'general') return -1;
-      return a.serviceCategory.name.localeCompare(b.serviceCategory.name);
-    });
-
-    // Sort astrologers within each category by price
-    groupedData.forEach(category => {
-      category.astrologers.sort((a, b) => a.astrologer.priceCharge - b.astrologer.priceCharge);
-    });
-
-    return res.status(200).json({
-      success: true,
-      count: callAstrologers.length,
-      data: groupedData
-    });
-
-  } catch (error) {
-    console.error("Error fetching call astrologers:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Server error while fetching call astrologers",
-      error: process.env.NODE_ENV === "development" ? error.message : undefined
-    });
-  }
 });
 
 exports.getAllCallsHistoryCustomer = asyncHandler(async (req, res) => {
@@ -771,7 +771,7 @@ exports.webhookCallHangup = asyncHandler(async (req, res) => {
         const SUCCESS_STATUSES = ["completed", "answered"];
 
         if (FAILED_STATUSES.includes(call_status)) {
-            call.status = "rejected";
+            call.status = call_status;
             call.duration = 0;
             call.amountCharged = 0;
         }
@@ -822,5 +822,40 @@ exports.webhookCallHangup = asyncHandler(async (req, res) => {
         console.error("❌ webhookCallHangup error:", err);
         // IMPORTANT: always return 200
         return res.status(200).json({ success: true });
+    }
+});
+
+exports.getAllCallAstrologersStatusLive = asyncHandler(async (req, res) => {
+    const { asgrologer_agent_id } = req.query;
+
+    // axios request to smartflo to get status
+    try {
+
+        const options = {
+            method: 'GET',
+            url: `https://api-smartflo.tatateleservices.com/v1/live_calls`,
+            headers: {
+                Authorization: `Bearer ${process.env.SMARTFLO_TOKEN}`
+            },
+            params: {
+                agent_number: asgrologer_agent_id
+            }
+        }
+        console.log("Fetching astrologer status with options:", options);
+        const response = await axios.request(options);
+
+        console.log("Astrologer status response:", response);
+
+        return res.status(200).json({
+            success: true,
+            data: response.data
+        });
+    } catch (error) {
+        console.error("Error fetching astrologer status:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Server error while fetching astrologer status",
+            error: process.env.NODE_ENV === "development" ? error.message : undefined
+        });
     }
 });
