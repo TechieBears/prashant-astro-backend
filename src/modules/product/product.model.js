@@ -61,6 +61,9 @@ const productSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
+    showOnHome:{
+        type: Boolean,
+    },
     createdBy: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'admin',
