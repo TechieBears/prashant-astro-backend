@@ -6,8 +6,9 @@ const errorMiddleware = require("./src/middlewares/error");
 const responseMiddleware = require("./src/middlewares/response");
 const helmet = require("helmet");
 const path = require("path"); // ✅ added
-require("dotenv").config();
 const admin = require('firebase-admin');
+require("dotenv").config();
+require("./src/services/cron.service");
 
 const allowedOrigins = process.env.CORS_ORIGIN;
 
