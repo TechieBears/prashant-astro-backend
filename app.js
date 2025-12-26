@@ -64,6 +64,10 @@ app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
 const routes = require("./src/routes");
 app.use("/api", routes);
 
+// api health check
+app.get("/health-check", (req, res) => {
+  res.status(200).json({ status: "ok" });
+});
 
 // ✅ Error handler
 app.use(errorMiddleware);
