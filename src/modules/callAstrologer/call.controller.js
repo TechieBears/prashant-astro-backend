@@ -780,8 +780,13 @@ exports.webhookCallHangup = asyncHandler(async (req, res) => {
         }
 
         if (SUCCESS_STATUSES.includes(call_status)) {
-            const perSecondRate = user.currentCallSession.perMinuteRate / 60;
-            const amount = durationInSeconds * perSecondRate;
+            // const perSecondRate = user.currentCallSession.perMinuteRate / 60;
+            // const amount = durationInSeconds * perSecondRate;
+            
+            // FIXED: Calculate amount using employee's priceCharge instead of user session
+            const perMinRate = employee.priceCharge; // Get employee's per minute rate
+            const perSecondRate = perMinRate / 60; // Convert to per second rate
+            const amount = durationInSeconds * perSecondRate; // Calculate total amount
 
             call.status = "accepted";
             call.duration = durationInSeconds;
