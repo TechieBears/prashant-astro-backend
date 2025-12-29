@@ -135,9 +135,9 @@ exports.getAllProducts = asyncHandler(async (req, res, next) => {
 
   const query = { isActive: true };
 
-  // Filter by category
+  // Filter by category and category will be multiple
   if (req.query.category) {
-    query.category = req.query.category;
+    query.category = { $in: req.query.category.split(',') };
   }
 
   // Filter by subcategory
