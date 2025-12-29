@@ -757,24 +757,77 @@ exports.getOurProductshome = asyncHandler(async (req, res, next) => {
   res.ok(products, "Our Products fetched successfully");
 });
 
+// exports.getFilterData = asyncHandler(async (req, res, next) => {
+//   const categories = await Category.aggregate([
+//     { $match: { isActive: true, isDeleted: false } },
+//     {
+//       $project: {
+//         _id: 1,
+//         name: 1,
+//         image: 1
+//       }
+//     },
+//     { $sort: { name: 1 } }
+//   ]);
+
+//   res.ok({ category: categories }, "Filter data fetched successfully");
+// });
+
 exports.getFilterData = asyncHandler(async (req, res, next) => {
   const categories = await Category.aggregate([
-    { $match: { isActive: true, isDeleted: false } },
+    // 1️⃣ Only active & non-deleted categories
     {
-      $lookup: {
-        from: "productsubcategories", // 👈 collection name (mongoose pluralizes automatically)
-        localField: "_id",
-        foreignField: "categoryId",
-        as: "subcategories"
+      $match: {
+        isActive: true,
+        isDeleted: false
       }
     },
+
+    // 2️⃣ Lookup products for each category
+    {
+      $lookup: {
+        from: "products", // 🔴 MongoDB collection name (important)
+        let: { categoryId: "$_id" },
+        pipeline: [
+          {
+            $match: {
+              $expr: {
+                $and: [
+                  { $eq: ["$category", "$$categoryId"] },
+                  { $eq: ["$isActive", true] },
+                  { $eq: ["$isDeleted", false] }
+                ]
+              }
+            }
+          },
+          {
+            $count: "count"
+          }
+        ],
+        as: "productStats"
+      }
+    },
+
+    // 3️⃣ Convert array → number
+    {
+      $addFields: {
+        productCount: {
+          $ifNull: [{ $arrayElemAt: ["$productStats.count", 0] }, 0]
+        }
+      }
+    },
+
+    // 4️⃣ Shape final response
     {
       $project: {
         _id: 1,
         name: 1,
-        image: 1
+        image: 1,
+        productCount: 1
       }
     },
+
+    // 5️⃣ Sort alphabetically
     { $sort: { name: 1 } }
   ]);
 
