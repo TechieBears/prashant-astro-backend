@@ -772,12 +772,7 @@ exports.getFilterData = asyncHandler(async (req, res, next) => {
       $project: {
         _id: 1,
         name: 1,
-        image: 1,
-        subcategories: {
-          _id: 1,
-          name: 1,
-          image: 1
-        }
+        image: 1
       }
     },
     { $sort: { name: 1 } }
