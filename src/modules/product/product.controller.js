@@ -757,36 +757,19 @@ exports.getOurProductshome = asyncHandler(async (req, res, next) => {
   res.ok(products, "Our Products fetched successfully");
 });
 
-// exports.getFilterData = asyncHandler(async (req, res, next) => {
-//   const categories = await Category.aggregate([
-//     { $match: { isActive: true, isDeleted: false } },
-//     {
-//       $project: {
-//         _id: 1,
-//         name: 1,
-//         image: 1
-//       }
-//     },
-//     { $sort: { name: 1 } }
-//   ]);
-
-//   res.ok({ category: categories }, "Filter data fetched successfully");
-// });
-
 exports.getFilterData = asyncHandler(async (req, res, next) => {
+
+  // 1️⃣ Category + product count
   const categories = await Category.aggregate([
-    // 1️⃣ Only active & non-deleted categories
     {
       $match: {
         isActive: true,
         isDeleted: false
       }
     },
-
-    // 2️⃣ Lookup products for each category
     {
       $lookup: {
-        from: "products", // 🔴 MongoDB collection name (important)
+        from: "products",
         let: { categoryId: "$_id" },
         pipeline: [
           {
@@ -800,15 +783,11 @@ exports.getFilterData = asyncHandler(async (req, res, next) => {
               }
             }
           },
-          {
-            $count: "count"
-          }
+          { $count: "count" }
         ],
         as: "productStats"
       }
     },
-
-    // 3️⃣ Convert array → number
     {
       $addFields: {
         productCount: {
@@ -816,8 +795,6 @@ exports.getFilterData = asyncHandler(async (req, res, next) => {
         }
       }
     },
-
-    // 4️⃣ Shape final response
     {
       $project: {
         _id: 1,
@@ -826,10 +803,38 @@ exports.getFilterData = asyncHandler(async (req, res, next) => {
         productCount: 1
       }
     },
-
-    // 5️⃣ Sort alphabetically
     { $sort: { name: 1 } }
   ]);
 
-  res.ok({ category: categories }, "Filter data fetched successfully");
+  // 2️⃣ Global price range (OVERALL)
+  const priceRange = await Product.aggregate([
+    {
+      $match: {
+        isActive: true,
+        isDeleted: false
+      }
+    },
+    {
+      $group: {
+        _id: null,
+        minPrice: { $min: "$sellingPrice" },
+        maxPrice: { $max: "$sellingPrice" }
+      }
+    },
+    {
+      $project: {
+        _id: 0,
+        minPrice: 1,
+        maxPrice: 1
+      }
+    }
+  ]);
+
+  res.ok(
+    {
+      category: categories,
+      priceRange: priceRange[0] || { minPrice: 0, maxPrice: 0 }
+    },
+    "Filter data fetched successfully"
+  );
 });
