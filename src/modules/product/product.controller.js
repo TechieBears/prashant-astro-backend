@@ -92,11 +92,11 @@ exports.createProduct = asyncHandler(async (req, res, next) => {
   }
 
   // only 5 showOnHome is allowed
-  const homeCount = await Product.countDocuments({ showOnHome: true, isDeleted: false });
-  if (homeCount >= 5) {
-    res.status(400);
-    throw new Error('Maximum 5 products can be shown on home');
-  }
+  // const homeCount = await Product.countDocuments({ showOnHome: true, isDeleted: false });
+  // if (homeCount >= 5) {
+  //   res.status(400);
+  //   throw new Error('Maximum 5 products can be shown on home');
+  // }
 
   const product = await Product.create({
     name,
