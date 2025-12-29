@@ -42,7 +42,8 @@ exports.createProduct = asyncHandler(async (req, res, next) => {
     stock,
     gstNumber,
     hsnCode,
-    isActive
+    isActive,
+    showOnHome
   } = parsedBody;
   // const { name, description, additionalInfo, specification, highlights, category, subcategory, mrpPrice, sellingPrice, stock, gstNumber, hsnCode, isActive } = req.body;
 
@@ -90,6 +91,13 @@ exports.createProduct = asyncHandler(async (req, res, next) => {
     throw new Error('Selling price cannot be greater than MRP price');
   }
 
+  // only 5 showOnHome is allowed
+  const homeCount = await Product.countDocuments({ showOnHome: true, isDeleted: false });
+  if (homeCount >= 5) {
+    res.status(400);
+    throw new Error('Maximum 5 products can be shown on home');
+  }
+
   const product = await Product.create({
     name,
     description,
@@ -105,6 +113,7 @@ exports.createProduct = asyncHandler(async (req, res, next) => {
     hsnCode,
     images: images || [],
     isActive: isActive !== undefined ? isActive : true,
+    showOnHome: showOnHome !== undefined ? showOnHome : false,
     createdBy: req.user._id
   });
 
@@ -403,7 +412,7 @@ exports.updateProduct = asyncHandler(async (req, res, next) => {
     throw new Error('Product not found');
   }
 
-  const { name, description, deletedImages, additionalInfo, specification, highlights, category, mrpPrice, sellingPrice, stock, gstNumber, hsnCode, isActive } = req.body;
+  const { name, description, deletedImages, additionalInfo, specification, highlights, category, mrpPrice, sellingPrice, stock, gstNumber, hsnCode, isActive, showOnHome } = req.body;
 
   // Validate category if provided
   if (category) {
@@ -486,6 +495,7 @@ exports.updateProduct = asyncHandler(async (req, res, next) => {
   if (gstNumber) product.gstNumber = gstNumber;
   if (hsnCode) product.hsnCode = hsnCode;
   if (isActive !== undefined) product.isActive = isActive;
+  if (showOnHome !== undefined) product.showOnHome = showOnHome;
 
   product.updatedBy = req.user._id;
   await product.save();
