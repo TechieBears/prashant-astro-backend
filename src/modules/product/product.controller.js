@@ -136,8 +136,21 @@ exports.getAllProducts = asyncHandler(async (req, res, next) => {
   const query = { isActive: true };
 
   // Filter by category and category will be multiple
+  // if (req.query.category) {
+  //   query.category = { $in: req.query.category.split(',') };
+  // }
   if (req.query.category) {
-    query.category = { $in: req.query.category.split(',') };
+    const categoryIds = req.query.category
+      .split(',')
+      .map(id => id.trim())
+      .filter(id => mongoose.Types.ObjectId.isValid(id))
+      .map(id => new mongoose.Types.ObjectId(id));
+
+    if (!categoryIds.length) {
+      return next(new ErrorHandler('Invalid category id', 400));
+    }
+
+    query.category = { $in: categoryIds };
   }
 
   // Filter by subcategory
@@ -288,7 +301,7 @@ exports.getAllProductsAdmin = asyncHandler(async (req, res, next) => {
 exports.getProductById = asyncHandler(async (req, res, next) => {
   const product = await Product.findById(req.query.id)
     .populate('category', 'name')
-    // .populate('subcategory', 'name');
+  // .populate('subcategory', 'name');
 
   if (!product || !product.isActive || product.isDeleted) {
     res.status(404);
@@ -502,7 +515,7 @@ exports.updateProduct = asyncHandler(async (req, res, next) => {
 
   const updated = await Product.findById(product._id)
     .populate('category', 'name')
-    // .populate('subcategory', 'name')
+  // .populate('subcategory', 'name')
 
   res.ok(updated, 'Product updated successfully');
 });
