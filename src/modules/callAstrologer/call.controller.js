@@ -40,6 +40,8 @@ exports.callInitiate = asyncHandler(async (req, res) => {
         return res.status(201).json({
             success: false,
             message: `Not enough balance in wallet.`,
+            balance: wallet.balance,
+            requiredAmount: perSec * callDuration
         });
     }
 
@@ -51,6 +53,7 @@ exports.callInitiate = asyncHandler(async (req, res) => {
         startTime: new Date().toISOString(),
         duration: callDuration,
         status: "pending",
+        amountCharged: perSec * callDuration
     });
 
     const clickResponse = await axios.post(
