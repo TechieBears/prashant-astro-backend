@@ -14,8 +14,8 @@ router.get('/public/get-all-approved', Controller.getAllApprovedPublicTestimonia
 // Admin routes
 router.use(protect);
 // router.post('/create', authorize('admin', 'customer'), Controller.createTestimonial);
-router.post('/create', 
-  authorize('admin', 'customer'), 
+router.post('/create',
+  authorize('admin', 'customer'),
   testimonialsParser.fields([
     { name: 'images', maxCount: 3 }, // For images
     { name: 'videos', maxCount: 2 }, // For videos
@@ -24,7 +24,10 @@ router.post('/create',
 );
 router.get('/get-all', authorize('admin', 'employee', 'customer'), Controller.getAllTestimonials);
 router.get('/get-single', authorize('admin', 'employee'), Controller.getTestimonialById);
-router.put('/update', authorize('admin', 'employee', 'customer'), Controller.updateTestimonial);
+router.put('/update', authorize('admin', 'employee', 'customer'), testimonialsParser.fields([
+  { name: 'images', maxCount: 3 }, // For images
+  { name: 'videos', maxCount: 2 }, // For videos
+]), Controller.updateTestimonial);
 router.delete('/delete', authorize('admin', 'employee'), Controller.deleteTestimonial);
 router.put('/:id/active', authorize('admin', 'employee'), Controller.toggleActive);
 router.put('/approval', authorize('admin', 'employee'), Controller.setApprovalStatus);
