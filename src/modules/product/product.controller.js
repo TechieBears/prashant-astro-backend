@@ -147,7 +147,7 @@ exports.getAllProducts = asyncHandler(async (req, res, next) => {
       .map(id => new mongoose.Types.ObjectId(id));
 
     if (!categoryIds.length) {
-      return next(new ErrorHandler('Invalid category id', 400));
+      return next(new Errorhander('Invalid category id', 400));
     }
 
     query.category = { $in: categoryIds };
