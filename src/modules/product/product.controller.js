@@ -3,6 +3,7 @@ const Product = require('./product.model');
 const Category = require('../productCategory/productCategory.model');
 const Subcategory = require('../productSubcategory/productSubcategory.model');
 const Errorhander = require('../../utils/errorHandler');
+const mongoose = require('mongoose');
 // const { generateImageName } = require('../../utils/reusableFunctions');
 const { deleteFile } = require("../../utils/storage");
 
