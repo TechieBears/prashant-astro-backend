@@ -536,7 +536,9 @@ exports.getAllServiceOrders = asyncHandler(async (req, res, next) => {
         addressData: service.cust.addressData || null
       },
       address: service.address || null,           // ✅ added
-      astrologerName: service.astrologer?.name || null,
+      astrologerName: service.astrologer?.employeeType === 'astrologer' ?
+        `${service.astrologer.firstName || ''} ${service.astrologer.lastName || ''}`.trim() :
+        null,
       servicePrice: service.snapshot.price,
       durationInMinutes: service.snapshot.durationInMinutes,
       startTime: service.startTime,
