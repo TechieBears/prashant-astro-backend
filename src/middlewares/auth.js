@@ -26,8 +26,7 @@ const protect = asyncHandler(async (req, res, next) => {
 
   // 🚨 No token
   if (!token) {
-    res.status(401);
-    throw new Error('Please login to access this resource');
+    throw new ErrorHander('Please login to access this resource', 401);
   }
 
   try {
@@ -35,26 +34,23 @@ const protect = asyncHandler(async (req, res, next) => {
     const user = await User.findById(decoded.id).populate('profile');
 
     if (!user) {
-      res.status(401);
-      throw new Error('User account not found, please login again');
+      throw new ErrorHander('User account not found, please login again', 401);
     }
 
     if (!user.isActive) {
-      res.status(403);
-      throw new Error('Your account is disabled, please contact support');
+      throw new ErrorHander('Your account is disabled, please contact support', 403);
     }
 
     req.user = user;
     req.tokenSource = tokenSource;
     next();
   } catch (err) {
-    res.status(401);
     if (err.name === 'TokenExpiredError') {
       throw new ErrorHander('Token expired, please login again', 401);
     } else if (err.name === 'JsonWebTokenError') {
       throw new ErrorHander('Invalid token, please login again', 401);
     } else {
-      throw new ErrorHander("Authentication failed, please login again", 401);
+      throw new ErrorHander('Authentication failed, please login again', 401);
     }
   }
 });
