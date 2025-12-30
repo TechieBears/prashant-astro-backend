@@ -26,7 +26,7 @@ const protect = asyncHandler(async (req, res, next) => {
 
   // 🚨 No token
   if (!token) {
-    throw new ErrorHander('Please login to access this resource', 401);
+    throw new ErrorHander('Not authorized, Please login to access this resource', 401);
   }
 
   try {
