@@ -15,6 +15,7 @@ exports.createCoupon = asyncHandler(async (req, res, next) => {
         couponName,
         couponCode,
         couponType,
+        applicableTo, // enum ['all_products', 'single_product', 'product_category', 'all_services', 'single_service', 'service_category'], 
         discountIn,
         discount,
         activationDate,
@@ -38,6 +39,7 @@ exports.createCoupon = asyncHandler(async (req, res, next) => {
         couponName,
         couponCode,
         couponType,
+        applicableTo,
         discountIn,
         discount,
         activationDate,
@@ -73,6 +75,8 @@ exports.getCouponsAdmin = asyncHandler(async (req, res, next) => {
     const filter = { isDeleted: false };
     if(req.query.name) filter.couponName = { $regex: req.query.name, $options: 'i' };
     const coupons = await Coupon.find(filter)
+        .populate('applicableProductCategories', 'name')
+        .populate('applicableServiceCategories', 'name')
         .skip((page - 1) * limit)
         .limit(Number(limit))
         .sort({ createdAt: -1 });

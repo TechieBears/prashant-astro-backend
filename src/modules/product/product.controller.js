@@ -838,3 +838,10 @@ exports.getFilterData = asyncHandler(async (req, res, next) => {
     "Filter data fetched successfully"
   );
 });
+
+exports.getAllProductsDropdown = asyncHandler(async (req, res, next) => {
+
+  const products = await Product.find({ isDeleted: false, isActive: true }).sort({ createdAt: -1 }).select('_id name');
+
+  res.ok(products, "Products fetched successfully");
+});
