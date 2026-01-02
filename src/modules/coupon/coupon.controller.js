@@ -281,8 +281,9 @@ exports.getCouponById = asyncHandler(async (req, res, next) => {
 
 //   res.ok(coupons, "Coupons fetched successfully");
 // });
+// new both services and products
 exports.getAllActiveCoupons = asyncHandler(async (req, res, next) => {
-  const { couponType, search, productIds } = req.query;
+  const { couponType, search, productIds, serviceIds } = req.query;
   const currentDate = new Date();
   
   // Base filter for active, non-deleted, date-valid coupons
@@ -302,6 +303,7 @@ exports.getAllActiveCoupons = asyncHandler(async (req, res, next) => {
 
   let coupons;
   let productDetails = [];
+  let serviceDetails = [];
 
   // If productIds are provided, fetch product details to get their categories/subcategories
   if (productIds) {
@@ -314,6 +316,20 @@ exports.getAllActiveCoupons = asyncHandler(async (req, res, next) => {
       }).select('category subcategory');
     } catch (error) {
       return res.badRequest('Invalid product IDs');
+    }
+  }
+
+  // If serviceIds are provided, fetch service details to get their categories
+  if (serviceIds) {
+    try {
+      const idsArray = Array.isArray(serviceIds) ? serviceIds : serviceIds.split(',');
+      serviceDetails = await Service.find({
+        _id: { $in: idsArray },
+        isActive: true,
+        isDeleted: false
+      }).select('category');
+    } catch (error) {
+      return res.badRequest('Invalid service IDs');
     }
   }
 
@@ -368,13 +384,16 @@ exports.getAllActiveCoupons = asyncHandler(async (req, res, next) => {
           applicableProducts: 1,
           applicableProductCategories: 1,
           applicableProductSubcategories: 1,
+          applyAllServices: 1,
+          applicableServices: 1,
+          applicableServiceCategories: 1,
           relevance: 1,
         },
       },
     ]);
   } else {
     coupons = await Coupon.find(filter)
-      .select("couponName couponCode discountIn discount couponType applicableTo applyAllProducts applicableProducts applicableProductCategories applicableProductSubcategories")
+      .select("couponName couponCode discountIn discount couponType applicableTo applyAllProducts applicableProducts applicableProductCategories applicableProductSubcategories applyAllServices applicableServices applicableServiceCategories")
       .sort({ createdAt: -1 });
   }
 
@@ -454,6 +473,74 @@ exports.getAllActiveCoupons = asyncHandler(async (req, res, next) => {
 
           return isApplicableByAllProducts || isApplicableByProduct || 
                  isApplicableByCategory || isApplicableBySubcategory;
+      }
+    });
+  }
+
+  // Filter coupons based on service eligibility
+  if (serviceIds && serviceDetails.length > 0) {
+    coupons = coupons.filter(coupon => {
+      // Check if coupon is applicable to services
+      if (!['services', 'both'].includes(coupon.couponType)) {
+        return false;
+      }
+
+      // Extract categories from service details with null checks
+      const serviceCategories = serviceDetails
+        .map(s => s.category ? s.category.toString() : null)
+        .filter(category => category !== null);
+      
+      const serviceIdsStr = serviceDetails.map(s => s._id.toString());
+
+      // Check applicability based on applicableTo field
+      switch (coupon.applicableTo) {
+        case 'all_services':
+          return coupon.applyAllServices === true;
+
+        case 'single_service':
+          // Check if any of the provided services are in applicableServices
+          if (coupon.applicableServices && coupon.applicableServices.length > 0) {
+            const applicableServiceIds = coupon.applicableServices
+              .filter(id => id) // Filter out null/undefined
+              .map(id => id.toString());
+            
+            return applicableServiceIds.length > 0 && 
+                   serviceIdsStr.some(serviceId => applicableServiceIds.includes(serviceId));
+          }
+          return false;
+
+        case 'service_category':
+          // Check if any service's category is in applicableServiceCategories
+          if (coupon.applicableServiceCategories && coupon.applicableServiceCategories.length > 0) {
+            const applicableCategoryIds = coupon.applicableServiceCategories
+              .filter(id => id) // Filter out null/undefined
+              .map(id => id.toString());
+            
+            return applicableCategoryIds.length > 0 && 
+                   serviceCategories.length > 0 &&
+                   serviceCategories.some(category => applicableCategoryIds.includes(category));
+          }
+          return false;
+
+        // Handle case when applicableTo is not set or is something else
+        default:
+          // For backward compatibility, check all service-related fields
+          const isApplicableByAllServices = coupon.applyAllServices === true;
+          
+          const isApplicableByService = coupon.applicableServices && 
+            coupon.applicableServices.length > 0 &&
+            coupon.applicableServices.some(id => 
+              id && serviceIdsStr.includes(id.toString())
+            );
+          
+          const isApplicableByCategory = coupon.applicableServiceCategories && 
+            coupon.applicableServiceCategories.length > 0 &&
+            serviceCategories.length > 0 &&
+            coupon.applicableServiceCategories.some(id => 
+              id && serviceCategories.includes(id.toString())
+            );
+
+          return isApplicableByAllServices || isApplicableByService || isApplicableByCategory;
       }
     });
   }
