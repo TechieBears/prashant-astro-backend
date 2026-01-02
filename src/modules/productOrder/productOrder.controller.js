@@ -94,6 +94,46 @@ exports.createProductOrder = asyncHandler(async (req, res) => {
   session.startTransaction();
 
   try {
+    // Helper function to check if coupon is applicable to a product
+    const isCouponApplicableToProduct = (coupon, product) => {
+      if (!coupon) return false;
+      
+      // Check if coupon applies to all products
+      if (coupon.applyAllProducts) return true;
+      
+      const productIdStr = product._id.toString();
+      const productCategoryStr = product.category ? product.category.toString() : null;
+      
+      // Check specific products
+      if (coupon.applicableProducts && coupon.applicableProducts.length > 0) {
+        const applicableProductIds = coupon.applicableProducts
+          .filter(id => id != null)
+          .map(id => id.toString());
+        if (applicableProductIds.includes(productIdStr)) return true;
+      }
+      
+      // Check product categories
+      if (coupon.applicableProductCategories && coupon.applicableProductCategories.length > 0 && productCategoryStr) {
+        const applicableCategoryIds = coupon.applicableProductCategories
+          .filter(id => id != null)
+          .map(id => id.toString());
+        if (applicableCategoryIds.includes(productCategoryStr)) return true;
+      }
+      
+      return false;
+    };
+
+    // Helper function to calculate discount for an item
+    const calculateItemDiscount = (coupon, itemSubtotal) => {
+      if (!coupon) return 0;
+      
+      if (coupon.discountIn === 'percent') {
+        return (itemSubtotal * coupon.discount) / 100;
+      } else {
+        return Math.min(coupon.discount, itemSubtotal);
+      }
+    };
+
     let totalAmount = 0;
     const orderItems = [];
 
@@ -108,7 +148,16 @@ exports.createProductOrder = asyncHandler(async (req, res) => {
         throw new Error(`Insufficient stock for ${product.name}`);
       }
 
-      const subtotal = product.sellingPrice * item.quantity;
+      let subtotal = product.sellingPrice * item.quantity;
+      
+      // Apply coupon discount to item if coupon is applicable to this product
+      if (coupon && isCouponApplicableToProduct(coupon, product)) {
+        const itemDiscount = calculateItemDiscount(coupon, subtotal);
+        subtotal = subtotal - itemDiscount;
+        // Ensure subtotal is not negative
+        subtotal = Math.max(0, subtotal);
+      }
+      
       totalAmount += subtotal;
 
       // Snapshot product data
@@ -138,19 +187,16 @@ exports.createProductOrder = asyncHandler(async (req, res) => {
     // const gst = totalAmount * 0.18; // 18%
     const gst = totalAmount * 0;
     const finalAmount = totalAmount + gst;
-    let amountAfterCoupon = 0;
-    if (coupon) {
-      if (coupon.discountIn === 'percent') {
-        amountAfterCoupon = finalAmount - ((finalAmount * coupon.discount) / 100);
-      }
-      else {
-        amountAfterCoupon = finalAmount - (coupon ? coupon.discount : 0);
-      }
-    }
+    console.log("totalAmount", totalAmount);
+    console.log("finalAmount", finalAmount);
+    console.log("gst", gst);
+    let amountAfterCoupon = finalAmount;
+    console.log("amountAfterCoupon", amountAfterCoupon);
 
     // --------------- ✅ WALLET CREDITS LOGIC ----------------
     let walletUsed = 0;
     let payingAmount = amountAfterCoupon;
+    console.log('payingAmount', payingAmount);
     if (amountAfterCoupon === 0) {
       payingAmount = finalAmount;
     }
