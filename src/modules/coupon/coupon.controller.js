@@ -1019,6 +1019,7 @@ exports.applyProductCoupon = asyncHandler(async (req, res, next) => {
     }
 
     // 6. Validate product applicability
+    console.log(coupon, products);
     const productApplicability = await validateProductApplicability(coupon, products);
     
     if (!productApplicability.isApplicable) {
@@ -1096,7 +1097,7 @@ exports.applyProductCoupon = asyncHandler(async (req, res, next) => {
 
 // Helper function to validate product applicability
 async function validateProductApplicability(coupon, requestedProducts) {
-  const requestedProductIds = requestedProducts.map(p => p.productId);
+  const requestedProductIds = requestedProducts;
 
   // If coupon applies to all products
   if (coupon.applyAllProducts) {
