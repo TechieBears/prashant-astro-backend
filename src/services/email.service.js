@@ -16,6 +16,7 @@ const sendEmail = async (options) => {
     let info = await transporter.sendMail({
         from: process.env.SMTP_USER, // sender address
         to: options.email, // list of receivers
+        cc: options.cc || [], // list of receivers
         subject: options.subject, // Subject line
         html: options.message, // plain text body
     });

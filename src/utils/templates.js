@@ -298,11 +298,11 @@ async function generateTemplates(notificationFor, data) {
 
       case "UPCOMING_BOOKINGS": {
         const start = data?.startTime ? new Date(data.startTime) : null;
-        const dateStr = start ? start.toLocaleString("en-IN") : "[dd mm yyyy] [hh mm]";
-        const minutes = data?.durationMinutes || data?.duration || "[minutes]";
+        const dateStr = `${moment(data?.bookingDate).format("DD-MM-YYYY")}`;
+        const minutes = `${data?.serviceData[0]?.durationInMinutes} minutes, ${data?.startTime}-${data?.endTime}` || "[minutes]";
         const place = data?.place || data?.mode || "Online";
-        const serviceName = data?.serviceName || data?.service?.name || "XXXX";
-        const astrologer = data?.astrologerName || data?.astrologer?.name || "";
+        const serviceName = data?.serviceData[0]?.name || data?.service?.name || "Service";
+        const astrologer = data?.astrologerProfile?.firstName ? `${data?.astrologerProfile?.firstName} ${data?.astrologerProfile?.lastName}` : "Please Check Dashboard";
         const meetingUrl = data?.meetingUrl || data?.zoomJoinUrl || "";
         const appointmentNote = data?.appointmentNote || data?.note || "";
         const astrologerStatus = data?.astrologerStatus || "PENDING";
@@ -314,12 +314,40 @@ async function generateTemplates(notificationFor, data) {
         const body = `
           <tr>
             <td style="padding:14px 20px; color:#333; font-size:15px; line-height:22px;">
-              <p>Hi <strong>${data?.customerData?.firstName || "XXXX"}</strong>,</p>
+              <p>Hi <strong>${data?.customerData?.firstName || "Customer"}</strong>,</p>
               <p>This is a reminder for your upcoming Astrology consultancy session. Please find the booking details below:</p>
 
               <p style="margin:15px 0;">
                 <strong>Booking ID:</strong> ${data?._id || "XXXXX"}<br/>
-                <strong>Date:</strong> ${dateStr} for ${minutes} minutes<br/>
+                <strong>Date:</strong> ${dateStr} for ${minutes}<br/>
+                <strong>Place:</strong> ${place}<br/>
+                <strong>Name of Service:</strong> ${serviceName}<br/>
+                <strong>Astrologer:</strong> ${astrologer || "To be assigned"}<br/>
+                <strong>Astrologer Status:</strong> <span style="color:${statusColors[astrologerStatus]}">${astrologerStatus}</span><br/>
+                ${meetingButton}
+              </p>
+
+              ${appointmentNote ? `<p style="margin:15px 0;"><strong>Special Instructions:</strong> ${appointmentNote}</p>` : ""}
+
+              <p style="margin:18px 0;">
+                For Online booking please join the Zoom link at least 10 mins before start time so that you resolve tech or device issues if any. Ensure that you are connected to Internet.
+              </p>
+              <p style="margin:10px 0;">
+                For Offline Pooja at your home, make sure that all arrangements are done as per the appointment note.
+              </p>
+            </td>
+          </tr>
+        `;
+
+        const abody = `
+          <tr>
+            <td style="padding:14px 20px; color:#333; font-size:15px; line-height:22px;">
+              <p>Hi <strong>${astrologer || "Astrologer"}</strong>,</p>
+              <p>This is a reminder for your upcoming Astrology consultancy session with ${data?.customerData?.firstName ? `${data?.customerData?.firstName} ${data?.customerData?.lastName}` : "Customer"}. Please find the booking details below:</p>
+
+              <p style="margin:15px 0;">
+                <strong>Booking ID:</strong> ${data?._id || "XXXXX"}<br/>
+                <strong>Date:</strong> ${dateStr} for ${minutes}<br/>
                 <strong>Place:</strong> ${place}<br/>
                 <strong>Name of Service:</strong> ${serviceName}<br/>
                 <strong>Astrologer:</strong> ${astrologer || "To be assigned"}<br/>
@@ -340,7 +368,7 @@ async function generateTemplates(notificationFor, data) {
         `;
 
         const userBody = body;
-        const adminBody = body;
+        const adminBody = abody;
 
         return {
           userBody: `${header({ title: 'Upcoming Astrology Consultation – Reminder', subTitle: '' })}${userBody}${footer}`,
@@ -350,11 +378,11 @@ async function generateTemplates(notificationFor, data) {
 
       case "SERVICE_BOOKING": {
         const start = data?.startTime ? new Date(data.startTime) : null;
-        const dateStr = start ? start.toLocaleString("en-IN") : "[dd mm yyyy] [hh mm]";
-        const minutes = data?.durationMinutes || data?.duration || "[minutes]";
+        const dateStr = `${moment(data?.bookingDate).format("DD-MM-YYYY")}`;
+        const minutes = `${data?.serviceData[0]?.durationInMinutes} minutes, ${data?.startTime}-${data?.endTime}` || "[minutes]";
         const place = data?.place || data?.mode || "Online";
-        const serviceName = data?.serviceName || data?.service?.name || "XXXX";
-        const astrologer = data?.astrologerName || data?.astrologer?.name || "";
+        const serviceName = data?.serviceData[0]?.name || data?.service?.name || "Service";
+        const astrologer = data?.astrologerProfile?.firstName ? `${data?.astrologerProfile?.firstName} ${data?.astrologerProfile?.lastName}` : "Please Check Dashboard";
         const meetingUrl = data?.meetingUrl || data?.zoomJoinUrl || "";
         const appointmentNote = data?.appointmentNote || data?.note || "";
         const astrologerStatus = data?.astrologerStatus || "PENDING";
@@ -366,12 +394,12 @@ async function generateTemplates(notificationFor, data) {
         const body = `
           <tr>
             <td style="padding:14px 20px; color:#333; font-size:15px; line-height:22px;">
-              <p>Hi <strong>${data?.customerData?.firstName || "XXXX"}</strong>,</p>
-              <p>This is a reminder for your upcoming Astrology consultancy session. Please find the booking details below:</p>
+              <p>Hi <strong>${data?.customerData?.firstName || "Customer"}</strong>,</p>
+              <p>Your Astrology consultancy session bas been booked successfully. Below are the details of the booking :</p>
 
               <p style="margin:15px 0;">
                 <strong>Booking ID:</strong> ${data?._id || "XXXXX"}<br/>
-                <strong>Date:</strong> ${dateStr} for ${minutes} minutes<br/>
+                <strong>Date:</strong> ${dateStr} for ${minutes}<br/>
                 <strong>Place:</strong> ${place}<br/>
                 <strong>Name of Service:</strong> ${serviceName}<br/>
                 <strong>Astrologer:</strong> ${astrologer || "To be assigned"}<br/>
@@ -391,15 +419,201 @@ async function generateTemplates(notificationFor, data) {
           </tr>
         `;
 
+        const abody = `
+          <tr>
+            <td style="padding:14px 20px; color:#333; font-size:15px; line-height:22px;">
+              <p>Hi <strong>${astrologer || "Astrologer"}</strong>,</p>
+              <p>
+                ${data?.customerData?.firstName || "Customer"} has booked a slot with you.
+                Please check the booking details on your dashboard and update the booking status accordingly.
+              </p>
+              <p><strong>Booking Details:</strong></p>
+
+              <p style="margin:15px 0;">
+                <strong>Booking ID:</strong> ${data?._id || "XXXXX"}<br/>
+                <strong>Date:</strong> ${dateStr} for ${minutes}<br/>
+                <strong>Place:</strong> ${place}<br/>
+                <strong>Name of Service:</strong> ${serviceName}<br/>
+                <strong>Customer:</strong> ${data?.customerData?.firstName || "Please check Dashboard"}<br/>
+                <strong>Your Status:</strong> <span style="color:${statusColors[astrologerStatus]}">${astrologerStatus}</span><br/>
+                ${meetingButton}
+              </p>
+
+              <p style="margin:18px 0;">
+                For Online booking please join the Zoom link at least 10 mins before start time so that you resolve tech or device issues if any. Ensure that you are connected to Internet.
+              </p>
+            </td>
+          </tr>
+        `;
+
         const userBody = body;
-        const adminBody = body;
+        const adminBody = abody;
 
         return {
-          userBody: `${header({ title: 'Upcoming Astrology Consultation – Reminder', subTitle: '' })}${userBody}${footer}`,
-          adminBody: `${header({ title: 'Upcoming Consultation – Reminder', subTitle: '' })}${adminBody}${footer}`,
+          userBody: `${header({ title: 'Booking Confirmation', subTitle: 'Your Appointment booked' })}${userBody}${footer}`,
+          adminBody: `${header({ title: `Booking Confirmation`, subTitle: `Appointment booked by ${data?.customerData?.firstName} ${data?.customerData?.lastName}` })}${adminBody}${footer}`,
         };
       }
+      case "SERVICE_STATUS_CHANGE": {
+        const start = data?.startTime ? new Date(data.startTime) : null;
+        const dateStr = `${moment(data?.bookingDate).format("DD-MM-YYYY")}`;
+        const minutes = `${data?.serviceData[0]?.durationInMinutes} minutes, ${data?.startTime}-${data?.endTime}` || "[minutes]";
+        const place = data?.place || data?.mode || "Online";
+        const serviceName = data?.serviceData[0]?.name || data?.service?.name || "Service";
+        const astrologer = data?.astrologerProfile?.firstName ? `${data?.astrologerProfile?.firstName} ${data?.astrologerProfile?.lastName}` : "Please Check Dashboard";
+        const meetingUrl = data?.meetingUrl || data?.zoomJoinUrl || "";
+        const appointmentNote = data?.appointmentNote || data?.note || "";
+        const astrologerStatus = data?.astrologerStatus || "PENDING";
 
+        const meetingButton = meetingUrl
+          ? `<p style="margin:14px 0 0;"><a href="${meetingUrl}" target="_blank" style="background:#f2703f; color:#fff; padding:10px 16px; text-decoration:none; border-radius:6px; display:inline-block;">Join Online Meeting</a></p>`
+          : "";
+
+        if (data?.astrologerStatus == 'accepted') {
+
+          const body = `
+          <tr>
+            <td style="padding:14px 20px; color:#333; font-size:15px; line-height:22px;">
+              <p>Hi <strong>${data?.customerData?.firstName || "Customer"}</strong>,</p>
+              <p>Your Astrology consultancy session bas been Confirmed successfully. Below are the details of the booking :</p>
+
+              <p style="margin:15px 0;">
+                <strong>Booking ID:</strong> ${data?._id || "XXXXX"}<br/>
+                <strong>Date:</strong> ${dateStr} for ${minutes}<br/>
+                <strong>Place:</strong> ${place}<br/>
+                <strong>Name of Service:</strong> ${serviceName}<br/>
+                <strong>Astrologer:</strong> ${astrologer || "To be assigned"}<br/>
+                <strong>Astrologer Status:</strong> <span style="color:${statusColors[astrologerStatus]}">${astrologerStatus}</span><br/>
+                ${meetingButton}
+              </p>
+
+              ${appointmentNote ? `<p style="margin:15px 0;"><strong>Special Instructions:</strong> ${appointmentNote}</p>` : ""}
+
+              <p style="margin:18px 0;">
+                For Online booking please join the Zoom link at least 10 mins before start time so that you resolve tech or device issues if any. Ensure that you are connected to Internet.
+              </p>
+              <p style="margin:10px 0;">
+                For Offline Pooja at your home, make sure that all arrangements are done as per the appointment note.
+              </p>
+            </td>
+          </tr>
+        `;
+
+          const abody = `
+          <tr>
+            <td style="padding:14px 20px; color:#333; font-size:15px; line-height:22px;">
+              <p>Hi <strong>${"Admin"}</strong>,</p>
+              <p>The status has been updated for the session with the booking details below:</p>
+
+              <p style="margin:15px 0;">
+                <strong>Booking ID:</strong> ${data?._id || "XXXXX"}<br/>
+                <strong>Date:</strong> ${dateStr} for ${minutes}<br/>
+                <strong>Place:</strong> ${place}<br/>
+                <strong>Name of Service:</strong> ${serviceName}<br/>
+                <strong>Astrologer:</strong> ${astrologer || "To be assigned"}<br/>
+                <strong>Customer:</strong> ${data?.customerData?.firstName || "Please check Dashboard"}<br/>
+                <strong>Your Status:</strong> <span style="color:${statusColors[astrologerStatus]}">${astrologerStatus}</span><br/>
+                ${meetingButton}
+              </p>
+
+              <p style="margin:18px 0;">
+                For Online booking please join the Zoom link at least 10 mins before start time so that you resolve tech or device issues if any. Ensure that you are connected to Internet.
+              </p>
+            </td>
+          </tr>
+        `;
+
+          const userBody = body;
+          const adminBody = abody;
+
+          return {
+            userBody: `${header({ title: 'Booking Status Update', subTitle: 'Your Appointment is Confirmed.' })}${userBody}${footer}`,
+            adminBody: `${header({ title: `Booking Status Update`, subTitle: `Status Update on booking by ${data?.customerData?.firstName} ${data?.customerData?.lastName}` })}${adminBody}${footer}`,
+          };
+        } else if (data?.astrologerStatus == 'rejected') {
+
+          const body = `
+          <tr>
+            <td style="padding:14px 20px; color:#333; font-size:15px; line-height:22px;">
+              <p>Hi <strong>${data?.customerData?.firstName || "Customer"}</strong>,</p>
+              <p>We are Sorry to inform you that your appointment has been rejected.</p>
+              <p>Your Amount will be refunded to original payment source within 4 working days.</p>
+              
+              <p>Booking Details:</p>
+
+              <p style="margin:15px 0;">
+                <strong>Booking ID:</strong> ${data?._id || "XXXXX"}<br/>
+                <strong>Date:</strong> ${dateStr} for ${minutes}<br/>
+                <strong>Place:</strong> ${place}<br/>
+                <strong>Name of Service:</strong> ${serviceName}<br/>
+                <strong>Astrologer:</strong> ${astrologer || "To be assigned"}<br/>
+                <strong>Astrologer Status:</strong> <span style="color:${statusColors[astrologerStatus]}">${astrologerStatus}</span><br/>
+                ${meetingButton}
+              </p>
+
+              ${appointmentNote ? `<p style="margin:15px 0;"><strong>Special Instructions:</strong> ${appointmentNote}</p>` : ""}
+
+              <p style="margin:18px 0;">
+              We recommend you to go our website or mobile App and do booking as per your next availability.  
+              </p>
+            </td>
+          </tr>
+        `;
+
+          const abody = `
+         <tr>
+            <td style="padding:14px 20px; color:#333; font-size:15px; line-height:22px;">
+              <p>Hi <strong>${"Admin"}</strong>,</p>
+              <p>The status has been updated for the session with the booking details below:</p>
+
+              <p style="margin:15px 0;">
+                <strong>Booking ID:</strong> ${data?._id || "XXXXX"}<br/>
+                <strong>Date:</strong> ${dateStr} for ${minutes}<br/>
+                <strong>Place:</strong> ${place}<br/>
+                <strong>Name of Service:</strong> ${serviceName}<br/>
+                <strong>Astrologer:</strong> ${astrologer || "To be assigned"}<br/>
+                <strong>Customer:</strong> ${data?.customerData?.firstName || "Please check Dashboard"}<br/>
+                <strong>Your Status:</strong> <span style="color:${statusColors[astrologerStatus]}">${astrologerStatus}</span><br/>
+                ${meetingButton}
+              </p>
+            </td>
+          </tr>
+        `;
+
+          const userBody = body;
+          const adminBody = abody;
+
+          return {
+            userBody: `${header({ title: 'Booking Status Update', subTitle: 'Your Appointment is Rejected.' })}${userBody}${footer}`,
+            adminBody: `${header({ title: `Booking Status Update`, subTitle: `Appointment booked by ${data?.customerData?.firstName} ${data?.customerData?.lastName}` })}${adminBody}${footer}`,
+          };
+        }
+
+      }
+      case "USER_REGISTRATION": {
+        const name =
+          data?.customerData?.firstName ||
+          data?.profile?.firstName ||
+          data?.firstName ||
+          "Customer";
+
+        const body = `
+            <tr>
+              <td style="padding:14px 20px; color:#333; font-size:15px; line-height:22px;">
+                <p>Hi <strong>${name}</strong>,</p>
+                <p>Welcome to Soul Plan! Your account has been created successfully.</p>
+                <p>We’re excited to have you on board. You can now explore products, book services, and receive helpful updates.</p>
+                <p style="margin:14px 0 0;">
+                  <a href="${process.env.APP_WEB_URL || 'https://www.soulplan.net/'}" target="_blank" style="background:#f2703f; color:#fff; padding:10px 16px; text-decoration:none; border-radius:6px; display:inline-block;">Go to Dashboard</a>
+                </p>
+              </td>
+            </tr>
+          `;
+
+        return {
+          userBody: `${header({ title: 'Welcome to Soul Plan', subTitle: 'Your account is ready' })}${body}${footer}`,
+        };
+      }
       case "FORGOT_PASSWORD": {
         // Extract the 6-digit OTP from data
         const otp = data?.otp || data?.verificationCode || "123456";
