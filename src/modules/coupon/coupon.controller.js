@@ -1038,7 +1038,10 @@ exports.applyProductCoupon = asyncHandler(async (req, res, next) => {
     const productDetails = [];
 
     applicableProducts.forEach(product => {
-      const requestedProduct = products.find(p => p.productId.toString() === product._id.toString());
+      const requestedProduct = products.find(p => {
+        if (!p.productId || !product._id) return false;
+        return p.productId.toString() === product._id.toString();
+      });
       if (requestedProduct) {
         const quantity = requestedProduct.quantity || 1;
         const subtotal = product.sellingPrice * quantity;
@@ -1097,8 +1100,10 @@ exports.applyProductCoupon = asyncHandler(async (req, res, next) => {
 
 // Helper function to validate product applicability
 async function validateProductApplicability(coupon, requestedProducts) {
-  const requestedProductIds = requestedProducts;
+  // Extract product IDs from the requested products array
+  const requestedProductIds = requestedProducts.map(p => p.productId || p._id || p);
 
+  console.log(requestedProductIds, "requestedProductIds");
   // If coupon applies to all products
   if (coupon.applyAllProducts) {
     return {
@@ -1123,15 +1128,15 @@ async function validateProductApplicability(coupon, requestedProducts) {
     };
   }
 
-  const validProductIds = validProducts.map(product => product._id.toString());
-  const validProductCategories = validProducts.map(product => product.category.toString());
+  const validProductIds = validProducts.map(product => product._id ? product._id.toString() : null).filter(id => id !== null);
+  const validProductCategories = validProducts.map(product => product.category ? product.category.toString() : null).filter(cat => cat !== null);
   // const validProductSubcategories = validProducts.map(product => product.subcategory.toString());
 
   let applicableProductIds = [];
 
   // Check specific products
   if (coupon.applicableProducts && coupon.applicableProducts.length > 0) {
-    const couponProductIds = coupon.applicableProducts.map(id => id.toString());
+    const couponProductIds = coupon.applicableProducts.filter(id => id != null).map(id => id.toString());
     const matchingProducts = validProductIds.filter(productId => 
       couponProductIds.includes(productId)
     );
@@ -1140,11 +1145,12 @@ async function validateProductApplicability(coupon, requestedProducts) {
 
   // Check product categories
   if (coupon.applicableProductCategories && coupon.applicableProductCategories.length > 0) {
-    const couponCategoryIds = coupon.applicableProductCategories.map(id => id.toString());
+    const couponCategoryIds = coupon.applicableProductCategories.filter(id => id != null).map(id => id.toString());
     
     const categoryMatchingProducts = validProducts
-      .filter(product => couponCategoryIds.includes(product.category.toString()))
-      .map(product => product._id.toString());
+      .filter(product => product.category && couponCategoryIds.includes(product.category.toString()))
+      .map(product => product._id ? product._id.toString() : null)
+      .filter(id => id !== null);
     
     applicableProductIds = [...applicableProductIds, ...categoryMatchingProducts];
   }
