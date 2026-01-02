@@ -479,10 +479,10 @@ exports.createServiceOrder = asyncHandler(async (req, res, next) => {
       referralReward: referralResult, // 👈 Include referral result in response
       razorpay: razorpayOrder
         ? {
-            orderId: razorpayOrder.id,
-            amount: razorpayOrder.amount,
-            currency: razorpayOrder.currency
-          }
+          orderId: razorpayOrder.id,
+          amount: razorpayOrder.amount,
+          currency: razorpayOrder.currency
+        }
         : null
     });
 
@@ -506,7 +506,16 @@ exports.getAllServiceOrders = asyncHandler(async (req, res, next) => {
       path: 'services',
       populate: [
         { path: 'service', model: 'Service' },
-        { path: 'astrologer', model: 'User', select: 'name' } // ✅
+        {
+          path: 'astrologer',
+          model: 'User',
+          select: 'profile role',
+          populate: {
+            path: 'profile',
+            model: 'employee', // This assumes profile references the employee model
+            select: 'firstName lastName'
+          }
+        }
       ]
     })
     .populate('transaction')
@@ -527,7 +536,9 @@ exports.getAllServiceOrders = asyncHandler(async (req, res, next) => {
         addressData: service.cust.addressData || null
       },
       address: service.address || null,           // ✅ added
-      astrologerName: service.astrologer?.name || null,
+      astrologerName: service.astrologer?.employeeType === 'astrologer' ?
+        `${service.astrologer.firstName || ''} ${service.astrologer.lastName || ''}`.trim() :
+        null,
       servicePrice: service.snapshot.price,
       durationInMinutes: service.snapshot.durationInMinutes,
       startTime: service.startTime,

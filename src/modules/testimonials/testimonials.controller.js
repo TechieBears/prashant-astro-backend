@@ -3,6 +3,7 @@ const Testimonial = require('./testimonials.model');
 const { default: mongoose } = require('mongoose');
 const ErrorHandler = require('../../utils/errorHandler');
 const path = require('path');
+const { deleteFile } = require('../../utils/storage');
 
 // @desc Create a testimonial (admin)
 // @route POST /api/testimonials/create
@@ -261,20 +262,115 @@ exports.getTestimonialById = asyncHandler(async (req, res) => {
 // @desc Update testimonial (admin)
 // @route PUT /api/testimonials/update
 // @access Private (admin)
-exports.updateTestimonial = asyncHandler(async (req, res) => {
-  const { id } = req.query;
-  const update = req.body || {};
+// exports.updateTestimonial = asyncHandler(async (req, res) => {
+//   const { id } = req.query;
+//   const update = req.body || {};
 
-  const item = await Testimonial.findById(id);
-  if (!item) {
-    res.status(404);
-    throw new Error('Testimonial not found');
+//   const item = await Testimonial.findById(id);
+//   if (!item) {
+//     res.status(404);
+//     throw new Error('Testimonial not found');
+//   }
+
+//   Object.assign(item, update);
+//   await item.save();
+
+//   res.ok(item, 'Testimonial updated successfully');
+// });
+exports.updateTestimonial = asyncHandler(async (req, res, next) => {
+  const { id } = req.query;
+
+  const {
+    message,
+    rating,
+    city,
+    state,
+    country,
+    isActive,
+    deletedFiles
+  } = req.body;
+
+  const testimonial = await Testimonial.findById(id);
+  if (!testimonial) {
+    return next(new ErrorHandler('Testimonial not found', 404));
   }
 
-  Object.assign(item, update);
-  await item.save();
+  /* -------------------- BASIC FIELD UPDATES -------------------- */
+  if (message !== undefined) testimonial.message = message;
+  if (rating !== undefined) testimonial.rating = Number(rating);
+  if (city !== undefined) testimonial.city = city;
+  if (state !== undefined) testimonial.state = state;
+  if (country !== undefined) testimonial.country = country;
+  if (isActive !== undefined) testimonial.isActive = isActive;
 
-  res.ok(item, 'Testimonial updated successfully');
+  /* -------------------- HANDLE FILE DELETIONS -------------------- */
+  let deletedFilesArray = [];
+
+  if (deletedFiles) {
+    if (typeof deletedFiles === 'string') {
+      try {
+        deletedFilesArray = JSON.parse(deletedFiles);
+      } catch (err) {
+        deletedFilesArray = [deletedFiles];
+      }
+    } else if (Array.isArray(deletedFiles)) {
+      deletedFilesArray = deletedFiles;
+    }
+
+    // Delete files from disk
+    deletedFilesArray.forEach(fileUrl => {
+      deleteFile(fileUrl);
+    });
+
+    // Remove from media array
+    testimonial.media = testimonial.media.filter(
+      media => !deletedFilesArray.includes(media.url)
+    );
+  }
+
+  /* -------------------- HANDLE NEW UPLOADS -------------------- */
+  const newMedia = [];
+
+  // Images
+  if (req.files && req.files.images) {
+    const images = Array.isArray(req.files.images)
+      ? req.files.images
+      : [req.files.images];
+
+    for (const file of images) {
+      newMedia.push({
+        url: `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/testimonials/${file.filename}`,
+        type: 'image',
+        filename: file.filename,
+        originalname: file.originalname
+      });
+    }
+  }
+
+  // Videos
+  if (req.files && req.files.videos) {
+    const videos = Array.isArray(req.files.videos)
+      ? req.files.videos
+      : [req.files.videos];
+
+    for (const file of videos) {
+      newMedia.push({
+        url: `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/testimonials/${file.filename}`,
+        type: 'video',
+        filename: file.filename,
+        originalname: file.originalname
+      });
+    }
+  }
+
+  // Append new media
+  if (newMedia.length > 0) {
+    testimonial.media.push(...newMedia);
+  }
+
+  await testimonial.save();
+
+  res.ok(testimonial, 'Testimonial updated successfully');
 });
 
 // @desc Delete testimonial (admin)

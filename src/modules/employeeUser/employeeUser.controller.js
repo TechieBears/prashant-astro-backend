@@ -289,7 +289,12 @@ exports.updateEmployeeUser = asyncHandler(async (req, res, next) => {
     }
 
     // 2️⃣ Prepare update data
-    let updateData = { ...req.body };
+    const parsedBody = {};
+    for (const key in req.body) {
+        parsedBody[key] = parseField(req.body[key]);
+    }
+
+    let updateData = { ...parsedBody };
     
     // 3️⃣ Handle image upload if exists
     if(req.files?.image?.[0]){

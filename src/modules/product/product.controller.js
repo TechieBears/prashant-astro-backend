@@ -3,6 +3,7 @@ const Product = require('./product.model');
 const Category = require('../productCategory/productCategory.model');
 const Subcategory = require('../productSubcategory/productSubcategory.model');
 const Errorhander = require('../../utils/errorHandler');
+const mongoose = require('mongoose');
 // const { generateImageName } = require('../../utils/reusableFunctions');
 const { deleteFile } = require("../../utils/storage");
 
@@ -42,7 +43,8 @@ exports.createProduct = asyncHandler(async (req, res, next) => {
     stock,
     gstNumber,
     hsnCode,
-    isActive
+    isActive,
+    showOnHome
   } = parsedBody;
   // const { name, description, additionalInfo, specification, highlights, category, subcategory, mrpPrice, sellingPrice, stock, gstNumber, hsnCode, isActive } = req.body;
 
@@ -90,6 +92,13 @@ exports.createProduct = asyncHandler(async (req, res, next) => {
     throw new Error('Selling price cannot be greater than MRP price');
   }
 
+  // only 5 showOnHome is allowed
+  // const homeCount = await Product.countDocuments({ showOnHome: true, isDeleted: false });
+  // if (homeCount >= 5) {
+  //   res.status(400);
+  //   throw new Error('Maximum 5 products can be shown on home');
+  // }
+
   const product = await Product.create({
     name,
     description,
@@ -105,6 +114,7 @@ exports.createProduct = asyncHandler(async (req, res, next) => {
     hsnCode,
     images: images || [],
     isActive: isActive !== undefined ? isActive : true,
+    showOnHome: showOnHome !== undefined ? showOnHome : false,
     createdBy: req.user._id
   });
 
@@ -126,9 +136,22 @@ exports.getAllProducts = asyncHandler(async (req, res, next) => {
 
   const query = { isActive: true };
 
-  // Filter by category
+  // Filter by category and category will be multiple
+  // if (req.query.category) {
+  //   query.category = { $in: req.query.category.split(',') };
+  // }
   if (req.query.category) {
-    query.category = req.query.category;
+    const categoryIds = req.query.category
+      .split(',')
+      .map(id => id.trim())
+      .filter(id => mongoose.Types.ObjectId.isValid(id))
+      .map(id => new mongoose.Types.ObjectId(id));
+
+    if (!categoryIds.length) {
+      return next(new Errorhander('Invalid category id', 400));
+    }
+
+    query.category = { $in: categoryIds };
   }
 
   // Filter by subcategory
@@ -279,7 +302,7 @@ exports.getAllProductsAdmin = asyncHandler(async (req, res, next) => {
 exports.getProductById = asyncHandler(async (req, res, next) => {
   const product = await Product.findById(req.query.id)
     .populate('category', 'name')
-    // .populate('subcategory', 'name');
+  // .populate('subcategory', 'name');
 
   if (!product || !product.isActive || product.isDeleted) {
     res.status(404);
@@ -403,7 +426,7 @@ exports.updateProduct = asyncHandler(async (req, res, next) => {
     throw new Error('Product not found');
   }
 
-  const { name, description, deletedImages, additionalInfo, specification, highlights, category, mrpPrice, sellingPrice, stock, gstNumber, hsnCode, isActive } = req.body;
+  const { name, description, deletedImages, additionalInfo, specification, highlights, category, mrpPrice, sellingPrice, stock, gstNumber, hsnCode, isActive, showOnHome } = req.body;
 
   // Validate category if provided
   if (category) {
@@ -486,13 +509,14 @@ exports.updateProduct = asyncHandler(async (req, res, next) => {
   if (gstNumber) product.gstNumber = gstNumber;
   if (hsnCode) product.hsnCode = hsnCode;
   if (isActive !== undefined) product.isActive = isActive;
+  if (showOnHome !== undefined) product.showOnHome = showOnHome;
 
   product.updatedBy = req.user._id;
   await product.save();
 
   const updated = await Product.findById(product._id)
     .populate('category', 'name')
-    // .populate('subcategory', 'name')
+  // .populate('subcategory', 'name')
 
   res.ok(updated, 'Product updated successfully');
 });
@@ -734,14 +758,41 @@ exports.getOurProductshome = asyncHandler(async (req, res, next) => {
 });
 
 exports.getFilterData = asyncHandler(async (req, res, next) => {
+
+  // 1️⃣ Category + product count
   const categories = await Category.aggregate([
-    { $match: { isActive: true, isDeleted: false } },
+    {
+      $match: {
+        isActive: true,
+        isDeleted: false
+      }
+    },
     {
       $lookup: {
-        from: "productsubcategories", // 👈 collection name (mongoose pluralizes automatically)
-        localField: "_id",
-        foreignField: "categoryId",
-        as: "subcategories"
+        from: "products",
+        let: { categoryId: "$_id" },
+        pipeline: [
+          {
+            $match: {
+              $expr: {
+                $and: [
+                  { $eq: ["$category", "$$categoryId"] },
+                  { $eq: ["$isActive", true] },
+                  { $eq: ["$isDeleted", false] }
+                ]
+              }
+            }
+          },
+          { $count: "count" }
+        ],
+        as: "productStats"
+      }
+    },
+    {
+      $addFields: {
+        productCount: {
+          $ifNull: [{ $arrayElemAt: ["$productStats.count", 0] }, 0]
+        }
       }
     },
     {
@@ -749,15 +800,48 @@ exports.getFilterData = asyncHandler(async (req, res, next) => {
         _id: 1,
         name: 1,
         image: 1,
-        subcategories: {
-          _id: 1,
-          name: 1,
-          image: 1
-        }
+        productCount: 1
       }
     },
     { $sort: { name: 1 } }
   ]);
 
-  res.ok({ category: categories }, "Filter data fetched successfully");
+  // 2️⃣ Global price range (OVERALL)
+  const priceRange = await Product.aggregate([
+    {
+      $match: {
+        isActive: true,
+        isDeleted: false
+      }
+    },
+    {
+      $group: {
+        _id: null,
+        minPrice: { $min: "$sellingPrice" },
+        maxPrice: { $max: "$sellingPrice" }
+      }
+    },
+    {
+      $project: {
+        _id: 0,
+        minPrice: 1,
+        maxPrice: 1
+      }
+    }
+  ]);
+
+  res.ok(
+    {
+      category: categories,
+      priceRange: priceRange[0] || { minPrice: 0, maxPrice: 0 }
+    },
+    "Filter data fetched successfully"
+  );
+});
+
+exports.getAllProductsDropdown = asyncHandler(async (req, res, next) => {
+
+  const products = await Product.find({ isDeleted: false, isActive: true }).sort({ createdAt: -1 }).select('_id name');
+
+  res.ok(products, "Products fetched successfully");
 });

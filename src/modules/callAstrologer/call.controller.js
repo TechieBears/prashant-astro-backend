@@ -40,6 +40,8 @@ exports.callInitiate = asyncHandler(async (req, res) => {
         return res.status(201).json({
             success: false,
             message: `Not enough balance in wallet.`,
+            balance: wallet.balance,
+            requiredAmount: perSec * callDuration
         });
     }
 
@@ -51,6 +53,7 @@ exports.callInitiate = asyncHandler(async (req, res) => {
         startTime: new Date().toISOString(),
         duration: callDuration,
         status: "pending",
+        amountCharged: perSec * callDuration
     });
 
     const clickResponse = await axios.post(
@@ -777,8 +780,13 @@ exports.webhookCallHangup = asyncHandler(async (req, res) => {
         }
 
         if (SUCCESS_STATUSES.includes(call_status)) {
-            const perSecondRate = user.currentCallSession.perMinuteRate / 60;
-            const amount = durationInSeconds * perSecondRate;
+            // const perSecondRate = user.currentCallSession.perMinuteRate / 60;
+            // const amount = durationInSeconds * perSecondRate;
+            
+            // FIXED: Calculate amount using employee's priceCharge instead of user session
+            const perMinRate = employee.priceCharge; // Get employee's per minute rate
+            const perSecondRate = perMinRate / 60; // Convert to per second rate
+            const amount = durationInSeconds * perSecondRate; // Calculate total amount
 
             call.status = "accepted";
             call.duration = durationInSeconds;

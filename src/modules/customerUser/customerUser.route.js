@@ -10,7 +10,8 @@ const router = express.Router();
 // customer routes
 router.post('/register', CustomerController.createCustomerUser);
 router.put('/update', protect, authorize("customer"), profileParser.fields([{ name: 'image', maxCount: 1 }]), CustomerController.updateCustomerUser);
-router.delete('/delete', protect, authorize("customer"), CustomerController.deleteCustomerUser);
+// router.delete('/delete', protect, authorize("customer"), CustomerController.deleteCustomerUser);
+router.get('/delete/:id', protect, authorize("customer"), CustomerController.deleteCustomerUser);
 router.put('/update-fcm', protect, authorize("customer"), CustomerController.updateCustomerFCM);
 
 // password reset routes

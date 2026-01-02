@@ -601,7 +601,7 @@ exports.adminUpdateCustomerUser = asyncHandler(async (req, res, next) => {
 // @route   DELETE /api/customer/:id
 // @access  Private/Customer
 exports.deleteCustomerUser = asyncHandler(async (req, res, next) => {
-  const customerId = req.user._id;
+  const customerId = req.params.id;
   const user = await User.findOne({ _id: customerId, role: 'customer' });
   if (!user) return next(new ErrorHander("customer not found", 404));
 
