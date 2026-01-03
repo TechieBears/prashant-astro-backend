@@ -58,6 +58,7 @@ router.use('/dashboard', require('../modules/Dashboard/dashboard.route'));
 router.use('/zoom', require('../modules/zoom/zoom.route'));
 router.use('/wallet', require('../modules/wallet/wallet.route'));
 router.use('/call', require('../modules/callAstrologer/call.router'));
+router.use('/transactions', require('../modules/transaction/transaction.route'));
 
 router.use('/payments', require('../modules/razorpaytest/razorpaytest.route'));
 router.use('/webhook', require('../modules/webhook/webhook.route'));
