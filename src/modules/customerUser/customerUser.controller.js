@@ -302,8 +302,8 @@ exports.createCustomerUser = asyncHandler(async (req, res, next) => {
   // Check existing user
   const existingUser = await User.findOne({ email }).populate("profile");
 
-  // ---------------- GOOGLE REGISTER/LOGIN FLOW ----------------
-  if (registerType === "google") {
+  // ---------------- GOOGLE || APPLE REGISTER/LOGIN FLOW ----------------
+  if (registerType === "google" || registerType === "apple") {
     if (existingUser) {
       const token = existingUser.generateAuthToken();
       return res.ok(
