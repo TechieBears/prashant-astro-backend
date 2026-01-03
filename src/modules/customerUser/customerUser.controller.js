@@ -289,7 +289,7 @@ exports.createCustomerUser = asyncHandler(async (req, res, next) => {
   let referralCodeGenerated = generateReferralCode(firstName);
 
   // Validate registerType
-  if (!["google", "normal"].includes(registerType)) {
+  if (!["google", "normal", "apple"].includes(registerType)) {
     return next(new ErrorHander("Invalid register type", 400));
   }
 
