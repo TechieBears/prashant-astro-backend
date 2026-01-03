@@ -281,7 +281,9 @@ exports.setApprovalStatus = asyncHandler(async (req, res) => {
 });
 
 exports.getReviewsFilter = asyncHandler(async (req, res) => {
-  const query = {};
+  const query = {
+    isActive: true,
+  };
 
   if (req.query.product && req.query.product != '') {
     query.product_id = new mongoose.Types.ObjectId(req.query.product);
