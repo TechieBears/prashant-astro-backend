@@ -134,7 +134,7 @@ exports.getAllProducts = asyncHandler(async (req, res, next) => {
   const limit = parseInt(req.query.limit) || 10;
   const skip = (page - 1) * limit;
 
-  const query = { isActive: true };
+  const query = { isActive: true, isDeleted: false, isCategoryActivated: false };
 
   // Filter by category and category will be multiple
   // if (req.query.category) {
