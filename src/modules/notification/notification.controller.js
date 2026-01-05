@@ -53,12 +53,17 @@ exports.createNotification = asyncHandler(async (req, res) => {
     });
   }
 
+  // Handle banner image upload
+  const imageFile = req.files?.image?.[0]
+    ? `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/notifications/${req.files.image[0].filename}`
+    : null;
+
   // Create notification
   const notification = new Notification({
     from: req.user.role,
     title,
     description,
-    image,
+    image: imageFile || image || null,
     notificationType,
     redirectionUrl,
     redirectId,
