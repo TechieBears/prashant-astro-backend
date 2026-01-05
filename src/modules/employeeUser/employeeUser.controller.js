@@ -360,12 +360,13 @@ exports.getAllEmployeeUsersWithPagination = asyncHandler(async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
-    const role = req.query.role;
+    const employeeType = req.query.employeeType; // Changed from role to employeeType
 
-    const matchStage = { };
+    const matchStage = { role: "employee" }; // Always filter by role = "employee"
 
-    if (role) {
-        matchStage.role = role;
+    // 🔍 Employee type filter
+    if (employeeType) {
+        matchStage["profile.employeeType"] = employeeType;
     }
 
     // 🔍 Name search inside employee profile
@@ -373,19 +374,31 @@ exports.getAllEmployeeUsersWithPagination = asyncHandler(async (req, res) => {
         matchStage.names = { $regex: req.query.name, $options: "i" };
     }
 
+    console.log("matchStage", matchStage);
+
     const employeesAgg = await User.aggregate([
+        // First, filter only employee users
+        { $match: { role: "employee", isDeleted: false } },
+        
         // join with employee profile
         {
             $lookup: {
-                from: "employees", // collection name = model name in lowercase + 's'
+                from: "employees",
                 localField: "profile",
                 foreignField: "_id",
                 as: "profile"
             }
         },
         { $unwind: "$profile" },
-        { $addFields: { names: { $concat: ["$profile.firstName", " ", "$profile.lastName"] } } },
+        
+        // Add full name field for searching
+        { $addFields: { 
+            names: { $concat: ["$profile.firstName", " ", "$profile.lastName"] } 
+        } },
+        
+        // Apply filters (including employeeType)
         { $match: matchStage },
+        
         // hide sensitive fields
         {
             $project: {
@@ -414,6 +427,19 @@ exports.getAllEmployeeUsersWithPagination = asyncHandler(async (req, res) => {
             }
         },
         { $unwind: "$profile" },
+        
+        // Apply employeeType filter if provided
+        ...(employeeType
+            ? [
+                {
+                    $match: {
+                        "profile.employeeType": employeeType
+                    }
+                }
+            ]
+            : []),
+        
+        // Apply name filter if provided
         ...(req.query.name
             ? [
                 {
@@ -426,6 +452,7 @@ exports.getAllEmployeeUsersWithPagination = asyncHandler(async (req, res) => {
                 }
             ]
             : []),
+            
         { $count: "total" }
     ]);
 

@@ -1,5 +1,7 @@
 const asyncHandler = require('express-async-handler');
 const Review = require('./reviews.model');
+const Service = require('../service/service.model');
+const Product = require('../product/product.model');
 const { default: mongoose } = require('mongoose');
 
 // @desc Create a review (admin)
@@ -21,6 +23,25 @@ exports.createReview = asyncHandler(async (req, res) => {
     rating: rating ?? 5,
     isActive: false
   };
+
+  if(service_id) {
+    // here calculate average ratings of a service and add it to service model in field avgRatings
+    const service = await Service.findById(service_id);
+    const reviews = await Review.find({ service_id });
+    const totalRatings = reviews.reduce((acc, review) => acc + review.rating, 0);
+    const avgRatings = totalRatings / reviews.length;
+    service.avgRatings = avgRatings;
+    await service.save();
+  }
+  if(product_id) {
+    // here calculate average ratings of a product and add it to product model in field avgRatings
+    const product = await Product.findById(product_id);
+    const reviews = await Review.find({ product_id });
+    const totalRatings = reviews.reduce((acc, review) => acc + review.rating, 0);
+    const avgRatings = totalRatings / reviews.length;
+    product.avgRatings = avgRatings;
+    await product.save();
+  }
 
   const created = await Review.create(payload);
   res.created(created, 'Review created successfully');
