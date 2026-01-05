@@ -830,6 +830,15 @@ exports.forgotPasswordOtp = asyncHandler(async (req, res, next) => {
   const user = await User.findOne({ email }).populate('profile');
   if (!user) return next(new ErrorHander("No email found", 200));
 
+  if (user.type !== 'normal'){
+    if(user.type === 'google'){
+      return next(new ErrorHander("Already your account has been registered with google account, Please try to login with google account", 403));
+    }
+    if(user.type === 'apple'){
+      return next(new ErrorHander("Already your account has been registered with apple account, Please try to login with apple account", 403));
+    }
+  }
+
   // find user id in otp
   const otpData = await Otp.findOne({ userId: user._id });
   if (otpData) {
