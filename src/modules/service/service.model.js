@@ -68,6 +68,9 @@ const serviceSchema = new mongoose.Schema({
         type: Number,
         default: 0
     },
+    isCategoryActivated:{
+        type: Boolean,
+    },
     isActive: {
         type: Boolean,
     },

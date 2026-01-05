@@ -134,10 +134,21 @@ exports.updateServiceCategory = asyncHandler(async (req, res) => {
   if (name) category.name = name;
   if (description) category.description = description;
   // if (image) category.image = image;
+  
+  // Track if isActive is being changed
+  const isActiveChanged = isActive !== undefined && category.isActive !== isActive;
   if (isActive !== undefined) category.isActive = isActive;
 
   category.updatedBy = req.user._id;
   await category.save();
+
+  // Update related services' isCategoryActivated when isActive changes
+  if (isActiveChanged) {
+    await Service.updateMany(
+      { category: category._id },
+      { isCategoryActivated: category.isActive }
+    );
+  }
 
   const updated = await ServiceCategory.findById(category._id)
     .populate('createdBy', 'firstName lastName email')
@@ -159,6 +170,12 @@ exports.deleteServiceCategory = asyncHandler(async (req, res) => {
   category.updatedBy = req.user._id;
   await category.save();
 
+  // Update related services' isCategoryActivated when category is deleted
+  await Service.updateMany(
+    { category: category._id },
+    { isCategoryActivated: false }
+  );
+
   res.ok(null, 'Category deleted successfully');
 });
 
@@ -173,6 +190,12 @@ exports.restoreServiceCategory = asyncHandler(async (req, res) => {
   category.isActive = true;
   category.updatedBy = req.user._id;
   await category.save();
+
+  // Update related services' isCategoryActivated when category is restored
+  await Service.updateMany(
+    { category: category._id },
+    { isCategoryActivated: true }
+  );
 
   const restored = await ServiceCategory.findById(category._id)
     .populate('createdBy', 'firstName lastName email')
