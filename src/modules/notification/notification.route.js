@@ -11,6 +11,6 @@ router.post('/create', authorize('admin', "employee", "customer"), notificationP
 router.get('/get-all', authorize('admin', "employee", "customer"), notificationController.getAllNotificationsAdmin);
 router.get('/dropdown-customer', authorize('admin', "employee", "customer"), notificationController.getNotificationsDropdownCustomer);
 router.get('/dropdown-dashboard', authorize('admin', "employee", "customer"), notificationController.getNotificationsDropdownAdminAndEmployee);
-router.delete('/remove-all', authorize("customer"), notificationController.expireAllNotificationsCustomer);
+router.delete('/remove-all', authorize('admin', 'employee', 'customer'), notificationController.expireAllNotificationsCustomer);
 
 module.exports = router;
