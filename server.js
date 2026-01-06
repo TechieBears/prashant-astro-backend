@@ -1,6 +1,7 @@
 const { createServer } = require("http");
 const app = require("./app");
 const connectDb = require("./src/config/db");
+const { initSocket } = require("./src/config/socket");
 const os = require("os");
 
 (async () => {
@@ -11,7 +12,7 @@ const os = require("os");
     const server = createServer(app);
     
     // Initialize socket.io
-    // initSocket(server);
+    initSocket(server);
 
     const PORT = process.env.PORT || 3000;
 

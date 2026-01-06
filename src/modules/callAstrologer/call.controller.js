@@ -8,6 +8,7 @@ const { startWalletTimer } = require("./callTimer.service");
 const mongoose = require("mongoose");
 const axios = require("axios");
 const WalletTransaction = require("../wallet/walletTransactions.model");
+const { emitCallAstrologersUpdate } = require("../../config/socket");
 
 exports.callInitiate = asyncHandler(async (req, res) => {
     const userId = req.user._id;
@@ -821,6 +822,18 @@ exports.webhookCallHangup = asyncHandler(async (req, res) => {
         // 7. Clear user session
         user.currentCallSession = null;
         await user.save();
+
+        // 8. Emit WebSocket event to notify clients about updated employee status
+        try {
+            emitCallAstrologersUpdate({
+                employeeId: employee._id.toString(),
+                userId: astrologerUser._id.toString(),
+                isBusy: false,
+                message: 'Employee status updated - call ended'
+            });
+        } catch (socketError) {
+            console.warn('⚠️ Failed to emit WebSocket update:', socketError.message);
+        }
 
         console.log(
             `✅ Call ${call._id} closed | Status: ${call.status} | Charged: ${call.amountCharged}`
