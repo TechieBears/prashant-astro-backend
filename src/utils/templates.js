@@ -1,3 +1,5 @@
+const moment = require('moment');
+
 const header = (data) => `
       <!DOCTYPE html>
       <html>

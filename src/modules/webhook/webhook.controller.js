@@ -262,53 +262,57 @@ const processRazorpayWebhook = async (payload) => {
     if (event === 'payment.captured' && status === 'captured') {
       if (orderType === 'PRODUCT') {
         // Handle product order payment
-        const productOrder = await ProductOrder.findOne({
-          'paymentDetails.razorpayOrderId': orderId
-        }).session(session);
+        try {
+          const productOrder = await ProductOrder.findOne({
+            'paymentDetails.razorpayOrderId': orderId
+          }).session(session);
 
-        if (!productOrder) {
-          throw new Error(`Product order not found for orderId: ${orderId}`);
-        }
+          if (!productOrder) {
+            throw new Error(`Product order not found for orderId: ${orderId}`);
+          }
 
-        // Update order status
-        productOrder.paymentStatus = 'PAID';
-        productOrder.orderStatus = 'CONFIRMED';
-        productOrder.orderHistory.push({
-          status: 'CONFIRMED',
-          date: new Date()
-        });
-        productOrder.paymentDetails = {
-          ...productOrder.paymentDetails,
-          razorpayPaymentId: paymentId,
-          razorpayPaymentStatus: status,
-          webhookReceived: true
-        };
-        await productOrder.save({ session });
-
-        // Update transaction
-        const transaction = await Transaction.findOne({
-          productOrderId: productOrder._id
-        }).session(session);
-
-        if (transaction) {
-          transaction.status = 'paid';
-          transaction.amount = productOrder.payingAmount;
-          transaction.pendingAmount = 0;
-          transaction.paymentDetails = {
-            ...transaction.paymentDetails,
+          // Update order status
+          productOrder.paymentStatus = 'PAID';
+          productOrder.orderStatus = 'CONFIRMED';
+          productOrder.orderHistory.push({
+            status: 'CONFIRMED',
+            date: new Date()
+          });
+          productOrder.paymentDetails = {
+            ...productOrder.paymentDetails,
             razorpayPaymentId: paymentId,
             razorpayPaymentStatus: status,
             webhookReceived: true
           };
-          await transaction.save({ session });
+          await productOrder.save({ session });
+
+          // Update transaction
+          const transaction = await Transaction.findOne({
+            productOrderId: productOrder._id
+          }).session(session);
+
+          if (transaction) {
+            transaction.status = 'paid';
+            transaction.amount = productOrder.payingAmount;
+            transaction.pendingAmount = 0;
+            transaction.paymentDetails = {
+              ...transaction.paymentDetails,
+              razorpayPaymentId: paymentId,
+              razorpayPaymentStatus: status,
+              webhookReceived: true
+            };
+            await transaction.save({ session });
+          }
+
+          // Process referral reward
+          await processReferralReward(productOrder.user, session);
+
+          // Send notification
+          await commonNotification('PRODUCT_BOOKING', "product", productOrder._id.toString());
+
+        } catch (err) {
+          console.log("Product Order Payment Error", err);
         }
-
-        // Process referral reward
-        await processReferralReward(productOrder.user, session);
-
-        // Send notification
-        await commonNotification('PRODUCT_BOOKING', "product", productOrder._id.toString());
-
       } else if (orderType === 'SERVICE') {
         // Handle service order payment
         const serviceOrder = await ServiceOrder.findOne({
@@ -481,9 +485,6 @@ exports.handleWebhook = asyncHandler(async (req, res) => {
 exports.handleRazorpayWebhook = asyncHandler(async (req, res) => {
   const signature = req.headers['x-razorpay-signature'];
   const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
-
-  console.log(signature);
-  console.log(webhookSecret);
 
   if (!signature || !webhookSecret) {
     return res.status(400).json({

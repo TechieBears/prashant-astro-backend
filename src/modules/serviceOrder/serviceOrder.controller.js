@@ -106,13 +106,13 @@ exports.createServiceOrder = asyncHandler(async (req, res, next) => {
     // Helper function to check if coupon is applicable to a service
     const isCouponApplicableToService = (coupon, service) => {
       if (!coupon) return false;
-      
+
       // Check if coupon applies to all services
       if (coupon.applyAllServices) return true;
-      
+
       const serviceIdStr = service._id.toString();
       const serviceCategoryStr = service.category ? service.category.toString() : null;
-      
+
       // Check specific services
       if (coupon.applicableServices && coupon.applicableServices.length > 0) {
         const applicableServiceIds = coupon.applicableServices
@@ -120,7 +120,7 @@ exports.createServiceOrder = asyncHandler(async (req, res, next) => {
           .map(id => id.toString());
         if (applicableServiceIds.includes(serviceIdStr)) return true;
       }
-      
+
       // Check service categories
       if (coupon.applicableServiceCategories && coupon.applicableServiceCategories.length > 0 && serviceCategoryStr) {
         const applicableCategoryIds = coupon.applicableServiceCategories
@@ -128,14 +128,14 @@ exports.createServiceOrder = asyncHandler(async (req, res, next) => {
           .map(id => id.toString());
         if (applicableCategoryIds.includes(serviceCategoryStr)) return true;
       }
-      
+
       return false;
     };
 
     // Helper function to calculate discount for a service item
     const calculateServiceItemDiscount = (coupon, servicePrice) => {
       if (!coupon) return 0;
-      
+
       if (coupon.discountIn === 'percent') {
         return (servicePrice * coupon.discount) / 100;
       } else {
@@ -1397,7 +1397,7 @@ exports.updateServiceOrderAstrologer = asyncHandler(async (req, res, next) => {
   // 6. Save
   await serviceItem.save();
 
-  await commonNotification("SERVICE_STATUS_CHANGE", "service", serviceItem._id);
+  await commonNotification("SERVICE_STATUS_CHANGE", "service", serviceItem?.orderId, serviceItem._id.toString());
 
   // 7. Respond
   res.ok(serviceItem, "Astrologer status updated successfully");
