@@ -846,6 +846,26 @@ exports.webhookCallHangup = asyncHandler(async (req, res) => {
     }
 });
 
+exports.testWebsocketTogetAllCallAstrologers = asyncHandler(async (req, res) => {
+    // Emit WebSocket event to notify clients about updated employee status
+        try {
+            emitCallAstrologersUpdate({
+                success: true,
+                data: {
+                    success: true,
+                    message: 'WebSocket event emitted successfully'
+                }
+            });
+        } catch (socketError) {
+            console.warn('⚠️ Failed to emit WebSocket update:', socketError.message);
+            return res.status(500).json({ success: false, message: 'Failed to emit WebSocket event' });
+        }
+        return res.status(200).json({ success: true, data: {
+            success: true,
+            message: 'WebSocket event emitted successfully'
+        } });
+});
+
 exports.getAllCallAstrologersStatusLive = asyncHandler(async (req, res) => {
     const { asgrologer_agent_id } = req.query;
 
