@@ -8,6 +8,7 @@ const { generateTemplates } = require('./templates');
 const { sendFirebaseNotification } = require('../utils/firebaseNotification');
 // const { sendWhatsAppTemplate } = require('../services/whatsapp.service');
 const moment = require('moment');
+const { sendSMSTemplate } = require('../services/sms.service');
 
 // Flat JSON with key order: for → title → message
 const pnData = [
@@ -46,19 +47,23 @@ function getNotificationsByCode(code) {
   return pnData.filter(n => n.for === code);
 }
 
+function replaceTemplateVariables(template, data) {
+  return template.replace(/{(\w+)}/g, (match, key) => {
+    return data[key] !== undefined ? data[key] : match;
+  });
+}
+
+
 const sendOrderNotification = async (order, notificationTitle, notificationBody, user, walletUsed = 0, payingAmount = 0) => {
   try {
     const { savedOrder, orderItems } = order;
     const { _id: userId, fcmToken } = user;
-    console.log("🚀 ~ sendOrderNotification ~ fcmToken:", fcmToken);
 
     // const notificationTitle = 'Order Placed Successfully!';
     // const notificationBody = `Your order #${savedOrder._id} has been placed successfully. ${payingAmount === 0 ? 'Payment completed using wallet credits.' : `Amount to pay: ₹${payingAmount}`}`;
 
     // 1. Send Firebase Push Notification
     if (fcmToken) {
-      console.log('Notification started...')
-      // console.log("FCM_TOKEN", fcmToken)
       const notificationData = {
         token: fcmToken,
         title: notificationTitle,
@@ -74,7 +79,6 @@ const sendOrderNotification = async (order, notificationTitle, notificationBody,
         }
       };
       await sendFirebaseNotification(notificationData);
-      console.log('📱 Order confirmation notification sent');
     }
 
     // 2. Create Database Notification Record
@@ -96,7 +100,6 @@ const sendOrderNotification = async (order, notificationTitle, notificationBody,
     });
 
     await notification.save();
-    console.log('📋 Notification record created in database');
 
     return { success: true };
   } catch (error) {
@@ -128,7 +131,6 @@ const sendOrderUpdateNotification = async (order, notificationTitle, notificatio
         }
       };
       await sendFirebaseNotification(notificationData);
-      console.log('📱 Order confirmation notification sent');
     }
 
     // 2. Create Database Notification Record
@@ -150,7 +152,6 @@ const sendOrderUpdateNotification = async (order, notificationTitle, notificatio
     });
 
     await notification.save();
-    console.log('📋 Notification record created in database');
 
     return { success: true };
   } catch (error) {
@@ -226,6 +227,16 @@ async function commonNotification(notificationFor, type, id, extraId = "") {
               });
               await notification.save();
 
+              const response = await sendSMSTemplate({
+                toNumber: productData[0].userData.mobileNo,
+                entityId: process.env.SMS_ENTITY_NUMBER,
+                templateId: process.env.PRODUCT_BOOKED_SMS_TEMPLATE_ID,
+                message: await replaceTemplateVariables(process.env.PRODUCT_BOOKED_SMS, {
+                  name: `${productData[0].customerData.firstName} ${productData[0].customerData.lastName}`,
+                  bookingId: productData[0]._id.toString()
+                }),
+              });
+
               //Email
               const { userBody, adminBody } = await generateTemplates('PRODUCT_BOOKING', productData[0]);
               const mailData = {
@@ -243,7 +254,6 @@ async function commonNotification(notificationFor, type, id, extraId = "") {
                 template: 'productBooking',
               }
               await sendEmail(mailDataAdmin);
-
             }
             return productData;
           case 'PRODUCT_STATUS_UPDATE':
@@ -309,7 +319,16 @@ async function commonNotification(notificationFor, type, id, extraId = "") {
                 template: 'productStatusUpdate',
               };
               await sendEmail(AdminmailData);
-
+              const response = await sendSMSTemplate({
+                toNumber: productData[0].userData.mobileNo,
+                entityId: process.env.SMS_ENTITY_NUMBER,
+                templateId: process.env.PRODUCT_STATUS_UPDATE_SMS_TEMPLATE_ID,
+                message: await replaceTemplateVariables(process.env.PRODUCT_STATUS_UPDATE_SMS, {
+                  name: `${productData[0].customerData.firstName} ${productData[0].customerData.lastName}`,
+                  bookingId: productData[0]._id.toString(),
+                  currentStatus: productData[0].orderStatus,
+                }),
+              });
             }
         }
       case 'service':
@@ -383,73 +402,87 @@ async function commonNotification(notificationFor, type, id, extraId = "") {
                   cc: [process.env.ADMIN_EMAIL]
                 }
                 await sendEmail(mailDataAdmin);                    //uncomment
+
+                //SMS
+                const response = await sendSMSTemplate({
+                  toNumber: item.cust.phone,
+                  entityId: process.env.SMS_ENTITY_NUMBER,
+                  templateId: process.env.SERVICE_BOOKED_SMS_TEMPLATE_ID,
+                  message: await replaceTemplateVariables(process.env.SERVICE_BOOKED_SMS, {
+                    name: `${item?.cust?.firstName} ${item?.cust?.lastName}`,
+                    bookingId: item._id.toString(),
+                    date: moment(item?.bookingDate).format("DD MMM YYYY"),
+                    time: item?.startTime + " - " + item?.endTime
+                  }),
+                });
+
                 //Astrologer // Email + whatsapp
-                const whatsAppData = {
-                  toNumbers: item.cust?.phone,
-                  templateName: "booking_created",
-                  components: {
-                    "body_1": {
-                      "type": "text",
-                      "value": item?.customerData?.firstName || "Customer"
-                    },
-                    "body_2": {
-                      "type": "text",
-                      "value": item?.serviceData[0]?.name || "Service"
-                    },
-                    "body_3": {
-                      "type": "text",
-                      "value": moment(item?.bookingDate).format("DD-MM-YYYY")
-                    },
-                    "body_4": {
-                      "type": "text",
-                      "value": `${item?.startTime} - ${item?.endTime}` || "Please Check Dashboard"
-                    },
-                    "body_5": {
-                      "type": "text",
-                      "value": item?.orderId || "OrderId"
-                    },
-                    "body_6": {
-                      "type": "text",
-                      "value": item?.serviceType.toUpperCase() || "Online"
-                    }
-                  }
-                }
+                // const whatsAppData = {
+                //   toNumbers: item.cust?.phone,
+                //   templateName: "booking_created",
+                //   components: {
+                //     "body_1": {
+                //       "type": "text",
+                //       "value": item?.customerData?.firstName || "Customer"
+                //     },
+                //     "body_2": {
+                //       "type": "text",
+                //       "value": item?.serviceData[0]?.name || "Service"
+                //     },
+                //     "body_3": {
+                //       "type": "text",
+                //       "value": moment(item?.bookingDate).format("DD-MM-YYYY")
+                //     },
+                //     "body_4": {
+                //       "type": "text",
+                //       "value": `${item?.startTime} - ${item?.endTime}` || "Please Check Dashboard"
+                //     },
+                //     "body_5": {
+                //       "type": "text",
+                //       "value": item?.orderId || "OrderId"
+                //     },
+                //     "body_6": {
+                //       "type": "text",
+                //       "value": item?.serviceType.toUpperCase() || "Online"
+                //     }
+                //   }
+                // }
                 // await sendWhatsAppTemplate(whatsAppData);
                 //Admin //whatapp 
-                const awhatsAppData = {
-                  toNumbers: item?.astrologerData?.mobileNo,
-                  templateName: "astro_session_create",
-                  components: {
-                    "body_1": {
-                      "type": "text",
-                      "value": item?.astrologerProfile?.firstName || "Astrologer"
-                    },
-                    "body_2": {
-                      "type": "text",
-                      "value": `${item?.customerData?.firstName} ${item?.customerData?.lastName}` || "Customer"
-                    },
-                    "body_3": {
-                      "type": "text",
-                      "value": item?.serviceData[0]?.name || "Service"
-                    },
-                    "body_4": {
-                      "type": "text",
-                      "value": moment(item?.bookingDate).format("DD-MM-YYYY")
-                    },
-                    "body_5": {
-                      "type": "text",
-                      "value": `${item?.startTime} - ${item?.endTime}` || "Please Check Dashboard"
-                    },
-                    "body_6": {
-                      "type": "text",
-                      "value": item?.orderId || "OrderId"
-                    },
-                    "body_7": {
-                      "type": "text",
-                      "value": item?.serviceType.toUpperCase() || "Online"
-                    }
-                  }
-                }
+                // const awhatsAppData = {
+                //   toNumbers: item?.astrologerData?.mobileNo,
+                //   templateName: "astro_session_create",
+                //   components: {
+                //     "body_1": {
+                //       "type": "text",
+                //       "value": item?.astrologerProfile?.firstName || "Astrologer"
+                //     },
+                //     "body_2": {
+                //       "type": "text",
+                //       "value": `${item?.customerData?.firstName} ${item?.customerData?.lastName}` || "Customer"
+                //     },
+                //     "body_3": {
+                //       "type": "text",
+                //       "value": item?.serviceData[0]?.name || "Service"
+                //     },
+                //     "body_4": {
+                //       "type": "text",
+                //       "value": moment(item?.bookingDate).format("DD-MM-YYYY")
+                //     },
+                //     "body_5": {
+                //       "type": "text",
+                //       "value": `${item?.startTime} - ${item?.endTime}` || "Please Check Dashboard"
+                //     },
+                //     "body_6": {
+                //       "type": "text",
+                //       "value": item?.orderId || "OrderId"
+                //     },
+                //     "body_7": {
+                //       "type": "text",
+                //       "value": item?.serviceType.toUpperCase() || "Online"
+                //     }
+                //   }
+                // }
                 // await sendWhatsAppTemplate(awhatsAppData);
               }
             }
@@ -547,6 +580,17 @@ async function commonNotification(notificationFor, type, id, extraId = "") {
                     }
                   }
                   // await sendWhatsAppTemplate(whatsAppData);
+                  const response = await sendSMSTemplate({
+                    toNumber: item.cust.phone,
+                    entityId: process.env.SMS_ENTITY_NUMBER,
+                    templateId: process.env.APPOINTMENT_CONFIRMED_SMS_TEMPLATE_ID,
+                    message: await replaceTemplateVariables(process.env.APPOINTMENT_CONFIRMED_SMS, {
+                      name: `${item?.cust?.firstName} ${item?.cust?.lastName}`,
+                      bookingId: item._id.toString(),
+                      date: moment(item?.bookingDate).format("DD MMM YYYY"),
+                      time: item?.startTime + " - " + item?.endTime
+                    }),
+                  });
                 } else if (finalItem[0].astrologerStatus == 'rejected') {
                   const awhatsAppData = {
                     toNumbers: item?.astrologerData?.mobileNo,
@@ -588,6 +632,15 @@ async function commonNotification(notificationFor, type, id, extraId = "") {
                     }
                   }
                   // await sendWhatsAppTemplate(awhatsAppData);
+                  const response = await sendSMSTemplate({
+                    toNumber: item.cust.phone,
+                    entityId: process.env.SMS_ENTITY_NUMBER,
+                    templateId: process.env.APPOINTMENT_REJECTED_SMS_TEMPLATE_ID,
+                    message: await replaceTemplateVariables(process.env.APPOINTMENT_REJECTED_SMS, {
+                      name: `${item?.cust?.firstName} ${item?.cust?.lastName}`,
+                      bookingId: item._id.toString()
+                    }),
+                  });
                 }
               }
             }
