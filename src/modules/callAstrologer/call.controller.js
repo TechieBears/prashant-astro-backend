@@ -8,6 +8,7 @@ const { startWalletTimer } = require("./callTimer.service");
 const mongoose = require("mongoose");
 const axios = require("axios");
 const WalletTransaction = require("../wallet/walletTransactions.model");
+const { emitCallAstrologersUpdate } = require("../../config/socket");
 
 exports.callInitiate = asyncHandler(async (req, res) => {
     const userId = req.user._id;
@@ -40,6 +41,8 @@ exports.callInitiate = asyncHandler(async (req, res) => {
         return res.status(201).json({
             success: false,
             message: `Not enough balance in wallet.`,
+            balance: wallet.balance,
+            requiredAmount: perSec * callDuration
         });
     }
 
@@ -51,6 +54,7 @@ exports.callInitiate = asyncHandler(async (req, res) => {
         startTime: new Date().toISOString(),
         duration: callDuration,
         status: "pending",
+        amountCharged: perSec * callDuration
     });
 
     const clickResponse = await axios.post(
@@ -777,8 +781,13 @@ exports.webhookCallHangup = asyncHandler(async (req, res) => {
         }
 
         if (SUCCESS_STATUSES.includes(call_status)) {
-            const perSecondRate = user.currentCallSession.perMinuteRate / 60;
-            const amount = durationInSeconds * perSecondRate;
+            // const perSecondRate = user.currentCallSession.perMinuteRate / 60;
+            // const amount = durationInSeconds * perSecondRate;
+            
+            // FIXED: Calculate amount using employee's priceCharge instead of user session
+            const perMinRate = employee.priceCharge; // Get employee's per minute rate
+            const perSecondRate = perMinRate / 60; // Convert to per second rate
+            const amount = durationInSeconds * perSecondRate; // Calculate total amount
 
             call.status = "accepted";
             call.duration = durationInSeconds;
@@ -814,6 +823,18 @@ exports.webhookCallHangup = asyncHandler(async (req, res) => {
         user.currentCallSession = null;
         await user.save();
 
+        // 8. Emit WebSocket event to notify clients about updated employee status
+        try {
+            emitCallAstrologersUpdate({
+                employeeId: employee._id.toString(),
+                userId: astrologerUser._id.toString(),
+                isBusy: false,
+                message: 'Employee status updated - call ended'
+            });
+        } catch (socketError) {
+            console.warn('⚠️ Failed to emit WebSocket update:', socketError.message);
+        }
+
         console.log(
             `✅ Call ${call._id} closed | Status: ${call.status} | Charged: ${call.amountCharged}`
         );
@@ -823,6 +844,26 @@ exports.webhookCallHangup = asyncHandler(async (req, res) => {
         // IMPORTANT: always return 200
         return res.status(200).json({ success: true });
     }
+});
+
+exports.testWebsocketTogetAllCallAstrologers = asyncHandler(async (req, res) => {
+    // Emit WebSocket event to notify clients about updated employee status
+        try {
+            emitCallAstrologersUpdate({
+                success: true,
+                data: {
+                    success: true,
+                    message: 'WebSocket event emitted successfully'
+                }
+            });
+        } catch (socketError) {
+            console.warn('⚠️ Failed to emit WebSocket update:', socketError.message);
+            return res.status(500).json({ success: false, message: 'Failed to emit WebSocket event' });
+        }
+        return res.status(200).json({ success: true, data: {
+            success: true,
+            message: 'WebSocket event emitted successfully'
+        } });
 });
 
 exports.getAllCallAstrologersStatusLive = asyncHandler(async (req, res) => {

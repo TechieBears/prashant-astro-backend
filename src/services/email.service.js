@@ -1,7 +1,6 @@
 const nodemailer = require('nodemailer');
 
 const sendEmail = async (options) => {
-    console.log("send email inside start", options.email);
     let transporter = nodemailer.createTransport({
         host: process.env.SMTP_HOST,
         port: process.env.SMTP_PORT,
@@ -16,6 +15,7 @@ const sendEmail = async (options) => {
     let info = await transporter.sendMail({
         from: process.env.SMTP_USER, // sender address
         to: options.email, // list of receivers
+        cc: options.cc || [], // list of receivers
         subject: options.subject, // Subject line
         html: options.message, // plain text body
     });

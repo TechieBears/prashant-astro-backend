@@ -1,5 +1,6 @@
 const asyncHandler = require('express-async-handler');
 const ProductCategory = require('./productCategory.model');
+const Product = require('../product/product.model');
 const Errorhander = require('../../utils/errorHandler');
 const ProductSubcategory = require('../productSubcategory/productSubcategory.model');
 // const { generateImageName } = require('../../utils/reusableFunctions');
@@ -112,9 +113,20 @@ exports.updateProductCategory = asyncHandler(async (req, res) => {
 
   if (name) category.name = name;
   // if (image) category.image = image;
+  
+  // Track if isActive is being changed
+  const isActiveChanged = isActive !== undefined && isActive !== null && category.isActive !== isActive;
   if (isActive !== undefined && isActive !== null) category.isActive = isActive;
   category.updatedBy = req.user._id;
   await category.save();
+
+  // Update related products' isCategoryActivated when isActive changes
+  if (isActiveChanged) {
+    await Product.updateMany(
+      { category: category._id },
+      { isCategoryActivated: category.isActive }
+    );
+  }
 
   const updated = await ProductCategory.findById(category._id)
     .populate('createdBy', 'firstName lastName email')
@@ -133,9 +145,16 @@ exports.setActiveInactiveStatus = asyncHandler(async (req, res) => {
     throw new Error('Category not found');
   }
 
+  const previousIsActive = category.isActive;
   category.isActive = category.isActive === true ? false : true;
   category.updatedBy = req.user._id;
   await category.save();
+
+  // Update related products' isCategoryActivated when status is toggled
+  await Product.updateMany(
+    { category: category._id },
+    { isCategoryActivated: category.isActive }
+  );
 
   res.ok(category, 'Category status updated successfully');
 });
@@ -164,6 +183,12 @@ exports.deleteProductCategory = asyncHandler(async (req, res) => {
   category.updatedBy = req.user._id;
   await category.save();
 
+  // Update related products' isCategoryActivated when category is deleted
+  await Product.updateMany(
+    { category: category._id },
+    { isCategoryActivated: false }
+  );
+
   res.ok(null, 'Category deleted successfully');
 });
 
@@ -180,6 +205,12 @@ exports.restoreProductCategory = asyncHandler(async (req, res) => {
   category.isActive = true;
   category.updatedBy = req.user._id;
   await category.save();
+
+  // Update related products' isCategoryActivated when category is restored
+  await Product.updateMany(
+    { category: category._id },
+    { isCategoryActivated: true }
+  );
 
   const restored = await ProductCategory.findById(category._id)
     .populate('createdBy', 'firstName lastName email')

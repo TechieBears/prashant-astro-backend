@@ -103,6 +103,46 @@ exports.createServiceOrder = asyncHandler(async (req, res, next) => {
       }
     }
 
+    // Helper function to check if coupon is applicable to a service
+    const isCouponApplicableToService = (coupon, service) => {
+      if (!coupon) return false;
+
+      // Check if coupon applies to all services
+      if (coupon.applyAllServices) return true;
+
+      const serviceIdStr = service._id.toString();
+      const serviceCategoryStr = service.category ? service.category.toString() : null;
+
+      // Check specific services
+      if (coupon.applicableServices && coupon.applicableServices.length > 0) {
+        const applicableServiceIds = coupon.applicableServices
+          .filter(id => id != null)
+          .map(id => id.toString());
+        if (applicableServiceIds.includes(serviceIdStr)) return true;
+      }
+
+      // Check service categories
+      if (coupon.applicableServiceCategories && coupon.applicableServiceCategories.length > 0 && serviceCategoryStr) {
+        const applicableCategoryIds = coupon.applicableServiceCategories
+          .filter(id => id != null)
+          .map(id => id.toString());
+        if (applicableCategoryIds.includes(serviceCategoryStr)) return true;
+      }
+
+      return false;
+    };
+
+    // Helper function to calculate discount for a service item
+    const calculateServiceItemDiscount = (coupon, servicePrice) => {
+      if (!coupon) return 0;
+
+      if (coupon.discountIn === 'percent') {
+        return (servicePrice * coupon.discount) / 100;
+      } else {
+        return Math.min(coupon.discount, servicePrice);
+      }
+    };
+
     // --------------- ✅ Process Each Service Item ----------------
     let totalAmount = 0;
     const createdOrderItems = [];
@@ -138,7 +178,7 @@ exports.createServiceOrder = asyncHandler(async (req, res, next) => {
         return next(new ErrorHandler('Booking date and start time required', 400));
       }
 
-      const service = await Service.findById(serviceId);
+      const service = await Service.findById(serviceId).populate('category');
       if (!service) {
         await session.abortTransaction();
         session.endSession();
@@ -251,6 +291,15 @@ exports.createServiceOrder = asyncHandler(async (req, res, next) => {
       //   }
       // }
 
+      // Calculate service price with discount if coupon is applicable
+      let serviceTotal = service.price;
+      if (coupon && isCouponApplicableToService(coupon, service)) {
+        const itemDiscount = calculateServiceItemDiscount(coupon, service.price);
+        serviceTotal = service.price - itemDiscount;
+        // Ensure serviceTotal is not negative
+        serviceTotal = Math.max(0, serviceTotal);
+      }
+
       // ✅ Create Order Item
       const orderItem = await ServiceOrderItem.create([{
         customerId: userId,
@@ -262,7 +311,7 @@ exports.createServiceOrder = asyncHandler(async (req, res, next) => {
         startTime: bookingStart.format('HH:mm'),
         endTime: bookingEnd.format('HH:mm'),
         serviceType: serviceType,
-        total: service.price,
+        total: serviceTotal,
         address: address || null,
         zoomLink: null, // Add Zoom link to the order item
       }], { session });
@@ -274,8 +323,8 @@ exports.createServiceOrder = asyncHandler(async (req, res, next) => {
         type: paymentType || 'OTHER',
         status: 'unpaid',
         amount: 0,
-        pendingAmount: service.price,
-        payingAmount: service.price,
+        pendingAmount: serviceTotal,
+        payingAmount: serviceTotal,
         isCoupon: !!coupon,
         paymentId: paymentId || razorpayPaymentId || `PAY-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
         userId,
@@ -293,20 +342,12 @@ exports.createServiceOrder = asyncHandler(async (req, res, next) => {
       await orderItem[0].save({ session });
 
       createdOrderItems.push(orderItem[0]._id);
-      totalAmount += service.price;
+      totalAmount += serviceTotal;
     }
 
     let gst = totalAmount * 0;
     let finalAmount = totalAmount + gst;
     let amountAfterCoupon = finalAmount;
-    if (coupon) {
-      if (coupon.discountIn === 'percent') {
-        amountAfterCoupon = finalAmount - ((finalAmount * coupon.discount) / 100);
-      }
-      else {
-        amountAfterCoupon = finalAmount - (coupon ? coupon.discount : 0);
-      }
-    }
 
     // Calculate paying amount
     const payingAmount = amountAfterCoupon > 0 ? amountAfterCoupon : finalAmount;
@@ -479,10 +520,10 @@ exports.createServiceOrder = asyncHandler(async (req, res, next) => {
       referralReward: referralResult, // 👈 Include referral result in response
       razorpay: razorpayOrder
         ? {
-            orderId: razorpayOrder.id,
-            amount: razorpayOrder.amount,
-            currency: razorpayOrder.currency
-          }
+          orderId: razorpayOrder.id,
+          amount: razorpayOrder.amount,
+          currency: razorpayOrder.currency
+        }
         : null
     });
 
@@ -506,7 +547,16 @@ exports.getAllServiceOrders = asyncHandler(async (req, res, next) => {
       path: 'services',
       populate: [
         { path: 'service', model: 'Service' },
-        { path: 'astrologer', model: 'User', select: 'name' } // ✅
+        {
+          path: 'astrologer',
+          model: 'User',
+          select: 'profile role',
+          populate: {
+            path: 'profile',
+            model: 'employee', // This assumes profile references the employee model
+            select: 'firstName lastName'
+          }
+        }
       ]
     })
     .populate('transaction')
@@ -527,7 +577,9 @@ exports.getAllServiceOrders = asyncHandler(async (req, res, next) => {
         addressData: service.cust.addressData || null
       },
       address: service.address || null,           // ✅ added
-      astrologerName: service.astrologer?.name || null,
+      astrologerName: service.astrologer?.employeeType === 'astrologer' ?
+        `${service.astrologer.firstName || ''} ${service.astrologer.lastName || ''}`.trim() :
+        null,
       servicePrice: service.snapshot.price,
       durationInMinutes: service.snapshot.durationInMinutes,
       startTime: service.startTime,
@@ -1345,7 +1397,7 @@ exports.updateServiceOrderAstrologer = asyncHandler(async (req, res, next) => {
   // 6. Save
   await serviceItem.save();
 
-  await commonNotification("SERVICE_STATUS_CHANGE", "service", serviceItem._id);
+  await commonNotification("SERVICE_STATUS_CHANGE", "service", serviceItem?.orderId, serviceItem._id.toString());
 
   // 7. Respond
   res.ok(serviceItem, "Astrologer status updated successfully");

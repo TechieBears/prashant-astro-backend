@@ -289,7 +289,7 @@ exports.createCustomerUser = asyncHandler(async (req, res, next) => {
   let referralCodeGenerated = generateReferralCode(firstName);
 
   // Validate registerType
-  if (!["google", "normal"].includes(registerType)) {
+  if (!["google", "normal", "apple"].includes(registerType)) {
     return next(new ErrorHander("Invalid register type", 400));
   }
 
@@ -302,8 +302,8 @@ exports.createCustomerUser = asyncHandler(async (req, res, next) => {
   // Check existing user
   const existingUser = await User.findOne({ email }).populate("profile");
 
-  // ---------------- GOOGLE REGISTER/LOGIN FLOW ----------------
-  if (registerType === "google") {
+  // ---------------- GOOGLE || APPLE REGISTER/LOGIN FLOW ----------------
+  if (registerType === "google" || registerType === "apple") {
     if (existingUser) {
       const token = existingUser.generateAuthToken();
       return res.ok(
@@ -601,7 +601,7 @@ exports.adminUpdateCustomerUser = asyncHandler(async (req, res, next) => {
 // @route   DELETE /api/customer/:id
 // @access  Private/Customer
 exports.deleteCustomerUser = asyncHandler(async (req, res, next) => {
-  const customerId = req.user._id;
+  const customerId = req.params.id;
   const user = await User.findOne({ _id: customerId, role: 'customer' });
   if (!user) return next(new ErrorHander("customer not found", 404));
 
@@ -829,6 +829,15 @@ exports.forgotPasswordOtp = asyncHandler(async (req, res, next) => {
   // 1. verify email
   const user = await User.findOne({ email }).populate('profile');
   if (!user) return next(new ErrorHander("No email found", 200));
+
+  if (user.type !== 'normal'){
+    if(user.type === 'google'){
+      return next(new ErrorHander("Already your account has been registered with google account, Please try to login with google account", 403));
+    }
+    if(user.type === 'apple'){
+      return next(new ErrorHander("Already your account has been registered with apple account, Please try to login with apple account", 403));
+    }
+  }
 
   // find user id in otp
   const otpData = await Otp.findOne({ userId: user._id });

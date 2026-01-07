@@ -268,7 +268,11 @@ exports.getAllServicesPublicPaginated = asyncHandler(async (req, res, next) => {
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
-    let filters = { isDeleted: false };
+    let filters = {
+        isActive: true, 
+        isDeleted: false,
+        isCategoryActivated: true
+     };
     if (req.query.category) {
         filters.category = req.query.category;
     }

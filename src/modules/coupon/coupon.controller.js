@@ -15,6 +15,7 @@ exports.createCoupon = asyncHandler(async (req, res, next) => {
         couponName,
         couponCode,
         couponType,
+        applicableTo, // enum ['all_products', 'single_product', 'product_category', 'all_services', 'single_service', 'service_category'], 
         discountIn,
         discount,
         activationDate,
@@ -38,6 +39,7 @@ exports.createCoupon = asyncHandler(async (req, res, next) => {
         couponName,
         couponCode,
         couponType,
+        applicableTo,
         discountIn,
         discount,
         activationDate,
@@ -73,6 +75,8 @@ exports.getCouponsAdmin = asyncHandler(async (req, res, next) => {
     const filter = { isDeleted: false };
     if(req.query.name) filter.couponName = { $regex: req.query.name, $options: 'i' };
     const coupons = await Coupon.find(filter)
+        .populate('applicableProductCategories', 'name')
+        .populate('applicableServiceCategories', 'name')
         .skip((page - 1) * limit)
         .limit(Number(limit))
         .sort({ createdAt: -1 });
@@ -196,16 +200,98 @@ exports.getCouponById = asyncHandler(async (req, res, next) => {
 // @desc    Get All active coupons
 // @route   GET /api/coupons/public/get-all
 // @access  Public
+// exports.getAllActiveCoupons = asyncHandler(async (req, res, next) => {
+//   const { couponType, search } = req.query;
+//   const currentDate = new Date();
+  
+//   // CORRECTED: Check both activation and expiry dates
+//   const filter = { 
+//     isDeleted: false, 
+//     isActive: true, 
+//     activationDate: { $lte: currentDate }, // Current date should be after activation
+//     expiryDate: { $gte: currentDate } // Current date should be before expiry
+//   };
+
+//   // Handle coupon type filtering
+//   if (couponType) {
+//     if (couponType === 'services') filter.couponType = { $in: ['services', 'both'] };
+//     else if (couponType === 'products') filter.couponType = { $in: ['products', 'both'] };
+//     else filter.couponType = couponType;
+//   }
+
+//   let coupons;
+
+//   if (search) {
+//     const regex = new RegExp(search, 'i'); // for partial matches
+
+//     coupons = await Coupon.aggregate([
+//       { $match: filter },
+//       {
+//         $addFields: {
+//           relevance: {
+//             $switch: {
+//               branches: [
+//                 {
+//                   case: { $eq: [{ $toUpper: "$couponCode" }, search.toUpperCase()] },
+//                   then: 3, // exact match
+//                 },
+//                 {
+//                   case: {
+//                     $regexMatch: {
+//                       input: "$couponCode",
+//                       regex: new RegExp(`^${search}`, "i"),
+//                     },
+//                   },
+//                   then: 2, // starts with
+//                 },
+//                 {
+//                   case: {
+//                     $regexMatch: {
+//                       input: "$couponCode",
+//                       regex,
+//                     },
+//                   },
+//                   then: 1, // contains
+//                 },
+//               ],
+//               default: 0, // no match
+//             },
+//           },
+//         },
+//       },
+//       { $sort: { relevance: -1, createdAt: -1 } },
+//       {
+//         $project: {
+//           couponName: 1,
+//           couponCode: 1,
+//           discountIn: 1,
+//           discount: 1,
+//           relevance: 1,
+//         },
+//       },
+//     ]);
+//   } else {
+//     coupons = await Coupon.find(filter)
+//       .select("couponName couponCode discountIn discount")
+//       .sort({ createdAt: -1 });
+//   }
+
+//   if (!coupons || coupons.length === 0)
+//     return res.ok([], "No active coupons found");
+
+//   res.ok(coupons, "Coupons fetched successfully");
+// });
+// new both services and products
 exports.getAllActiveCoupons = asyncHandler(async (req, res, next) => {
-  const { couponType, search } = req.query;
+  const { couponType, search, productIds, serviceIds } = req.query;
   const currentDate = new Date();
   
-  // CORRECTED: Check both activation and expiry dates
+  // Base filter for active, non-deleted, date-valid coupons
   const filter = { 
     isDeleted: false, 
     isActive: true, 
-    activationDate: { $lte: currentDate }, // Current date should be after activation
-    expiryDate: { $gte: currentDate } // Current date should be before expiry
+    activationDate: { $lte: currentDate },
+    expiryDate: { $gte: currentDate }
   };
 
   // Handle coupon type filtering
@@ -216,9 +302,39 @@ exports.getAllActiveCoupons = asyncHandler(async (req, res, next) => {
   }
 
   let coupons;
+  let productDetails = [];
+  let serviceDetails = [];
+
+  // If productIds are provided, fetch product details to get their categories/subcategories
+  if (productIds) {
+    try {
+      const idsArray = Array.isArray(productIds) ? productIds : productIds.split(',');
+      productDetails = await Product.find({
+        _id: { $in: idsArray },
+        isActive: true,
+        isDeleted: false
+      }).select('category subcategory');
+    } catch (error) {
+      return res.badRequest('Invalid product IDs');
+    }
+  }
+
+  // If serviceIds are provided, fetch service details to get their categories
+  if (serviceIds) {
+    try {
+      const idsArray = Array.isArray(serviceIds) ? serviceIds : serviceIds.split(',');
+      serviceDetails = await Service.find({
+        _id: { $in: idsArray },
+        isActive: true,
+        isDeleted: false
+      }).select('category');
+    } catch (error) {
+      return res.badRequest('Invalid service IDs');
+    }
+  }
 
   if (search) {
-    const regex = new RegExp(search, 'i'); // for partial matches
+    const regex = new RegExp(search, 'i');
 
     coupons = await Coupon.aggregate([
       { $match: filter },
@@ -229,7 +345,7 @@ exports.getAllActiveCoupons = asyncHandler(async (req, res, next) => {
               branches: [
                 {
                   case: { $eq: [{ $toUpper: "$couponCode" }, search.toUpperCase()] },
-                  then: 3, // exact match
+                  then: 3,
                 },
                 {
                   case: {
@@ -238,7 +354,7 @@ exports.getAllActiveCoupons = asyncHandler(async (req, res, next) => {
                       regex: new RegExp(`^${search}`, "i"),
                     },
                   },
-                  then: 2, // starts with
+                  then: 2,
                 },
                 {
                   case: {
@@ -247,10 +363,10 @@ exports.getAllActiveCoupons = asyncHandler(async (req, res, next) => {
                       regex,
                     },
                   },
-                  then: 1, // contains
+                  then: 1,
                 },
               ],
-              default: 0, // no match
+              default: 0,
             },
           },
         },
@@ -262,18 +378,176 @@ exports.getAllActiveCoupons = asyncHandler(async (req, res, next) => {
           couponCode: 1,
           discountIn: 1,
           discount: 1,
+          couponType: 1,
+          applicableTo: 1,
+          applyAllProducts: 1,
+          applicableProducts: 1,
+          applicableProductCategories: 1,
+          applicableProductSubcategories: 1,
+          applyAllServices: 1,
+          applicableServices: 1,
+          applicableServiceCategories: 1,
           relevance: 1,
         },
       },
     ]);
   } else {
     coupons = await Coupon.find(filter)
-      .select("couponName couponCode discountIn discount")
+      .select("couponName couponCode discountIn discount couponType applicableTo applyAllProducts applicableProducts applicableProductCategories applicableProductSubcategories applyAllServices applicableServices applicableServiceCategories")
       .sort({ createdAt: -1 });
   }
 
-  if (!coupons || coupons.length === 0)
+  // Filter coupons based on product eligibility
+  if (productIds && productDetails.length > 0) {
+    coupons = coupons.filter(coupon => {
+      // Check if coupon is applicable to products
+      if (!['products', 'both'].includes(coupon.couponType)) {
+        return false;
+      }
+
+      // Extract categories and subcategories from product details with null checks
+      const productCategories = productDetails
+        .map(p => p.category ? p.category.toString() : null)
+        .filter(category => category !== null);
+      
+      const productSubcategories = productDetails
+        .map(p => p.subcategory ? p.subcategory.toString() : null)
+        .filter(subcategory => subcategory !== null);
+      
+      const productIdsStr = productDetails.map(p => p._id.toString());
+
+      // Check applicability based on applicableTo field
+      switch (coupon.applicableTo) {
+        case 'all_products':
+          return coupon.applyAllProducts === true;
+
+        case 'single_product':
+          // Check if any of the provided products are in applicableProducts
+          if (coupon.applicableProducts && coupon.applicableProducts.length > 0) {
+            const applicableProductIds = coupon.applicableProducts
+              .filter(id => id) // Filter out null/undefined
+              .map(id => id.toString());
+            
+            return applicableProductIds.length > 0 && 
+                   productIdsStr.some(productId => applicableProductIds.includes(productId));
+          }
+          return false;
+
+        case 'product_category':
+          // Check if any product's category is in applicableProductCategories
+          if (coupon.applicableProductCategories && coupon.applicableProductCategories.length > 0) {
+            const applicableCategoryIds = coupon.applicableProductCategories
+              .filter(id => id) // Filter out null/undefined
+              .map(id => id.toString());
+            
+            return applicableCategoryIds.length > 0 && 
+                   productCategories.length > 0 &&
+                   productCategories.some(category => applicableCategoryIds.includes(category));
+          }
+          return false;
+
+        // Handle case when applicableTo is not set or is something else
+        default:
+          // For backward compatibility, check all product-related fields
+          const isApplicableByAllProducts = coupon.applyAllProducts === true;
+          
+          const isApplicableByProduct = coupon.applicableProducts && 
+            coupon.applicableProducts.length > 0 &&
+            coupon.applicableProducts.some(id => 
+              id && productIdsStr.includes(id.toString())
+            );
+          
+          const isApplicableByCategory = coupon.applicableProductCategories && 
+            coupon.applicableProductCategories.length > 0 &&
+            productCategories.length > 0 &&
+            coupon.applicableProductCategories.some(id => 
+              id && productCategories.includes(id.toString())
+            );
+          
+          const isApplicableBySubcategory = coupon.applicableProductSubcategories && 
+            coupon.applicableProductSubcategories.length > 0 &&
+            productSubcategories.length > 0 &&
+            coupon.applicableProductSubcategories.some(id => 
+              id && productSubcategories.includes(id.toString())
+            );
+
+          return isApplicableByAllProducts || isApplicableByProduct || 
+                 isApplicableByCategory || isApplicableBySubcategory;
+      }
+    });
+  }
+
+  // Filter coupons based on service eligibility
+  if (serviceIds && serviceDetails.length > 0) {
+    coupons = coupons.filter(coupon => {
+      // Check if coupon is applicable to services
+      if (!['services', 'both'].includes(coupon.couponType)) {
+        return false;
+      }
+
+      // Extract categories from service details with null checks
+      const serviceCategories = serviceDetails
+        .map(s => s.category ? s.category.toString() : null)
+        .filter(category => category !== null);
+      
+      const serviceIdsStr = serviceDetails.map(s => s._id.toString());
+
+      // Check applicability based on applicableTo field
+      switch (coupon.applicableTo) {
+        case 'all_services':
+          return coupon.applyAllServices === true;
+
+        case 'single_service':
+          // Check if any of the provided services are in applicableServices
+          if (coupon.applicableServices && coupon.applicableServices.length > 0) {
+            const applicableServiceIds = coupon.applicableServices
+              .filter(id => id) // Filter out null/undefined
+              .map(id => id.toString());
+            
+            return applicableServiceIds.length > 0 && 
+                   serviceIdsStr.some(serviceId => applicableServiceIds.includes(serviceId));
+          }
+          return false;
+
+        case 'service_category':
+          // Check if any service's category is in applicableServiceCategories
+          if (coupon.applicableServiceCategories && coupon.applicableServiceCategories.length > 0) {
+            const applicableCategoryIds = coupon.applicableServiceCategories
+              .filter(id => id) // Filter out null/undefined
+              .map(id => id.toString());
+            
+            return applicableCategoryIds.length > 0 && 
+                   serviceCategories.length > 0 &&
+                   serviceCategories.some(category => applicableCategoryIds.includes(category));
+          }
+          return false;
+
+        // Handle case when applicableTo is not set or is something else
+        default:
+          // For backward compatibility, check all service-related fields
+          const isApplicableByAllServices = coupon.applyAllServices === true;
+          
+          const isApplicableByService = coupon.applicableServices && 
+            coupon.applicableServices.length > 0 &&
+            coupon.applicableServices.some(id => 
+              id && serviceIdsStr.includes(id.toString())
+            );
+          
+          const isApplicableByCategory = coupon.applicableServiceCategories && 
+            coupon.applicableServiceCategories.length > 0 &&
+            serviceCategories.length > 0 &&
+            coupon.applicableServiceCategories.some(id => 
+              id && serviceCategories.includes(id.toString())
+            );
+
+          return isApplicableByAllServices || isApplicableByService || isApplicableByCategory;
+      }
+    });
+  }
+
+  if (!coupons || coupons.length === 0) {
     return res.ok([], "No active coupons found");
+  }
 
   res.ok(coupons, "Coupons fetched successfully");
 });
@@ -745,6 +1019,7 @@ exports.applyProductCoupon = asyncHandler(async (req, res, next) => {
     }
 
     // 6. Validate product applicability
+    console.log(coupon, products);
     const productApplicability = await validateProductApplicability(coupon, products);
     
     if (!productApplicability.isApplicable) {
@@ -763,7 +1038,10 @@ exports.applyProductCoupon = asyncHandler(async (req, res, next) => {
     const productDetails = [];
 
     applicableProducts.forEach(product => {
-      const requestedProduct = products.find(p => p.productId.toString() === product._id.toString());
+      const requestedProduct = products.find(p => {
+        if (!p.productId || !product._id) return false;
+        return p.productId.toString() === product._id.toString();
+      });
       if (requestedProduct) {
         const quantity = requestedProduct.quantity || 1;
         const subtotal = product.sellingPrice * quantity;
@@ -822,8 +1100,10 @@ exports.applyProductCoupon = asyncHandler(async (req, res, next) => {
 
 // Helper function to validate product applicability
 async function validateProductApplicability(coupon, requestedProducts) {
-  const requestedProductIds = requestedProducts.map(p => p.productId);
+  // Extract product IDs from the requested products array
+  const requestedProductIds = requestedProducts.map(p => p.productId || p._id || p);
 
+  console.log(requestedProductIds, "requestedProductIds");
   // If coupon applies to all products
   if (coupon.applyAllProducts) {
     return {
@@ -848,15 +1128,15 @@ async function validateProductApplicability(coupon, requestedProducts) {
     };
   }
 
-  const validProductIds = validProducts.map(product => product._id.toString());
-  const validProductCategories = validProducts.map(product => product.category.toString());
+  const validProductIds = validProducts.map(product => product._id ? product._id.toString() : null).filter(id => id !== null);
+  const validProductCategories = validProducts.map(product => product.category ? product.category.toString() : null).filter(cat => cat !== null);
   // const validProductSubcategories = validProducts.map(product => product.subcategory.toString());
 
   let applicableProductIds = [];
 
   // Check specific products
   if (coupon.applicableProducts && coupon.applicableProducts.length > 0) {
-    const couponProductIds = coupon.applicableProducts.map(id => id.toString());
+    const couponProductIds = coupon.applicableProducts.filter(id => id != null).map(id => id.toString());
     const matchingProducts = validProductIds.filter(productId => 
       couponProductIds.includes(productId)
     );
@@ -865,11 +1145,12 @@ async function validateProductApplicability(coupon, requestedProducts) {
 
   // Check product categories
   if (coupon.applicableProductCategories && coupon.applicableProductCategories.length > 0) {
-    const couponCategoryIds = coupon.applicableProductCategories.map(id => id.toString());
+    const couponCategoryIds = coupon.applicableProductCategories.filter(id => id != null).map(id => id.toString());
     
     const categoryMatchingProducts = validProducts
-      .filter(product => couponCategoryIds.includes(product.category.toString()))
-      .map(product => product._id.toString());
+      .filter(product => product.category && couponCategoryIds.includes(product.category.toString()))
+      .map(product => product._id ? product._id.toString() : null)
+      .filter(id => id !== null);
     
     applicableProductIds = [...applicableProductIds, ...categoryMatchingProducts];
   }

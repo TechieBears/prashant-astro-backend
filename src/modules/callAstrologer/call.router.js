@@ -13,6 +13,8 @@ router.post('/initiate', protect, authorize("customer", "astrologer"), CallContr
 router.get('/public/get-all-calls-history', protect, authorize("customer"), CallController.getAllCallsHistoryCustomer);
 router.get('/get-all-call-astrologers', protect, authorize("admin", "employee", "astrologer"), CallController.getAllCallsAdminandAstrologer);
 
+router.get('/test-webhook-to-get-all-call-astrologers', CallController.testWebsocketTogetAllCallAstrologers);
+
 router.get('/public/get-all-call-astrologers-status', CallController.getAllCallAstrologersStatusLive);
 router.post('/webhook/call-hangup', CallController.webhookCallHangup);
 // router.post('/webhook/call-answered-by-agent', CallController.webhookCallAnsweredByAgent);

@@ -64,11 +64,11 @@ exports.checkAvailability = asyncHandler(async (req, res, next) => {
             } catch (parseError) {
                 console.error("Error parsing days JSON:", parseError);
                 // Fallback to using the array as-is if it's already an array
-                availableDays = Array.isArray(employeeAvailability.profile.days) ? 
+                availableDays = Array.isArray(employeeAvailability.profile.days) ?
                     employeeAvailability.profile.days : [];
             }
         }
-        
+
         const employeeAvailabilityDay = availableDays.find((day) => day === bookingday);
 
         if (!employeeAvailabilityDay) {
@@ -148,12 +148,18 @@ exports.checkAvailability = asyncHandler(async (req, res, next) => {
             astrologerStatus: { $in: ["accepted", "pending"] }
         });
 
+        //POOJA AT HOME CONDITION
+
         if (bookingData.length > 0) {
             if (req.body.service_type === "offline") {
-                console.log("issue 2")
                 res.status(404);
                 throw new Error("Astrologer is not available on this day");
             }
+            if (bookingData.filter(ele => ele.serviceType.includes('pooja_at_home')).length > 0) {
+                res.status(404);
+                throw new Error("Astrologer is not available on this day");
+            }
+
         }
         intervals.forEach((interval) => {
             let flag = false;
@@ -178,8 +184,8 @@ exports.checkAvailability = asyncHandler(async (req, res, next) => {
             timeSlots.push({
                 ...interval,
                 booked: !!bookedStatus,
-                status: bookedStatus ? "unavailable" : "available",
-                disabled: flag
+                status: bookedStatus || flag ? "unavailable" : "available",
+                disabled: bookedStatus ? true : flag
             });
         });
 
@@ -325,7 +331,7 @@ exports.superAdminSlots = asyncHandler(async (req, res, next) => {
             let astroavailable = astro.days.includes(moment(date).format("dddd"));
 
             if (astroavailable == false) {
-                dayEnd = addMinutes(maxEndTime, 30);
+                dayEnd = addMinutes(maxEndTime == "23:30" ? "23:29" : maxEndTime, 30);
                 while (toMoment(dayStart).isBefore(toMoment(dayEnd))) {
                     bookings.push({
                         bookingId: "BK_BLOCK",
@@ -334,7 +340,7 @@ exports.superAdminSlots = asyncHandler(async (req, res, next) => {
                         startTime: dayStart,
                         blocked: true
                     });
-                    dayStart = addMinutes(dayStart, 30);
+                    dayStart = addMinutes(dayStart == '23:30' ? '23:29' : dayStart, 30);
                 }
                 return;
             }

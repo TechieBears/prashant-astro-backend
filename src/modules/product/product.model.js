@@ -54,6 +54,14 @@ const productSchema = new mongoose.Schema({
         type: String,
     },
     images: [{ type: String, }],
+    avgRatings: {
+        type: Number,
+        default: 0
+    },
+    isCategoryActivated:{
+        type: Boolean,
+        default: true
+    },
     isActive: {
         type: Boolean,
     },

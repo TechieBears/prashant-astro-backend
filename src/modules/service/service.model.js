@@ -64,6 +64,13 @@ const serviceSchema = new mongoose.Schema({
         enum: ['online', 'pandit_center', 'pooja_at_home'],
         default: ['online']
     },
+    avgRatings: {
+        type: Number,
+        default: 0
+    },
+    isCategoryActivated:{
+        type: Boolean,
+    },
     isActive: {
         type: Boolean,
     },

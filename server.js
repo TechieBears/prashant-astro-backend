@@ -1,6 +1,7 @@
 const { createServer } = require("http");
 const app = require("./app");
 const connectDb = require("./src/config/db");
+const { initSocket } = require("./src/config/socket");
 const os = require("os");
 const cron = require("node-cron");
 const { checkPendingPayments } = require("./src/services/paymentCron.service");
@@ -13,7 +14,7 @@ const { checkPendingPayments } = require("./src/services/paymentCron.service");
     const server = createServer(app);
     
     // Initialize socket.io
-    // initSocket(server);
+    initSocket(server);
 
     const PORT = process.env.PORT || 3000;
 
