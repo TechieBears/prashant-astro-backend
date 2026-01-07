@@ -119,7 +119,7 @@ async function generateTemplates(notificationFor, data) {
                         <p style="margin:15px 0;">
                           <strong>Booking ID:</strong> ${data?._id || "N/A"}<br/>
                           <strong>Date:</strong> ${data?.createdAt
-            ? new Date(data.createdAt).toLocaleString("en-IN")
+            ? moment(data.createdAt).add(5, 'hours').add(30, 'minutes').format('DD-MM-YYYY hh:mm A')
             : "[dd-mm-yyyy hh:mm]"}<br/>
                           <strong>Payment Status:</strong> <span style="color:${paymentColor}; font-weight:bold;">${paymentStatus}</span><br/>
                           <strong>Current Status:</strong> <span style="color:${color}; font-weight:bold;">${currentStatus}</span>
@@ -157,7 +157,7 @@ async function generateTemplates(notificationFor, data) {
                         <p style="margin:15px 0;">
                           <strong>Booking ID:</strong> ${data?._id || "N/A"}<br/>
                           <strong>Date:</strong> ${data?.createdAt
-            ? new Date(data.createdAt).toLocaleString("en-IN")
+            ? moment(data.createdAt).add(5, 'hours').add(30, 'minutes').format('DD-MM-YYYY hh:mm A')
             : "[dd-mm-yyyy hh:mm]"}<br/>
                           <strong>Payment Status:</strong> <span style="color:${paymentColor}; font-weight:bold;">${paymentStatus}</span><br/>
                           <strong>Current Status:</strong> <span style="color:${color}; font-weight:bold;">${currentStatus}</span>
@@ -228,9 +228,9 @@ async function generateTemplates(notificationFor, data) {
                         <p style="margin:15px 0;">
                           <strong>Booking ID:</strong> ${data?._id || "N/A"}<br/>
                           <strong>Date:</strong> ${data?.createdAt
-            ? new Date(data.createdAt).toLocaleString("en-IN")
+            ? moment(data.createdAt).add(5, 'hours').add(30, 'minutes').format('DD-MM-YYYY hh:mm A')
             : "[dd-mm-yyyy hh:mm]"}<br/>
-                          <strong>Payment Status:</strong><span style="color:${paymentColor}; font-weight:bold;"> ${data?.paymentStatus || "Pending"}</span> <br/>
+                          <strong>Payment Status:</strong><span style="color:${paymentColor}; font-weight:bold;"> ${paymentStatus || "Pending"}</span> <br/>
                           <strong>Current Status:</strong> <span style="color:${color}; font-weight:bold;">${currentStatus}</span>
                         </p>
 
@@ -266,7 +266,7 @@ async function generateTemplates(notificationFor, data) {
                         <p style="margin:15px 0;">
                           <strong>Booking ID:</strong> ${data?._id || "N/A"}<br/>
                           <strong>Date:</strong> ${data?.createdAt
-            ? new Date(data.createdAt).toLocaleString("en-IN")
+            ? moment(data.createdAt).add(5, 'hours').add(30, 'minutes').format('DD-MM-YYYY hh:mm A')
             : "[dd-mm-yyyy hh:mm]"}<br/>
                           <strong>Payment Status:</strong><span style="color:${paymentColor}; font-weight:bold;">${data?.paymentStatus || "Pending"}</span> <br/>
                           <strong>Current Status:</strong> <span style="color:${color}; font-weight:bold;">${currentStatus}</span>

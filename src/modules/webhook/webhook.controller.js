@@ -568,8 +568,11 @@ const processRazorpayWebhook = async (payload) => {
             // Don't fail the webhook if invoice creation fails
           }
 
+          await session.commitTransaction();
+          session.endSession();
           // Send notification
           await commonNotification('PRODUCT_BOOKING', "product", productOrder._id.toString());
+          return { success: true, message: 'Webhook processed successfully' };
 
         } catch (err) {
           console.log("Product Order Payment Error", err);
@@ -630,8 +633,10 @@ const processRazorpayWebhook = async (payload) => {
         }
 
         // Send notification
+        await session.commitTransaction();
+        session.endSession();
         await commonNotification('SERVICE_BOOKING', "service", serviceOrder._id.toString());
-
+        return { success: true, message: 'Webhook processed successfully' };
       } else if (orderType === 'WALLET') {
         // Handle wallet balance addition
         const user = await mongoose.model('User').findById(userId).session(session);
