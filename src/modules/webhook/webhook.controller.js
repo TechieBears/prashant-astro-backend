@@ -7,6 +7,10 @@ const ServiceOrderItem = require('../serviceOrder/serviceOrderItem.model');
 const Transaction = require('../transaction/transaction.Model');
 const Wallet = require('../wallet/wallet.model');
 const WalletTransaction = require('../wallet/walletTransactions.model');
+const Invoice = require('../invoice/invoice.model');
+const User = require('../auth/user.Model');
+const CustomerUser = require('../customerUser/customerUser.model');
+const CustomerAddress = require('../customerAddress/customerAddress.model');
 const razorpay = require('../../config/razorpay');
 const { processReferralReward } = require('../../services/referral.service');
 const { commonNotification } = require('../../utils/notificationsHelper');
@@ -19,6 +23,234 @@ const verifyRazorpaySignature = (payloadString, signature, secret) => {
   hmac.update(payloadString); // <- no JSON.stringify here
   const generatedSignature = hmac.digest('hex');
   return generatedSignature === signature;
+};
+
+/**
+ * Create invoice from product order
+ */
+const createInvoiceFromProductOrder = async (productOrder, paymentId, session) => {
+  try {
+    // Check if invoice already exists for this order
+    const existingInvoice = await Invoice.findOne({ 
+      productOrderId: productOrder._id 
+    }).session(session);
+    
+    if (existingInvoice) {
+      console.log(`Invoice already exists for product order ${productOrder._id}`);
+      return existingInvoice;
+    }
+
+    // Get user details
+    const user = await User.findById(productOrder.user).session(session);
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    // Get customer profile
+    const customerProfile = await CustomerUser.findById(user.profile).session(session);
+
+    // Get address
+    const address = await CustomerAddress.findById(productOrder.address).session(session);
+    if (!address) {
+      throw new Error('Address not found for order');
+    }
+
+    // Build issuedTo information
+    const issuedTo = {
+      name: `${customerProfile?.firstName || ''} ${customerProfile?.lastName || ''}`.trim() || user.email,
+      address: address.address,
+      city: address.city || '',
+      state: address.state || '',
+      postalCode: address.postalCode || '',
+      country: address.country || '',
+      phoneNumber: address.phoneNumber || user.mobileNo || ''
+    };
+
+    // Build invoice items from product order items
+    const invoiceItems = productOrder.items.map(item => ({
+      productId: item.product,
+      serviceId: null,
+      name: item.snapshot.name || 'Product',
+      price: item.snapshot.sellingPrice || item.snapshot.mrpPrice || 0,
+      quantity: item.quantity,
+      total: item.subtotal
+    }));
+
+    // Calculate totals
+    const subtotal = productOrder.totalAmount || 0;
+    const gst = productOrder.amount?.gst || 0;
+    const discount = subtotal - (productOrder.finalAmount || subtotal);
+    const totalAmount = productOrder.finalAmount || productOrder.payingAmount || subtotal;
+
+    // Build payment info
+    const paymentInfo = {
+      paymentMethod: productOrder.paymentMethod || 'CARD',
+      paymentStatus: 'PAID',
+      amount: totalAmount,
+      transactionId: paymentId,
+      razorpayOrderId: productOrder.paymentDetails?.razorpayOrderId || null,
+      razorpayPaymentId: paymentId,
+      details: productOrder.paymentDetails || {}
+    };
+
+    // Create invoice
+    const invoice = new Invoice({
+      userId: productOrder.user,
+      productOrderId: productOrder._id,
+      serviceOrderId: null,
+      date: new Date(),
+      issuedTo,
+      items: invoiceItems,
+      subtotal,
+      gst,
+      discount,
+      totalAmount,
+      currency: productOrder.amount?.currency || 'INR',
+      paymentInfo
+    });
+
+    await invoice.save({ session });
+    return invoice;
+  } catch (error) {
+    console.error('Error creating invoice from product order:', error);
+    throw error;
+  }
+};
+
+/**
+ * Create invoice from service order
+ */
+const createInvoiceFromServiceOrder = async (serviceOrder, paymentId, session) => {
+  try {
+    // Check if invoice already exists for this order
+    const existingInvoice = await Invoice.findOne({ 
+      serviceOrderId: serviceOrder._id 
+    }).session(session);
+    
+    if (existingInvoice) {
+      console.log(`Invoice already exists for service order ${serviceOrder._id}`);
+      return existingInvoice;
+    }
+
+    // Get user details
+    const user = await User.findById(serviceOrder.user).session(session);
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    // Get customer profile
+    const customerProfile = await CustomerUser.findById(user.profile).session(session);
+
+    // Get service items with populated service data
+    const serviceItems = await ServiceOrderItem.find({
+      _id: { $in: serviceOrder.services }
+    }).populate('service').session(session);
+
+    // Get address from first service item (services might have different addresses)
+    let address = null;
+    let issuedTo = {
+      name: `${customerProfile?.firstName || ''} ${customerProfile?.lastName || ''}`.trim() || user.email,
+      address: '',
+      city: '',
+      state: '',
+      postalCode: '',
+      country: '',
+      phoneNumber: user.mobileNo || ''
+    };
+
+    // Try to get address from service items
+    if (serviceItems.length > 0) {
+      const firstItem = serviceItems[0];
+      
+      // Check if item has address reference
+      if (firstItem.address) {
+        address = await CustomerAddress.findById(firstItem.address).session(session);
+      }
+      
+      // If no address reference, check cust.addressData
+      if (!address && firstItem.cust?.addressData) {
+        issuedTo.address = firstItem.cust.addressData;
+      }
+      
+      // Use customer info from first item if available
+      if (firstItem.cust?.firstName) {
+        issuedTo.name = `${firstItem.cust.firstName} ${firstItem.cust.lastName || ''}`.trim();
+      }
+      if (firstItem.cust?.phone) {
+        issuedTo.phoneNumber = firstItem.cust.phone;
+      }
+    }
+
+    // If address found, use it
+    if (address) {
+      issuedTo = {
+        name: `${address.firstName} ${address.lastName}`.trim(),
+        address: address.address,
+        city: address.city || '',
+        state: address.state || '',
+        postalCode: address.postalCode || '',
+        country: address.country || '',
+        phoneNumber: address.phoneNumber || user.mobileNo || ''
+      };
+    }
+
+    // Build invoice items from service order items
+    const invoiceItems = serviceItems.map(item => ({
+      productId: null,
+      serviceId: item.service?._id || item.service,
+      name: item.service?.name || 'Service',
+      price: item.snapshot?.price || item.total || 0,
+      quantity: 1, // Services are typically quantity 1
+      total: item.total
+    }));
+
+    // Calculate totals
+    const subtotal = serviceOrder.totalAmount || 0;
+    const gst = 0; // GST can be added if needed
+    const discount = subtotal - (serviceOrder.finalAmount || subtotal);
+    const totalAmount = serviceOrder.finalAmount || serviceOrder.payingAmount || subtotal;
+
+    // Determine payment method from payment details or default to CARD
+    let paymentMethod = 'CARD';
+    if (serviceOrder.paymentDetails?.paymentMethod) {
+      paymentMethod = serviceOrder.paymentDetails.paymentMethod;
+    } else if (serviceOrder.paymentDetails?.razorpayOrderId) {
+      paymentMethod = 'CARD'; // Razorpay typically means card/UPI
+    }
+
+    // Build payment info
+    const paymentInfo = {
+      paymentMethod: paymentMethod,
+      paymentStatus: 'PAID',
+      amount: totalAmount,
+      transactionId: paymentId,
+      razorpayOrderId: serviceOrder.paymentDetails?.razorpayOrderId || null,
+      razorpayPaymentId: paymentId,
+      details: serviceOrder.paymentDetails || {}
+    };
+
+    // Create invoice
+    const invoice = new Invoice({
+      userId: serviceOrder.user,
+      productOrderId: null,
+      serviceOrderId: serviceOrder._id,
+      date: new Date(),
+      issuedTo,
+      items: invoiceItems,
+      subtotal,
+      gst,
+      discount,
+      totalAmount,
+      currency: 'INR',
+      paymentInfo
+    });
+
+    await invoice.save({ session });
+    return invoice;
+  } catch (error) {
+    console.error('Error creating invoice from service order:', error);
+    throw error;
+  }
 };
 
 
@@ -307,6 +539,15 @@ const processRazorpayWebhook = async (payload) => {
           // Process referral reward
           await processReferralReward(productOrder.user, session);
 
+          // Create invoice
+          try {
+            const invoice = await createInvoiceFromProductOrder(productOrder, paymentId, session);
+            console.log(`Invoice created for product order: ${invoice.invoiceNumber}`);
+          } catch (invoiceError) {
+            console.error('Error creating invoice for product order:', invoiceError);
+            // Don't fail the webhook if invoice creation fails
+          }
+
           // Send notification
           await commonNotification('PRODUCT_BOOKING', "product", productOrder._id.toString());
 
@@ -358,6 +599,15 @@ const processRazorpayWebhook = async (payload) => {
 
         // Process referral reward
         await processReferralReward(serviceOrder.user, session);
+
+        // Create invoice
+        try {
+          const invoice = await createInvoiceFromServiceOrder(serviceOrder, paymentId, session);
+          console.log(`Invoice created for service order: ${invoice.invoiceNumber}`);
+        } catch (invoiceError) {
+          console.error('Error creating invoice for service order:', invoiceError);
+          // Don't fail the webhook if invoice creation fails
+        }
 
         // Send notification
         await commonNotification('SERVICE_BOOKING', "service", serviceOrder._id.toString());
