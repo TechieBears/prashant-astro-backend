@@ -2,6 +2,8 @@ const { createServer } = require("http");
 const app = require("./app");
 const connectDb = require("./src/config/db");
 const os = require("os");
+const cron = require("node-cron");
+const { checkPendingPayments } = require("./src/services/paymentCron.service");
 
 (async () => {
   try {
@@ -30,6 +32,22 @@ const os = require("os");
     server.listen(PORT, () => {
       console.log(`Server running on port: http://${ipAddress}:${PORT}`);
     });
+
+    // Initialize cron job to check pending payments every 15 minutes
+    // Cron expression: '*/15 * * * *' means every 15 minutes
+    cron.schedule('*/1 * * * *', async () => {
+      console.log('[Cron Job] Running pending payment check...');
+      try {
+        await checkPendingPayments();
+      } catch (error) {
+        console.error('[Cron Job] Error executing pending payment check:', error);
+      }
+    }, {
+      scheduled: true,
+      timezone: "Asia/Kolkata" // Adjust timezone as needed
+    });
+
+    console.log('[Cron Job] Payment status check cron job initialized (runs every 15 minutes)');
 
   } catch (error) {
     console.error("Database connection failed:", error);
