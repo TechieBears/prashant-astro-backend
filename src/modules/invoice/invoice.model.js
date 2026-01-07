@@ -162,7 +162,8 @@ const invoiceSchema = new mongoose.Schema({
 
 // Generate unique invoice number before saving
 invoiceSchema.pre('save', async function (next) {
-    if (!this.invoiceNumber) {
+    // Only generate if invoiceNumber is not already set
+    if (!this.invoiceNumber || this.invoiceNumber === '') {
         // Generate invoice number: INV-YYYYMMDD-XXXXXX (timestamp + random)
         const now = new Date();
         const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
@@ -171,23 +172,37 @@ invoiceSchema.pre('save', async function (next) {
         let isUnique = false;
         let attempts = 0;
         const InvoiceModel = this.constructor;
+        const session = this.$session(); // Get session if document is in a transaction
         
+        // Use a simpler approach: timestamp + random should be unique enough
+        // If we're in a transaction, the uniqueness check might not work perfectly,
+        // but the combination of date + random + timestamp should be sufficient
         while (!isUnique && attempts < 10) {
             const randomStr = Math.random().toString(36).substring(2, 8).toUpperCase();
-            this.invoiceNumber = `INV-${dateStr}-${randomStr}`;
+            const timestamp = Date.now().toString(36).toUpperCase().slice(-6);
+            this.invoiceNumber = `INV-${dateStr}-${randomStr}${timestamp}`;
             
-            const existing = await InvoiceModel.findOne({ invoiceNumber: this.invoiceNumber });
+            // Check for existing invoice number (use session if available)
+            const query = InvoiceModel.findOne({ invoiceNumber: this.invoiceNumber });
+            if (session) {
+                query.session(session);
+            }
+            const existing = await query;
+            
             if (!existing) {
                 isUnique = true;
             } else {
                 attempts++;
+                // Add more randomness on retry
+                await new Promise(resolve => setTimeout(resolve, 1));
             }
         }
         
-        // Fallback if still not unique after 10 attempts
+        // Final fallback with more unique identifier
         if (!isUnique) {
-            const timestamp = Date.now().toString(36).toUpperCase();
-            this.invoiceNumber = `INV-${dateStr}-${timestamp}`;
+            const timestamp = Date.now();
+            const randomPart = Math.random().toString(36).substring(2, 10).toUpperCase();
+            this.invoiceNumber = `INV-${dateStr}-${timestamp.toString(36).toUpperCase()}-${randomPart}`;
         }
     }
     next();

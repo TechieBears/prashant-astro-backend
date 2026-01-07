@@ -93,11 +93,21 @@ const createInvoiceFromProductOrder = async (productOrder, paymentId, session) =
       details: productOrder.paymentDetails || {}
     };
 
+    // Generate invoice number
+    const generateInvoiceNumber = () => {
+      const now = new Date();
+      const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
+      const randomStr = Math.random().toString(36).substring(2, 8).toUpperCase();
+      const timestamp = Date.now().toString(36).toUpperCase().slice(-6);
+      return `INV-${dateStr}-${randomStr}${timestamp}`;
+    };
+
     // Create invoice
     const invoice = new Invoice({
       userId: productOrder.user,
       productOrderId: productOrder._id,
       serviceOrderId: null,
+      invoiceNumber: generateInvoiceNumber(), // Explicitly set invoice number
       date: new Date(),
       issuedTo,
       items: invoiceItems,
@@ -229,11 +239,21 @@ const createInvoiceFromServiceOrder = async (serviceOrder, paymentId, session) =
       details: serviceOrder.paymentDetails || {}
     };
 
+    // Generate invoice number
+    const generateInvoiceNumber = () => {
+      const now = new Date();
+      const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
+      const randomStr = Math.random().toString(36).substring(2, 8).toUpperCase();
+      const timestamp = Date.now().toString(36).toUpperCase().slice(-6);
+      return `INV-${dateStr}-${randomStr}${timestamp}`;
+    };
+
     // Create invoice
     const invoice = new Invoice({
       userId: serviceOrder.user,
       productOrderId: null,
       serviceOrderId: serviceOrder._id,
+      invoiceNumber: generateInvoiceNumber(), // Explicitly set invoice number
       date: new Date(),
       issuedTo,
       items: invoiceItems,
