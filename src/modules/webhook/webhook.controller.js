@@ -603,6 +603,11 @@ const processRazorpayWebhook = async (payload) => {
         }).session(session);
 
         for (const item of serviceItems) {
+          // update status of service items
+          item.paymentStatus = 'paid';
+          item.status = 'paid';
+          await item.save({ session });
+
           if (item.transaction) {
             const transaction = await Transaction.findById(item.transaction).session(session);
             if (transaction) {
