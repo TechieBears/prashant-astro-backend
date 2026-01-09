@@ -547,8 +547,7 @@ exports.toggleButton = asyncHandler(async (req, res, next) => {
     // 8. Emit WebSocket event to notify clients about updated employee status
     try {
         emitCallAstrologersUpdate({
-            employeeId: employee._id.toString(),
-            userId: astrologerUser._id.toString(),
+            employeeId: employeeId.toString(),
             isBusy: false,
             message: 'Employee status updated - call ended'
         });

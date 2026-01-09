@@ -34,7 +34,7 @@ exports.callInitiate = asyncHandler(async (req, res) => {
         return res.status(400).json({ message: "Astrologer is currently busy" });
     }
 
-    if(employee.workingStatus){
+    if(employee.workingStatus === false) {
         return res.status(400).json({ message: "Astrologer is currently offline" });
     }
 
