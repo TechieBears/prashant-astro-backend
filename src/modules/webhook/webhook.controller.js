@@ -703,6 +703,33 @@ const processRazorpayWebhook = async (payload) => {
           };
           await serviceOrder.save({ session });
         }
+        // update status of service items
+        const serviceItems = await ServiceOrderItem.find({
+          _id: { $in: serviceOrder.services }
+        }).session(session);
+
+        for (const serviceItem of serviceItems) {
+          serviceItem.paymentStatus = 'failed';
+          serviceItem.status = 'failed';
+          await serviceItem.save({ session });
+
+          // Update transaction if it exists
+          if(item.transaction){
+            const transaction = await Transaction.findById(item.transaction).session(session);
+            if(transaction){
+              transaction.status = 'failed';
+              transaction.amount = item.total;
+              transaction.pendingAmount = 0;
+              transaction.paymentDetails = {
+                ...transaction.paymentDetails,
+                razorpayPaymentId: paymentId,
+                razorpayPaymentStatus: 'failed',
+                webhookReceived: true
+              };
+              await transaction.save({ session });
+            }
+          }
+        }
       }
     }
 
