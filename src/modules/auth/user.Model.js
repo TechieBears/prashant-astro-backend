@@ -28,7 +28,7 @@ const userSchema = new mongoose.Schema({
   },
   profileImage: {
     type: String,
-    default: "https://cdn-icons-png.flaticon.com/512/149/149071.png"
+    default: `https://ui-avatars.com/api/?name=US`
   },
   fcmToken: {
     type: String,

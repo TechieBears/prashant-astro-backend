@@ -52,7 +52,7 @@ exports.createAdminUser = asyncHandler(async (req, res, next) => {
                     email,
                     password,
                     mobileNo: phone,
-                    profileImage: "https://cdn-icons-png.flaticon.com/512/149/149071.png",
+                    profileImage: `https://ui-avatars.com/api/?name=${firstName}+${lastName}`,
                     role: "admin",
                     profile: adminUser[0]._id,
                 }
@@ -187,7 +187,7 @@ exports.updateAdminUser = asyncHandler(async (req, res) => {
     if (req.files && req.files.image && req.files.image[0]) {
         // Delete old profile image if it exists and is not the default
         if (user.profileImage && 
-            user.profileImage !== "https://cdn-icons-png.flaticon.com/512/149/149071.png") {
+            user.profileImage !== `https://ui-avatars.com/api/?name=${firstName}+${lastName}`) {
             try {
                 await deleteFile(user.profileImage);
             } catch (error) {
