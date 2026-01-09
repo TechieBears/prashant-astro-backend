@@ -77,7 +77,7 @@ exports.createEmployeeUser = asyncHandler(async (req, res, next) => {
 
     const profileImage = req.files?.image?.[0]
         ? `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/profile/${req.files?.image?.[0]?.filename}`
-        : "https://cdn-icons-png.flaticon.com/512/149/149071.png";
+        : `https://ui-avatars.com/api/?name=${firstName}+${lastName}`;
 
     // 3. Create employee profile
     const employeeProfile = await EmployeeUser.create({
