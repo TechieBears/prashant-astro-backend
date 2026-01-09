@@ -120,6 +120,8 @@ exports.getAllNotificationsAdmin = asyncHandler(async (req, res) => {
 // Get notifications dropdown for customers
 exports.getNotificationsDropdownCustomer = asyncHandler(async (req, res) => {
   const { page = 1, limit = 10 } = req.query;
+  const pageInt = parseInt(page);
+  const limitInt = parseInt(limit);
   const userId = req.user._id;
   // const pipeline = [
   //   { $match: { $in: [userId], isDeleted: false } },
@@ -156,8 +158,8 @@ exports.getNotificationsDropdownCustomer = asyncHandler(async (req, res) => {
             }
           },
           { $sort: { sentAt: -1 } },
-          { $skip: (page - 1) * limit },
-          { $limit: limit }
+          { $skip: (pageInt - 1) * limitInt },
+          { $limit: limitInt }
         ]
       }
     }
