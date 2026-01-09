@@ -34,6 +34,10 @@ exports.callInitiate = asyncHandler(async (req, res) => {
         return res.status(400).json({ message: "Astrologer is currently busy" });
     }
 
+    if(employee.workingStatus){
+        return res.status(400).json({ message: "Astrologer is currently offline" });
+    }
+
     const perMinRate = employee.priceCharge;
     const perSec = perMinRate / 60;
 
@@ -315,7 +319,8 @@ exports.getAllCallAstrologersCustomer = asyncHandler(async (req, res) => {
                     "employeeProfile.endTime": 1,
                     "employeeProfile.days": 1,
                     "employeeProfile.preBooking": 1,
-                    "employeeProfile.isBusy": 1
+                    "employeeProfile.isBusy": 1,
+                    "employeeProfile.workingStatus": 1
                 }
             }
         ];
@@ -360,7 +365,8 @@ exports.getAllCallAstrologersCustomer = asyncHandler(async (req, res) => {
                     endTime: item.employeeProfile.endTime,
                     days: item.employeeProfile.days,
                     preBooking: item.employeeProfile.preBooking,
-                    isBusy: item.employeeProfile.isBusy
+                    isBusy: item.employeeProfile.isBusy,
+                    workingStatus: item.employeeProfile.workingStatus
                 }
             };
         });
@@ -574,6 +580,7 @@ exports.getAllCallAstrologersMobileByServiceCategory = asyncHandler(async (req, 
                     days: astrologer.days,
                     preBooking: astrologer.preBooking,
                     isBusy: astrologer.isBusy,
+                    workingStatus: astrologer.workingStatus,
                     currentCustomerId: astrologer.currentCustomerId,
                     agentId: astrologer.agentId
                 }

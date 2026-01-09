@@ -6,6 +6,7 @@ const sendEmail = require('../../services/email.service');
 const crypto = require('crypto');
 // const { generateImageName } = require('../../utils/reusableFunctions');
 const { deleteFile } = require("../../utils/storage");
+const { emitCallAstrologersUpdate } = require('../../config/socket');
 
 function parseField(value) {
     if (value === undefined || value === null) return value;
@@ -295,16 +296,16 @@ exports.updateEmployeeUser = asyncHandler(async (req, res, next) => {
     }
 
     let updateData = { ...parsedBody };
-    
+
     // 3️⃣ Handle image upload if exists
-    if(req.files?.image?.[0]){
+    if (req.files?.image?.[0]) {
         // let imageName = generateImageName(req.files.image[0].filename);
-        if(user.profileImage){
-          deleteFile(user.profileImage)
+        if (user.profileImage) {
+            deleteFile(user.profileImage)
         }
         updateData.profileImage = `${process.env.BACKEND_URL}/${process.env.MEDIA_FILE}/profile/${req.files.image[0].filename}`
-      }
-    
+    }
+
     // 4️⃣ Update both documents
     await EmployeeUser.findByIdAndUpdate(user.profile, updateData, { new: true });
     await User.findByIdAndUpdate(id, updateData, { new: true });
@@ -374,12 +375,12 @@ exports.getAllEmployeeUsersWithPagination = asyncHandler(async (req, res) => {
         matchStage.names = { $regex: req.query.name, $options: "i" };
     }
 
-    console.log("matchStage", matchStage);
+    // console.log("matchStage", matchStage);
 
     const employeesAgg = await User.aggregate([
         // First, filter only employee users
         { $match: { role: "employee", isDeleted: false } },
-        
+
         // join with employee profile
         {
             $lookup: {
@@ -390,15 +391,17 @@ exports.getAllEmployeeUsersWithPagination = asyncHandler(async (req, res) => {
             }
         },
         { $unwind: "$profile" },
-        
+
         // Add full name field for searching
-        { $addFields: { 
-            names: { $concat: ["$profile.firstName", " ", "$profile.lastName"] } 
-        } },
-        
+        {
+            $addFields: {
+                names: { $concat: ["$profile.firstName", " ", "$profile.lastName"] }
+            }
+        },
+
         // Apply filters (including employeeType)
         { $match: matchStage },
-        
+
         // hide sensitive fields
         {
             $project: {
@@ -427,7 +430,7 @@ exports.getAllEmployeeUsersWithPagination = asyncHandler(async (req, res) => {
             }
         },
         { $unwind: "$profile" },
-        
+
         // Apply employeeType filter if provided
         ...(employeeType
             ? [
@@ -438,7 +441,7 @@ exports.getAllEmployeeUsersWithPagination = asyncHandler(async (req, res) => {
                 }
             ]
             : []),
-        
+
         // Apply name filter if provided
         ...(req.query.name
             ? [
@@ -452,7 +455,7 @@ exports.getAllEmployeeUsersWithPagination = asyncHandler(async (req, res) => {
                 }
             ]
             : []),
-            
+
         { $count: "total" }
     ]);
 
@@ -525,4 +528,32 @@ exports.getAllcallAstrologerCustomer = asyncHandler(async (req, res) => {
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit);
+});
+
+exports.toggleButton = asyncHandler(async (req, res, next) => {
+    const { employeeId } = req.query;
+    if (!employeeId) return next(new ErrorHander("Please provide employee id", 400));
+
+    const user = await User.findById(employeeId);
+    const employee = await EmployeeUser.findById(user.profile._id.toString());
+
+    // check employee type is call_astrologer
+    if (employee.employeeType !== "call_astrologer") {
+        return next(new ErrorHander("You are not a call astrologer", 400));
+    }
+
+    employee.workingStatus = !employee.workingStatus;
+    await employee.save();
+    // 8. Emit WebSocket event to notify clients about updated employee status
+    try {
+        emitCallAstrologersUpdate({
+            employeeId: employee._id.toString(),
+            userId: astrologerUser._id.toString(),
+            isBusy: false,
+            message: 'Employee status updated - call ended'
+        });
+    } catch (socketError) {
+        console.warn('⚠️ Failed to emit WebSocket update:', socketError.message);
+    }
+    res.ok(null, (employee.workingStatus ? "toggle on" : "toggle off"));
 });

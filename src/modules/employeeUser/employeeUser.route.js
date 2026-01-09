@@ -19,6 +19,8 @@ router.get('/all', protect, authorize('admin', "employee"), EmployeeController.g
 
 router.put('/update', protect, authorize('admin', "employee"), profileParser.fields([{ name: 'image', maxCount: 1 }]), EmployeeController.updateEmployeeUser);
 
+router.get('/call-astrologer/update-working-status', protect, authorize('admin', "employee"), EmployeeController.toggleButton);
+
 router.delete('/delete', protect, authorize('admin', "employee"), EmployeeController.deleteEmployeeUser);
 
 // password reset routes
