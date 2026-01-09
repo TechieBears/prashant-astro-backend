@@ -66,6 +66,11 @@ const employeeUserSchema = new mongoose.Schema({
     agentId:{
         type: String,
     },
+    // for call astrologer
+    workingStatus:{
+        type: Boolean,
+        default: false
+    }
 }, { timestamps: true });
 
 // Virtual for full name
